@@ -1,0 +1,33 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "HotelManagementSystemBackend",
+  "main": "index.js",
+  "scripts": {
+    "start": "node dist/index.js",
+    "dev": "nodemon index.js",
+    "build": "esbuild index.js --bundle --platform=node --outfile=dist/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shahane806/HotelManagementSystem.git"
+  },
+  "keywords": [
+    "hms"
+  ],
+  "author": "Om Shahane",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/shahane806/HotelManagementSystem/issues"
+  },
+  "homepage": "https://github.com/shahane806/HotelManagementSystem#readme",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "express-rate-limit": "^7.5.1",
+    "helmet": "^8.1.0",
+    "mongoose": "^8.16.0",
+     "esbuild": "^0.25.5"
+  }
+}
