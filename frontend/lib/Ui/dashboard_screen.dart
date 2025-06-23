@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/Ui/kitchen_screen.dart';
+import 'package:frontend/Ui/tables_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -53,6 +55,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildDashboardCard(_DashboardItem item, BuildContext context) {
     return InkWell(
       onTap: () {
+        if(item.title == "Tables"){
+          Navigator.push(context, MaterialPageRoute(builder: (context)=>const TableDashboardScreen()));
+        }
+        else if(item.title == "Kitchen"){
+ Navigator.push(context, MaterialPageRoute(builder: (context)=>const KitchenDashboardScreen()));
+        }
         // Handle navigation or action
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('${item.title} clicked')),

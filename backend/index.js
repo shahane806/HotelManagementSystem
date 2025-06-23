@@ -3,7 +3,7 @@ const cors = require("cors")
 const dotenv = require("dotenv")
 const rateLimit = require("express-rate-limit")
 const mongoose = require("mongoose")
-
+const router = require("./Router/Router")
 dotenv.config()
 const helmet = require("helmet")
 const app = express()
@@ -20,13 +20,12 @@ app.use(rateLimit({
     standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 }))
-
+app.use(router)
 const port = process.env.PORT || 5000
 const mongoDbUrl = process.env.MONGODB_URL_AUTH 
 app.listen(port,()=>{
    console.log('App is running on port :'+port)
 })
-
 mongoose.connect(mongoDbUrl).then(()=>{
     console.log("MongoDbAuthCluster is connected")
 })
