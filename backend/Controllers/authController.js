@@ -2,7 +2,7 @@ const jwt = require("jsonwebtoken");
 const bcryptJs = require("bcryptjs");
 const usermodel = require("../Models/authModel");
 const loginController = async (req, res) => {
-  const { username, password, usertype } = req?.body;
+  const { username, password, usertype,usersubtype } = req?.body;
   const user = await usermodel.findOne({
     username: username,
   });
@@ -12,10 +12,9 @@ const loginController = async (req, res) => {
     });
   }
   let comparePassword = bcryptJs.compare(password, user?.password);
-  let hashpassword = user?.password
   if (comparePassword) {
     jwt.sign(
-      { username,hashpassword, usertype },
+      { username,  usertype ,usersubtype },
       process.env.SECRET_KEY,
       { expiresIn: 3600 },
       (err, token) => {
@@ -33,7 +32,7 @@ const loginController = async (req, res) => {
   }
 };
 const registerController = async (req, res) => {
-  const { username, password, usertype } = req?.body;
+  const { username, password, usertype,usersubtype } = req?.body;
   const hashpassword = await bcryptJs.hash(password, 3);
   const user = await usermodel.findOne({ username: username });
   console.log(user);
@@ -42,22 +41,26 @@ const registerController = async (req, res) => {
       message: "user already registered by this username use another username",
     });
   }
-  await usermodel({
-    username: username,
-    password: hashpassword,
-    usertype: usertype,
-  }).save();
-  jwt.sign(
-    { username, hashpassword, usertype },
-    process.env.SECRET_KEY,
-    { expiresIn: 3600 },
-    (err, token) => {
-      if (err) {
-        return res.status(500).json({ message: "Error generating token" });
-      } else {
-        return res.status(200).send({ token: token });
-      }
+
+  try {
+    const token = jwt.sign(
+      { username,  usertype, usersubtype },
+      process.env.SECRET_KEY,
+      { expiresIn: 3600 }
+    );
+    await usermodel({
+      username: username,
+      password: hashpassword,
+      usertype: usertype,
+      usersubtype:usersubtype,
+    }).save();
+    if (!token) {
+      return res.status(500).json({ message: "Error generating token" });
+    } else {
+      return res.status(200).send({ token: token });
     }
-  );
+  } catch (error) {
+    return res.status(500).json({ message: "Error generating token" });
+  }
 };
 module.exports = { loginController, registerController };

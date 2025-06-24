@@ -13,6 +13,10 @@ const userSchema = new mongoose.Schema({
         type:String,
         require:true,
     },
+    usersubtype:{
+        type:String,
+        require:true,
+    },
     createTime: {
         type: Date,
         default: Date.now

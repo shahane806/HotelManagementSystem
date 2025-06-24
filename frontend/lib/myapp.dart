@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'Ui/splash_screen.dart';
+import 'ui/splash_screen.dart';
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
