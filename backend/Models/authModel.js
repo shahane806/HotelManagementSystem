@@ -3,19 +3,19 @@ const userSchema = new mongoose.Schema({
     username: {
         type: String,
         unique: true,
-        require:true,
+        required:true,
     },
     password:{
         type:String,
-        require:true,
+        required:true,
     },
     usertype:{
         type:String,
-        require:true,
+        required:true,
     },
     usersubtype:{
         type:String,
-        require:true,
+        required:true,
     },
     createTime: {
         type: Date,

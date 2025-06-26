@@ -51,15 +51,13 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
     setState(() {
       order[item] = (order[item] ?? 0) + 1;
     });
-    _animationController.forward().then((_) {
-      _animationController.reverse();
-    });
+    _animationController.forward().then((_) => _animationController.reverse());
   }
 
   void removeFromOrder(MenuItem item) {
     HapticFeedback.lightImpact();
     setState(() {
-      if (order[item] != null) {
+      if (order[item] != null && order[item]! > 0) {
         order[item] = order[item]! - 1;
         if (order[item]! <= 0) {
           order.remove(item);
@@ -81,10 +79,39 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
-    final isWideScreen = screenSize.width > 900;
     final isTablet = screenSize.width > 600;
 
     return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showOrderBottomSheet(context),
+        backgroundColor: Colors.indigo,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            const Icon(Icons.shopping_cart, color: Colors.white),
+            if (order.isNotEmpty)
+              Positioned(
+                right: 0,
+                top: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    '${order.length}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -114,24 +141,7 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
                     ),
                     child: Padding(
                       padding: EdgeInsets.all(isTablet ? 24 : 16),
-                      child: isWideScreen
-                          ? Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(flex: 3, child: _buildMenuSection(context)),
-                                const SizedBox(width: 24),
-                                Expanded(flex: 2, child: _buildOrderSection(context)),
-                              ],
-                            )
-                          : Column(
-                              children: [
-                                Expanded(child: _buildMenuSection(context)),
-                                Container(
-                                  height: screenSize.height * 0.4,
-                                  child: _buildOrderSection(context),
-                                ),
-                              ],
-                            ),
+                      child: _buildMenuSection(context, isTablet),
                     ),
                   ),
                 ),
@@ -187,16 +197,12 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
     );
   }
 
-  Widget _buildMenuSection(BuildContext context) {
-    final screenSize = MediaQuery.of(context).size;
-    final isTablet = screenSize.width > 600;
-    
+  Widget _buildMenuSection(BuildContext context, bool isTablet) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildTableSelector(isTablet),
         SizedBox(height: isTablet ? 20 : 16),
-        
         Row(
           children: [
             Icon(Icons.restaurant_menu, color: Colors.indigo, size: isTablet ? 24 : 20),
@@ -211,9 +217,7 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
             ),
           ],
         ),
-        
         SizedBox(height: isTablet ? 12 : 8),
-        
         Expanded(
           child: GridView.builder(
             physics: const BouncingScrollPhysics(),
@@ -271,7 +275,6 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
                   ),
                 ),
                 SizedBox(width: isTablet ? 16 : 12),
-                
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -307,9 +310,8 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
                     ],
                   ),
                 ),
-                
                 ScaleTransition(
-                  scale: _animationController,
+                  scale: Tween<double>(begin: 1.0, end: 1.2).animate(_animationController),
                   child: Container(
                     padding: EdgeInsets.all(isTablet ? 12 : 8),
                     decoration: BoxDecoration(
@@ -331,156 +333,167 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
     );
   }
 
-  Widget _buildOrderSection(BuildContext context) {
-    final screenSize = MediaQuery.of(context).size;
-    final isTablet = screenSize.width > 600;
-    
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
+  void _showOrderBottomSheet(BuildContext context) {
+    final isTablet = MediaQuery.of(context).size.width > 600;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
-        ],
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(isTablet ? 20 : 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+          child: Padding(
+            padding: EdgeInsets.all(isTablet ? 20 : 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.shopping_cart, color: Colors.indigo, size: isTablet ? 24 : 20),
-                const SizedBox(width: 8),
-                Text(
-                  'Current Order',
-                  style: TextStyle(
-                    fontSize: isTablet ? 20 : 18,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF2D3748),
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2.5),
+                      ),
+                    ),
+                  ],
                 ),
-                const Spacer(),
-                if (order.isNotEmpty)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.indigo.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '${order.length} items',
+                SizedBox(height: isTablet ? 16 : 12),
+                Row(
+                  children: [
+                    Icon(Icons.shopping_cart, color: Colors.indigo, size: isTablet ? 24 : 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Current Order',
                       style: TextStyle(
-                        color: Colors.indigo,
-                        fontSize: isTablet ? 12 : 10,
+                        fontSize: isTablet ? 20 : 18,
                         fontWeight: FontWeight.bold,
+                        color: const Color(0xFF2D3748),
                       ),
                     ),
-                  ),
-              ],
-            ),
-            
-            SizedBox(height: isTablet ? 16 : 12),
-            
-            Expanded(
-              child: order.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.shopping_cart_outlined,
-                            size: isTablet ? 64 : 48,
-                            color: Colors.grey[400],
+                    const Spacer(),
+                    if (order.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.indigo.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${order.length} items',
+                          style: TextStyle(
+                            color: Colors.indigo,
+                            fontSize: isTablet ? 12 : 10,
+                            fontWeight: FontWeight.bold,
                           ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No items added',
-                            style: TextStyle(
-                              fontSize: isTablet ? 16 : 14,
-                              color: Colors.grey[600],
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Start adding items from menu',
-                            style: TextStyle(
-                              fontSize: isTablet ? 12 : 11,
-                              color: Colors.grey[500],
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-                    )
-                  : ListView.separated(
-                      physics: const BouncingScrollPhysics(),
-                      itemCount: order.entries.length,
-                      separatorBuilder: (context, index) => const Divider(height: 1),
-                      itemBuilder: (context, index) {
-                        final entry = order.entries.elementAt(index);
-                        return _buildOrderItem(entry, isTablet);
-                      },
-                    ),
-            ),
-            
-            if (order.isNotEmpty) ...[
-              const Divider(thickness: 2),
-              SizedBox(height: isTablet ? 12 : 8),
-              
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Total Amount:',
-                    style: TextStyle(
-                      fontSize: isTablet ? 18 : 16,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF2D3748),
-                    ),
+                  ],
+                ),
+                SizedBox(height: isTablet ? 16 : 12),
+                Expanded(
+                  child: order.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.shopping_cart_outlined,
+                                size: isTablet ? 64 : 48,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No items added',
+                                style: TextStyle(
+                                  fontSize: isTablet ? 16 : 14,
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Start adding items from menu',
+                                style: TextStyle(
+                                  fontSize: isTablet ? 12 : 11,
+                                  color: Colors.grey[500],
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.separated(
+                          controller: scrollController,
+                          physics: const BouncingScrollPhysics(),
+                          itemCount: order.entries.length,
+                          separatorBuilder: (context, index) => const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final entry = order.entries.elementAt(index);
+                            return _buildOrderItem(entry, isTablet);
+                          },
+                        ),
+                ),
+                if (order.isNotEmpty) ...[
+                  const Divider(thickness: 2),
+                  SizedBox(height: isTablet ? 12 : 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Total Amount:',
+                        style: TextStyle(
+                          fontSize: isTablet ? 18 : 16,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF2D3748),
+                        ),
+                      ),
+                      Text(
+                        '₹${getTotalPrice()}',
+                        style: TextStyle(
+                          fontSize: isTablet ? 20 : 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green[600],
+                        ),
+                      ),
+                    ],
                   ),
-                  Text(
-                    '₹${getTotalPrice()}',
-                    style: TextStyle(
-                      fontSize: isTablet ? 20 : 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green[600],
+                  SizedBox(height: isTablet ? 16 : 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: isTablet ? 50 : 45,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _placeOrder(context),
+                      icon: const Icon(Icons.check_circle, color: Colors.white),
+                      label: Text(
+                        'Place Order',
+                        style: TextStyle(
+                          fontSize: isTablet ? 16 : 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 2,
+                      ),
                     ),
                   ),
                 ],
-              ),
-              
-              SizedBox(height: isTablet ? 16 : 12),
-              
-              SizedBox(
-                width: double.infinity,
-                height: isTablet ? 50 : 45,
-                child: ElevatedButton.icon(
-                  onPressed: () => _placeOrder(),
-                  icon: const Icon(Icons.check_circle, color: Colors.white),
-                  label: Text(
-                    'Place Order',
-                    style: TextStyle(
-                      fontSize: isTablet ? 16 : 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 2,
-                  ),
-                ),
-              ),
-            ],
-          ],
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -506,7 +519,6 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
             ),
           ),
           SizedBox(width: isTablet ? 12 : 8),
-          
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -531,7 +543,6 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
               ],
             ),
           ),
-          
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -550,7 +561,6 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
                   ),
                 ),
               ),
-              
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: isTablet ? 16 : 12),
                 child: Text(
@@ -562,7 +572,6 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
                   ),
                 ),
               ),
-              
               GestureDetector(
                 onTap: () => addToOrder(entry.key),
                 child: Container(
@@ -648,11 +657,11 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
     );
   }
 
-  void _placeOrder() {
+  void _placeOrder(BuildContext context) {
     if (order.isEmpty) return;
-    
+
     HapticFeedback.mediumImpact();
-    
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -660,11 +669,9 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Row(
             children: [
-              Icon(Icons.check_circle, color: Colors.green, size: 28),
-              const SizedBox(width: 2),
-              const Text('Order Confirmation',style: TextStyle(
-                fontSize: 20,
-              ),),
+              const Icon(Icons.check_circle, color: Colors.green, size: 28),
+              const SizedBox(width: 8),
+              const Text('Order Confirmation', style: TextStyle(fontSize: 20)),
             ],
           ),
           content: Text('Order placed successfully for $selectedTable!\nTotal: ₹${getTotalPrice()}'),
@@ -672,6 +679,7 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
+                Navigator.of(context).pop(); // Close bottom sheet
                 setState(() => order.clear());
               },
               child: const Text('OK'),
@@ -698,7 +706,7 @@ class MenuItem {
 
   @override
   bool operator ==(Object other) => other is MenuItem && name == other.name;
-  
+
   @override
   int get hashCode => name.hashCode;
 }
