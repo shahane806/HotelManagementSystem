@@ -12,9 +12,6 @@ try {
 
 const utilityItemController = async (req, res) => {
   try {
-    // if (req.user.usertype !== "Admin" && req.user.usertype !== "Manager") {
-    //   return res.status(403).json({ error: "Unauthorized" });
-    // }
     const { utilityName } = req.params;
     const item = req.body;
     const utility = await UtilityModel.findOne({ utilityName });
@@ -28,12 +25,13 @@ const utilityItemController = async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 }
-const getAllUtilities =  async (req, res) => {
+const getNamedUtilities =  async (req, res) => {
+  const {utilityName} = req?.params;
   try {
-    const utilities = await UtilityModel.find();
+    const utilities = await UtilityModel.find({utilityName: utilityName});
     res.status(200).json(utilities);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 }
-module.exports = {utilityController,utilityItemController,getAllUtilities}
+module.exports = {utilityController,utilityItemController,getNamedUtilities}

@@ -1,230 +1,253 @@
 import 'package:flutter/material.dart';
-
-import '../models/aminity_model.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../bloc/AmenitiesUtility/bloc.dart';
+import '../bloc/AmenitiesUtility/event.dart';
+import '../bloc/AmenitiesUtility/state.dart';
 import '../models/menu_model.dart';
-import '../models/room_model.dart';
-import '../models/table_model.dart';
 
 class UtilityScreen extends StatefulWidget {
   const UtilityScreen({super.key});
+
   @override
   State<UtilityScreen> createState() => _UtilityScreenState();
 }
 
 class _UtilityScreenState extends State<UtilityScreen> {
-  final List<TableModel> tables = [];
-  final List<MenuModel> menus = [];
-  final List<RoomModel> rooms = [];
-  final List<AmenityModel> amenities = [];
+  @override
+  void initState() {
+    super.initState();
+    context.read<AmenitiesBloc>().add(FetchAmenities());
+  }
+  @override
+  Widget build(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    final screenWidth = mediaQuery.size.width;
+    final isTablet = screenWidth > 600;
+    final isDesktop = screenWidth > 1200;
 
-  Future<void> _addTable() async {
-    final nameController = TextEditingController();
-    final countController = TextEditingController();
-    final result = await showDialog<TableModel>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => _buildModernDialog(
-        title: "Add New Table",
-        icon: Icons.table_restaurant,
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildTextField(
-              controller: nameController,
-              label: "Table Name",
-              hint: "e.g., VIP Table 1",
-              icon: Icons.table_restaurant_outlined,
-            ),
-            const SizedBox(height: 16),
-            _buildTextField(
-              controller: countController,
-              label: "Seating Capacity",
-              hint: "e.g., 4",
-              icon: Icons.people_outline,
-              keyboardType: TextInputType.number,
-            ),
-          ],
+    return Scaffold(
+      backgroundColor: Colors.grey[50],
+      appBar: _buildAppBar(context, screenWidth),
+      body: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: isDesktop ? 32 : (isTablet ? 24 : 16),
+            vertical: 16,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(context, screenWidth),
+              const SizedBox(height: 20),
+              Expanded(
+                child: _buildContentGrid(context, screenWidth, isTablet, isDesktop),
+              ),
+            ],
+          ),
         ),
-        onConfirm: () {
-          final name = nameController.text.trim();
-          final count = int.tryParse(countController.text.trim()) ?? 0;
-          if (name.isNotEmpty && count > 0) {
-            Navigator.pop(context, TableModel(name: name, count: count));
-          } else {
-            _showErrorSnackBar("Please fill all fields correctly");
-          }
-        },
       ),
     );
-    if (result != null) {
-      setState(() => tables.add(result));
-      _showSuccessSnackBar("Table added successfully!");
-    }
   }
 
-  Future<void> _addMenu() async {
-    final menuController = TextEditingController();
-    final result = await showDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => _buildModernDialog(
-        title: "Create New Menu",
-        icon: Icons.restaurant_menu,
-        content: _buildTextField(
-          controller: menuController,
-          label: "Menu Name",
-          hint: "e.g., Breakfast Menu",
-          icon: Icons.restaurant_menu_outlined,
-        ),
-        onConfirm: () {
-          final name = menuController.text.trim();
-          if (name.isNotEmpty) {
-            Navigator.pop(context, name);
-          } else {
-            _showErrorSnackBar("Please enter a menu name");
-          }
-        },
-      ),
-    );
-    if (result != null) {
-      setState(() => menus.add(MenuModel(name: result, items: [])));
-      _showSuccessSnackBar("Menu created successfully!");
-    }
-  }
-
-  Future<void> _addMenuItem(int menuIndex) async {
-    final itemController = TextEditingController();
-    final priceController = TextEditingController();
-    final result = await showDialog<Map<String, dynamic>>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => _buildModernDialog(
-        title: "Add Item to ${menus[menuIndex].name}",
-        icon: Icons.fastfood,
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildTextField(
-              controller: itemController,
-              label: "Item Name",
-              hint: "e.g., Chicken Biryani",
-              icon: Icons.fastfood_outlined,
+  PreferredSizeWidget _buildAppBar(BuildContext context, double screenWidth) {
+    return AppBar(
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
             ),
-            const SizedBox(height: 16),
-            _buildTextField(
-              controller: priceController,
-              label: "Price (₹)",
-              hint: "e.g., 250",
-              icon: Icons.currency_rupee,
-              keyboardType: TextInputType.number,
+            child: const Icon(Icons.settings, color: Colors.white, size: 20),
+          ),
+          const SizedBox(width: 12),
+          const Flexible(
+            child: Text(
+              "Hotel Utilities",
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 20,
+              ),
+              overflow: TextOverflow.visible,
             ),
-          ],
-        ),
-        onConfirm: () {
-          final item = itemController.text.trim();
-          final price = priceController.text.trim();
-          if (item.isNotEmpty && price.isNotEmpty) {
-            Navigator.pop(context, {"item": item, "price": price});
-          } else {
-            _showErrorSnackBar("Please fill all fields");
-          }
-        },
+          ),
+        ],
       ),
+      backgroundColor: const Color(0xFF1565C0),
+      elevation: 0,
+      iconTheme: const IconThemeData(color: Colors.white),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.refresh, color: Colors.white),
+          onPressed: () => context.read<AmenitiesBloc>().add(FetchAmenities()),
+        ),
+        const SizedBox(width: 8),
+      ],
     );
-    if (result != null) {
-      setState(() {
-        menus[menuIndex].items.add("${result['item']} - ₹${result['price']}");
-      });
-      _showSuccessSnackBar("Menu item added successfully!");
-    }
   }
 
-  Future<void> _addRoom() async {
-    final roomController = TextEditingController();
-    final priceController = TextEditingController();
-    bool isAC = false;
-
-    final result = await showDialog<RoomModel>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) {
-        return StatefulBuilder(
-          builder: (context, setStateDialog) => _buildModernDialog(
-            title: "Add New Room",
-            icon: Icons.hotel,
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildTextField(
-                  controller: roomController,
-                  label: "Room Name/Number",
-                  hint: "e.g., Deluxe Room 101",
-                  icon: Icons.hotel_outlined,
-                ),
-                const SizedBox(height: 16),
-                _buildTextField(
-                  controller: priceController,
-                  label: "Price per Night (₹)",
-                  hint: "e.g., 2500",
-                  icon: Icons.currency_rupee,
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 20),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey[300]!),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.ac_unit, color: Colors.blue[600]),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Text(
-                          "Air Conditioned Room",
-                          style: TextStyle(fontWeight: FontWeight.w500),
-                        ),
+  Widget _buildHeader(BuildContext context, double screenWidth) {
+    return BlocBuilder<AmenitiesBloc, AmenitiesState>(
+      builder: (context, state) {
+        int totalItems = 0;
+        if (state is AmenitiesLoaded) {
+          totalItems = state.amenity.utilityItems.length;
+        }
+        return Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: screenWidth > 600 ? 24 : 16,
+            vertical: 16,
+          ),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.blue[600]!, Colors.blue[700]!],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.blue.withOpacity(0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Management Center",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: screenWidth > 600 ? 18 : 16,
+                        fontWeight: FontWeight.w600,
                       ),
-                      Switch(
-                        value: isAC,
-                        onChanged: (val) {
-                          setStateDialog(() => isAC = val);
-                        },
-                        activeColor: Colors.blue[600],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      "$totalItems items configured",
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: screenWidth > 600 ? 14 : 12,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            onConfirm: () {
-              final name = roomController.text.trim();
-              final price = priceController.text.trim();
-              if (name.isNotEmpty && price.isNotEmpty) {
-                Navigator.pop(context, RoomModel(name: "$name - ₹$price/night", isAC: isAC));
-              } else {
-                _showErrorSnackBar("Please fill all fields");
-              }
-            },
+              ),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.dashboard_customize,
+                  color: Colors.white,
+                  size: screenWidth > 600 ? 28 : 24,
+                ),
+              ),
+            ],
           ),
         );
       },
     );
-
-    if (result != null) {
-      setState(() => rooms.add(result));
-      _showSuccessSnackBar("Room added successfully!");
-    }
   }
 
-  Future<void> _addAmenity() async {
+  Widget _buildContentGrid(BuildContext context, double screenWidth, bool isTablet, bool isDesktop) {
+    return BlocBuilder<AmenitiesBloc, AmenitiesState>(
+      builder: (context, state) {
+        if (state is AmenitiesLoading) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (state is AmenitiesError) {
+          return Center(child: Text(state.message));
+        } else if (state is AmenitiesLoaded) {
+          if (isDesktop) {
+            return GridView.count(
+              crossAxisCount: 2,
+              childAspectRatio: 1.2,
+              crossAxisSpacing: 20,
+              mainAxisSpacing: 20,
+              children: [
+                _buildModernSection(
+                  context,
+                  "Tables",
+                  Icons.table_restaurant,
+                  Colors.orange,
+                  [], // Replace with actual data
+                  () => _addTable(context),
+                ),
+                _buildModernSection(
+                  context,
+                  "Rooms",
+                  Icons.hotel,
+                  Colors.purple,
+                  [], // Replace with actual data
+                  () => _addRoom(context),
+                ),
+                _buildMenuSection(context, []), // Replace with actual data
+                _buildModernSection(
+                  context,
+                  "Amenities",
+                  Icons.spa,
+                  Colors.green,
+                  state.amenity.utilityItems.cast<String>(),
+                  () => _addAmenity(context),
+                ),
+              ],
+            );
+          } else {
+            return ListView(
+              children: [
+                _buildModernSection(
+                  context,
+                  "Tables",
+                  Icons.table_restaurant,
+                  Colors.orange,
+                  [], // Replace with actual data
+                  () => _addTable(context),
+                ),
+                const SizedBox(height: 16),
+                _buildMenuSection(context, []), // Replace with actual data
+                const SizedBox(height: 16),
+                _buildModernSection(
+                  context,
+                  "Rooms",
+                  Icons.hotel,
+                  Colors.purple,
+                  [], // Replace with actual data
+                  () => _addRoom(context),
+                ),
+                const SizedBox(height: 16),
+                _buildModernSection(
+                  context,
+                  "Amenities",
+                  Icons.spa,
+                  Colors.green,
+                  state.amenity.utilityItems.cast<String>(),
+                  () => _addAmenity(context),
+                ),
+              ],
+            );
+          }
+        }
+        return const Center(child: Text("No data available"));
+      },
+    );
+  }
+
+  Future<void> _addAmenity(BuildContext context) async {
     final controller = TextEditingController();
     final result = await showDialog<String>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _buildModernDialog(
+        context: context,
         title: "Add Hotel Amenity",
         icon: Icons.spa,
         content: _buildTextField(
@@ -238,18 +261,43 @@ class _UtilityScreenState extends State<UtilityScreen> {
           if (name.isNotEmpty) {
             Navigator.pop(context, name);
           } else {
-            _showErrorSnackBar("Please enter an amenity name");
+            _showErrorSnackBar(context, "Please enter an amenity name");
           }
         },
       ),
     );
     if (result != null) {
-      setState(() => amenities.add(AmenityModel(name: result)));
-      _showSuccessSnackBar("Amenity added successfully!");
+      context.read<AmenitiesBloc>().add(AddAmenities(result));
+      _showSuccessSnackBar(context, "Amenity added successfully!");
+    }
+  }
+
+  Future<void> _deleteAmenity(BuildContext context, String name) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Confirm Delete"),
+        content: Text("Are you sure you want to delete $name?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Delete"),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      context.read<AmenitiesBloc>().add(DeleteAmenities(name));
+      _showSuccessSnackBar(context, "Amenity deleted successfully!");
     }
   }
 
   Widget _buildModernDialog({
+    required BuildContext context,
     required String title,
     required IconData icon,
     required Widget content,
@@ -361,7 +409,7 @@ class _UtilityScreenState extends State<UtilityScreen> {
     );
   }
 
-  void _showSuccessSnackBar(String message) {
+  void _showSuccessSnackBar(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -378,7 +426,7 @@ class _UtilityScreenState extends State<UtilityScreen> {
     );
   }
 
-  void _showErrorSnackBar(String message) {
+  void _showErrorSnackBar(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -395,171 +443,14 @@ class _UtilityScreenState extends State<UtilityScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final mediaQuery = MediaQuery.of(context);
-    final screenWidth = mediaQuery.size.width;
-    final isTablet = screenWidth > 600;
-    final isDesktop = screenWidth > 1200;
-
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: _buildAppBar(context, screenWidth),
-      body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: isDesktop ? 32 : (isTablet ? 24 : 16),
-            vertical: 16,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(context, screenWidth),
-              const SizedBox(height: 20),
-              Expanded(
-                child: _buildContentGrid(context, screenWidth, isTablet, isDesktop),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar(BuildContext context, double screenWidth) {
-    return AppBar(
-      title: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(Icons.settings, color: Colors.white, size: 20),
-          ),
-          const SizedBox(width: 12),
-          const Flexible(
-            child: Text(
-              "Hotel Utilities",
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 20,
-              ),
-              overflow: TextOverflow.visible,
-            ),
-          ),
-        ],
-      ),
-      backgroundColor: const Color(0xFF1565C0),
-      elevation: 0,
-      iconTheme: const IconThemeData(color: Colors.white),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.refresh, color: Colors.white),
-          onPressed: () {},
-        ),
-        const SizedBox(width: 8),
-      ],
-    );
-  }
-
-  Widget _buildHeader(BuildContext context, double screenWidth) {
-    final totalItems = tables.length + menus.length + rooms.length + amenities.length;
-    
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: screenWidth > 600 ? 24 : 16,
-        vertical: 16,
-      ),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.blue[600]!, Colors.blue[700]!],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.blue.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Management Center",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: screenWidth > 600 ? 18 : 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  "$totalItems items configured",
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: screenWidth > 600 ? 14 : 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              Icons.dashboard_customize,
-              color: Colors.white,
-              size: screenWidth > 600 ? 28 : 24,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildContentGrid(BuildContext context, double screenWidth, bool isTablet, bool isDesktop) {
-    if (isDesktop) {
-      return GridView.count(
-        crossAxisCount: 2,
-        childAspectRatio: 1.2,
-        crossAxisSpacing: 20,
-        mainAxisSpacing: 20,
-        children: [
-          _buildModernSection("Tables", Icons.table_restaurant, Colors.orange, tables.map((t) => "${t.name} (${t.count} seats)").toList(), _addTable),
-          _buildModernSection("Rooms", Icons.hotel, Colors.purple, rooms.map((r) => "${r.name} - ${r.isAC ? "AC" : "Non-AC"}").toList(), _addRoom),
-          _buildMenuSection(),
-          _buildModernSection("Amenities", Icons.spa, Colors.green, amenities.map((a) => a.name).toList(), _addAmenity),
-        ],
-      );
-    } else {
-      return ListView(
-        children: [
-          _buildModernSection("Tables", Icons.table_restaurant, Colors.orange, tables.map((t) => "${t.name} (${t.count} seats)").toList(), _addTable),
-          const SizedBox(height: 16),
-          _buildMenuSection(),
-          const SizedBox(height: 16),
-          _buildModernSection("Rooms", Icons.hotel, Colors.purple, rooms.map((r) => "${r.name} - ${r.isAC ? "AC" : "Non-AC"}").toList(), _addRoom),
-          const SizedBox(height: 16),
-          _buildModernSection("Amenities", Icons.spa, Colors.green, amenities.map((a) => a.name).toList(), _addAmenity),
-        ],
-      );
-    }
-  }
-
-  Widget _buildModernSection(String title, IconData icon, Color color, List<String> items, VoidCallback onAdd) {
+  Widget _buildModernSection(
+    BuildContext context,
+    String title,
+    IconData icon,
+    Color color,
+    List<String> items,
+    VoidCallback onAdd,
+  ) {
     return Card(
       elevation: 4,
       shadowColor: Colors.black.withOpacity(0.1),
@@ -620,37 +511,42 @@ class _UtilityScreenState extends State<UtilityScreen> {
               )
             else
               ...items.map((item) => Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: color.withOpacity(0.2)),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: color,
-                        shape: BoxShape.circle,
-                      ),
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: color.withOpacity(0.2)),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        item,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: color,
+                            shape: BoxShape.circle,
+                          ),
                         ),
-                        overflow: TextOverflow.visible,
-                      ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            item,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            overflow: TextOverflow.visible,
+                          ),
+                        ),
+                        if (title == "Amenities")
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () => _deleteAmenity(context, item),
+                          ),
+                      ],
                     ),
-                  ],
-                ),
-              )),
+                  )),
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
@@ -674,7 +570,7 @@ class _UtilityScreenState extends State<UtilityScreen> {
     );
   }
 
-  Widget _buildMenuSection() {
+  Widget _buildMenuSection(BuildContext context, List<MenuModel> menus) {
     return Card(
       elevation: 4,
       shadowColor: Colors.black.withOpacity(0.1),
@@ -778,39 +674,39 @@ class _UtilityScreenState extends State<UtilityScreen> {
                                 )
                               else
                                 ...menu.items.map((item) => Container(
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: Colors.red.withOpacity(0.05),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: Colors.red.withOpacity(0.2)),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        width: 4,
-                                        height: 4,
-                                        decoration: const BoxDecoration(
-                                          color: Colors.red,
-                                          shape: BoxShape.circle,
-                                        ),
+                                      margin: const EdgeInsets.only(bottom: 8),
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: Colors.red.withOpacity(0.05),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: Colors.red.withOpacity(0.2)),
                                       ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Text(
-                                          item,
-                                          style: const TextStyle(fontSize: 13),
-                                          overflow: TextOverflow.visible,
-                                        ),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            width: 4,
+                                            height: 4,
+                                            decoration: const BoxDecoration(
+                                              color: Colors.red,
+                                              shape: BoxShape.circle,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Text(
+                                              item,
+                                              style: const TextStyle(fontSize: 13),
+                                              overflow: TextOverflow.visible,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
-                                )),
+                                    )),
                               const SizedBox(height: 12),
                               SizedBox(
                                 width: double.infinity,
                                 child: OutlinedButton.icon(
-                                  onPressed: () => _addMenuItem(index),
+                                  onPressed: () => _addMenuItem(context, index),
                                   icon: const Icon(Icons.add, size: 16),
                                   label: const Text("Add Menu Item"),
                                   style: OutlinedButton.styleFrom(
@@ -834,7 +730,7 @@ class _UtilityScreenState extends State<UtilityScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: _addMenu,
+                onPressed: () => _addMenu(context),
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text("Add Menu"),
                 style: ElevatedButton.styleFrom(
@@ -851,5 +747,21 @@ class _UtilityScreenState extends State<UtilityScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _addTable(BuildContext context) async {
+    // Placeholder: Implement similar to _addAmenity with BLoC
+  }
+
+  Future<void> _addMenu(BuildContext context) async {
+    // Placeholder: Implement similar to _addAmenity with BLoC
+  }
+
+  Future<void> _addMenuItem(BuildContext context, int menuIndex) async {
+    // Placeholder: Implement similar to _addAmenity with BLoC
+  }
+
+  Future<void> _addRoom(BuildContext context) async {
+    // Placeholder: Implement similar to _addAmenity with BLoC
   }
 }

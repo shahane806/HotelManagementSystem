@@ -23,7 +23,7 @@ app.use(rateLimit({
 app.use(router)
 const port = process.env.PORT || 5000
 const mongoDbUrl = process.env.MONGODB_URL_AUTH 
-app.listen(port,()=>{
+app.listen(port,'0.0.0.0',()=>{
    console.log('App is running on port :'+port)
 })
 mongoose.connect(mongoDbUrl).then(()=>{
