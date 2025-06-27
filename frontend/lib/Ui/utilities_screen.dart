@@ -24,7 +24,6 @@ class _UtilityScreenState extends State<UtilityScreen> {
     final screenWidth = mediaQuery.size.width;
     final isTablet = screenWidth > 600;
     final isDesktop = screenWidth > 1200;
-
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: _buildAppBar(context, screenWidth),

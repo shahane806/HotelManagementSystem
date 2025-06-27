@@ -9,11 +9,13 @@ class ApiService {
   Future<AmenityModel> getAmenityModel() async {
      
     try {
+      final fullUrl = '$baseUrl';
+      print('Attempting GET request to: $fullUrl');
       final response = await http.get(
-      Uri.parse('$baseUrl/utilities/Amenity'),
-      headers: {
-        'Content-Type': 'application/json',
-      },
+        Uri.parse(fullUrl),
+        headers: {
+          'Content-Type': 'application/json',
+        },
       );
       // Use debugPrint for Flutter apps to ensure output is shown
       // or use print if running in a Dart console app

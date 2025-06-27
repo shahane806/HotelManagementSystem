@@ -26,6 +26,7 @@ const utilityItemController = async (req, res) => {
   }
 }
 const getNamedUtilities =  async (req, res) => {
+  console.log("HIT")
   const {utilityName} = req?.params;
   try {
     const utilities = await UtilityModel.find({utilityName: utilityName});
