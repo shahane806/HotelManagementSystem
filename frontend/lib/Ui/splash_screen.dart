@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/services/apiServicesAminities.dart';
 import 'dart:async';
 import 'package:frontend/ui/dashboard_screen.dart';
 
@@ -16,11 +17,9 @@ class _SplashScreenState extends State<SplashScreen>
   late Animation<double> _logoAnimation;
   late Animation<double> _textAnimation;
   late Animation<Offset> _slideAnimation;
-
   @override
   void initState() {
     super.initState();
-    
     _logoController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,

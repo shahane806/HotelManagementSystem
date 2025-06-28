@@ -35,4 +35,23 @@ const getNamedUtilities =  async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 }
-module.exports = {utilityController,utilityItemController,getNamedUtilities}
+const deleteUtilityItemController = async (req, res) => {
+  try {
+    const { utilityName, itemName } = req.params;
+    const utility = await UtilityModel.findOne({ utilityName });
+
+    if (!utility) {
+      return res.status(404).json({ error: "Utility not found" });
+    }
+
+    utility.utilityItems = utility.utilityItems.filter(
+      (item) => item.name !== itemName
+    );
+    await utility.save();
+
+    res.status(200).json({ message: "Item deleted", utility });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+module.exports = {utilityController,utilityItemController,getNamedUtilities,deleteUtilityItemController}

@@ -13,12 +13,12 @@ class AmenitiesInitial extends AmenitiesState {}
 class AmenitiesLoading extends AmenitiesState {}
 
 class AmenitiesLoaded extends AmenitiesState {
-  final AmenityModel amenity;
+  final List<AmenityModel> amenities;
 
-  const AmenitiesLoaded(this.amenity);
+  const AmenitiesLoaded(this.amenities);
 
   @override
-  List<Object?> get props => [amenity];
+  List<Object?> get props => [amenities];
 }
 
 class AmenitiesError extends AmenitiesState {
@@ -29,3 +29,4 @@ class AmenitiesError extends AmenitiesState {
   @override
   List<Object?> get props => [message];
 }
+

@@ -1,7 +1,7 @@
 const express = require("express");
 const { loginController, registerController } = require("../Controllers/authController");
 const { loginMiddlewere, registerMiddlewere, authenticate } = require("../Middlewere/authMiddlewere");
-const { utilityController, utilityItemController, getNamedUtilities } = require("../Controllers/utilityController");
+const { utilityController, utilityItemController, getNamedUtilities, deleteUtilityItemController } = require("../Controllers/utilityController");
 const router = express.Router();
 
 router.get("/", (req, res) => {
@@ -13,4 +13,5 @@ router.post("/auth/register",registerMiddlewere,registerController);
 router.post("/utilities",authenticate,utilityController)
 router.post("/utilities/:utilityName/items", authenticate, utilityItemController);
 router.get("/utilities/:utilityName", authenticate,getNamedUtilities);
+router.delete("/utilities/:utilityName/items/:itemName", authenticate, deleteUtilityItemController);
 module.exports = router;
