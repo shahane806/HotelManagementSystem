@@ -39,7 +39,7 @@ class _UtilityScreenState extends State<UtilityScreen> {
               _buildHeader(context, screenWidth),
               const SizedBox(height: 20),
               Expanded(
-                child: _buildContentGrid(context, screenWidth, isTablet, isDesktop),
+                child: _buildContentGrid(context),
               ),
             ],
           ),
@@ -80,7 +80,9 @@ class _UtilityScreenState extends State<UtilityScreen> {
       actions: [
         IconButton(
           icon: const Icon(Icons.refresh, color: Colors.white),
-          onPressed: () => context.read<AmenitiesBloc>().add(FetchAmenities()),
+          onPressed: () {
+            context.read<AmenitiesBloc>().add(FetchAmenities());
+          },
         ),
         const SizedBox(width: 8),
       ],
@@ -159,30 +161,38 @@ class _UtilityScreenState extends State<UtilityScreen> {
     );
   }
 
-  Widget _buildContentGrid(BuildContext context, double screenWidth, bool isTablet, bool isDesktop) {
-    return BlocBuilder<AmenitiesBloc, AmenitiesState>(
-      builder: (context, state) {
-        if (state is AmenitiesLoading) {
-          return const Center(child: CircularProgressIndicator());
-        } else if (state is AmenitiesError) {
-          return Center(child: Text(state.message));
-        } else if (state is AmenitiesLoaded) {
-          final amenities = state.amenities.expand((e) => e.utilityItems).cast<String>().toList();
-          return ListView(
-            children: [
-              _buildModernSection(
-                context,
-                "Amenities",
-                Icons.spa,
-                Colors.green,
-                amenities,
-                () => _addAmenity(context),
-              ),
-            ],
-          );
-        }
-        return const Center(child: Text("No data available"));
-      },
+  Widget _buildContentGrid(BuildContext context) {
+    return Column(
+      children: [
+        Expanded(
+          child: BlocBuilder<AmenitiesBloc, AmenitiesState>(
+            builder: (context, state) {
+              if (state is AmenitiesLoading) {
+                return const Center(child: CircularProgressIndicator());
+              } else if (state is AmenitiesError) {
+                return Center(child: Text(state.message));
+              } else if (state is AmenitiesLoaded) {
+                final amenities = state.amenities.expand((e) => e.utilityItems).cast<String>().toList();
+                return ListView(
+                  children: [
+                    _buildModernSection(
+                      context,
+                      "Amenities",
+                      Icons.spa,
+                      Colors.green,
+                      amenities,
+                      () => _addAmenity(context),
+                    ),
+                  ],
+                );
+              }
+              return const Center(child: Text("No amenities available"));
+            },
+          ),
+        ),
+        const SizedBox(height: 16),
+      
+      ],
     );
   }
 
@@ -239,7 +249,7 @@ class _UtilityScreenState extends State<UtilityScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ExpansionTile(
         leading: Icon(icon, color: color),
-        title: Text(title, style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text("${items.length} items"),
         children: [
           ...items.map((item) => ListTile(

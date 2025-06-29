@@ -42,7 +42,7 @@ class MenuModel {
 
 class MenuItem {
   final String name;
-  final List<String> items;
+  final List<MenuEntry> items;
 
   MenuItem({
     required this.name,
@@ -52,14 +52,40 @@ class MenuItem {
   factory MenuItem.fromJson(Map<String, dynamic> json) {
     return MenuItem(
       name: json['name'] as String,
-      items: List<String>.from(json['items'] as List),
+      items: (json['items'] as List)
+          .map((e) => MenuEntry.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'name': name,
-      'items': items,
+      'items': items.map((e) => e.toJson()).toList(),
+    };
+  }
+}
+
+class MenuEntry {
+  final String name;
+  final String price;
+
+  MenuEntry({
+    required this.name,
+    required this.price,
+  });
+
+  factory MenuEntry.fromJson(Map<String, dynamic> json) {
+    return MenuEntry(
+      name: json['name'] as String,
+      price: json['price'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'price': price,
     };
   }
 }
