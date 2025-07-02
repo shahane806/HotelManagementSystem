@@ -26,9 +26,23 @@ class ApiServiceAmenities {
         final List<dynamic> data = jsonDecode(response.body);
 
         if (data.isNotEmpty) {
-          // Parse each object in the response to AmenityModel
-          List<AmenityModel> amenities =
-              data.map((json) => AmenityModel.fromJson(json)).toList();
+          // Check the structure of each item
+          print("Decoded data: $data");
+
+          // If your AmenityModel expects a 'name' field directly, but your API returns
+          // utilityItems: [{name: ...}], you need to extract the names from utilityItems.
+          List<AmenityModel> amenities = [];
+
+          for (var item in data) {
+            if (item['utilityItems'] != null && item['utilityItems'] is List) {
+              for (var util in item['utilityItems']) {
+                // Assuming AmenityModel has a fromJson expecting a map with 'name'
+                amenities.add(AmenityModel.fromJson(util));
+              }
+            }
+          }
+
+          print("Parsed Amenity Models: $amenities");
           return amenities;
         } else {
           throw Exception('No amenity data found');
@@ -58,14 +72,14 @@ class ApiServiceAmenities {
   Future<void> deleteAmenity(String name) async {
     try {
       final response = await http.delete(
-      Uri.parse('$baseUrl/utilities/Amenity/items/$name'),
-      headers: {
-        'Content-Type': 'application/json',
-      },
+        Uri.parse('$baseUrl/utilities/Amenity/items/$name'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
       );
       print("Delete : ${jsonDecode(response.body)}");
       if (response.statusCode != 200) {
-      throw Exception('Failed to delete amenity: ${response.body}');
+        throw Exception('Failed to delete amenity: ${response.body}');
       }
     } catch (e) {
       throw Exception('Failed to delete amenity: $e');

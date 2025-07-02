@@ -12,6 +12,6 @@ router.post("/auth/login",loginMiddlewere,loginController);
 router.post("/auth/register",registerMiddlewere,registerController);
 router.post("/utilities",authenticate,utilityController)
 router.post("/utilities/:utilityName/items", authenticate, utilityItemController);
-router.get("/utilities/:utilityName", authenticate,getNamedUtilities);
+router.get("/utilities/:utilityName",authenticate,getNamedUtilities);
 router.delete("/utilities/:utilityName/items/:itemName", authenticate, deleteUtilityItemController);
 module.exports = router;
