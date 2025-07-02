@@ -54,4 +54,48 @@ const deleteUtilityItemController = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
-module.exports = {utilityController,utilityItemController,getNamedUtilities,deleteUtilityItemController}
+
+const addMenuItemController = async (req, res) => {
+  const { utilityName, menuName } = req.params;
+  const { menuitemname, price } = req.body;
+
+  try {
+    const updated = await UtilityModel.findOneAndUpdate(
+      { utilityName, "utilityItems.name": menuName },
+      {
+        $push: {
+          "utilityItems.$.items": { menuitemname, price }
+        }
+      },
+      { new: true }
+    );
+
+    if (!updated) return res.status(404).json({ message: "Menu not found" });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const deleteMenuItemController = async (req, res) => {
+  const { utilityName, menuName, menuitemname } = req.params;
+
+  try {
+    const updated = await UtilityModel.findOneAndUpdate(
+      { utilityName, "utilityItems.name": menuName },
+      {
+        $pull: {
+          "utilityItems.$.items": { menuitemname }
+        }
+      },
+      { new: true }
+    );
+
+    if (!updated) return res.status(404).json({ message: "Menu or item not found" });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+module.exports = {utilityController,utilityItemController,getNamedUtilities,deleteUtilityItemController,addMenuItemController,deleteMenuItemController}

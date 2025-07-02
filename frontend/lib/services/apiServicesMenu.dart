@@ -71,28 +71,28 @@ class ApiServiceMenus {
   }
 
   Future<void> addMenuItem(String menuName, String itemName, String price) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/utilities/Menu/$menuName/items'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'name': itemName,
-          'price': price,
-        }),
-      );
+  try {
+    final response = await http.post(
+      Uri.parse('$baseUrl/utilities/Menu/$menuName/items'),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'menuitemname': itemName, 
+        'price': double.parse(price), 
+      }),
+    );
 
-      print("Add menu item response: ${response.statusCode} - ${response.body}");
+    print("Add menu item response: ${response.statusCode} - ${response.body}");
 
-      if (response.statusCode != 200) {
-        throw Exception('Failed to add menu item: ${response.statusCode} - ${response.body}');
-      }
-    } catch (e) {
-      print("Error in addMenuItem: $e");
-      throw Exception('Failed to add menu item: $e');
+    if (response.statusCode != 200) {
+      throw Exception('Failed to add menu item: ${response.statusCode} - ${response.body}');
     }
+  } catch (e) {
+    print("Error in addMenuItem: $e");
+    throw Exception('Failed to add menu item: $e');
   }
+}
 
   Future<void> deleteMenu(String menuName) async {
     try {
@@ -111,6 +111,32 @@ class ApiServiceMenus {
     } catch (e) {
       print("Error in deleteMenu: $e");
       throw Exception('Failed to delete menu: $e');
+    }
+  }
+
+  Future<void> deleteMenuItem(String menuName, String itemName) async {
+    if (menuName.isEmpty) {
+      throw Exception('Invalid menu name: $menuName');
+    }
+    if (itemName.isEmpty) {
+      throw Exception('Invalid item name: $itemName');
+    }
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/utilities/Menu/$menuName/items/$itemName'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      );
+
+      print("Delete menu item response: ${response.statusCode} - ${response.body}");
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to delete menu item: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print("Error in deleteMenuItem: $e");
+      throw Exception('Failed to delete menu item: $e');
     }
   }
 }

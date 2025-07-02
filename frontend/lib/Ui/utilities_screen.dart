@@ -6,6 +6,9 @@ import 'package:frontend/bloc/AmenitiesUtility/state.dart';
 import '../bloc/MenuUtility/bloc.dart';
 import '../bloc/MenuUtility/event.dart';
 import '../bloc/MenuUtility/state.dart';
+import '../bloc/TableUtility/bloc.dart';
+import '../bloc/TableUtility/event.dart';
+import '../bloc/TableUtility/state.dart';
 import '../models/room_model.dart';
 import '../models/table_model.dart';
 
@@ -16,52 +19,122 @@ class UtilityScreen extends StatefulWidget {
 }
 
 class _UtilityScreenState extends State<UtilityScreen> {
-  final List<TableModel> tables = [TableModel(name: "Table 1", count: 3)];
-  final List<RoomModel> rooms = [RoomModel(name: "101", isAC: true), RoomModel(name: "102", isAC: false)];
+  final List<RoomModel> rooms = [];
 
-  Future<void> _addTable() async {
+  Future<void> _addTableItem() async {
     final nameController = TextEditingController();
     final countController = TextEditingController();
-    final result = await showDialog<TableModel>(
+    String? selectedUtilityId;
+    String? selectedUtilityName;
+
+    final result = await showDialog<Map<String, dynamic>>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => _buildModernDialog(
-        title: "Add New Table",
-        icon: Icons.table_restaurant,
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildTextField(
-              controller: nameController,
-              label: "Table Name",
-              hint: "e.g., VIP Table 1",
-              icon: Icons.table_restaurant_outlined,
-            ),
-            const SizedBox(height: 16),
-            _buildTextField(
-              controller: countController,
-              label: "Seating Capacity",
-              hint: "e.g., 4",
-              icon: Icons.people_outline,
-              keyboardType: TextInputType.number,
-            ),
-          ],
-        ),
-        onConfirm: () {
-          final name = nameController.text.trim();
-          final count = int.tryParse(countController.text.trim()) ?? 0;
-          if (name.isNotEmpty && count > 0) {
-            Navigator.pop(context, TableModel(name: name, count: count));
-          } else {
-            _showErrorSnackBar("Please fill all fields correctly");
+      builder: (_) => BlocBuilder<TablesBloc, TablesState>(
+        builder: (context, state) {
+          List<TableModel> utilities = [];
+          if (state is TablesLoaded) {
+            utilities = state.tables;
           }
+          return _buildModernDialog(
+            title: "Add Table",
+            icon: Icons.table_restaurant,
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (utilities.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    child: const Text(
+                      "No utilities available. Please create a utility first.",
+                      style: TextStyle(color: Colors.red),
+                    ),
+                  )
+                else
+                  DropdownButtonFormField<String>(
+                    decoration: InputDecoration(
+                      labelText: "Select Utility",
+                      prefixIcon: Icon(Icons.table_restaurant_outlined, color: Colors.blue[600]),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.blue[600]!, width: 2),
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                    ),
+                    value: selectedUtilityId,
+                    items: utilities
+                        .map((utility) => DropdownMenuItem(
+                              value: utility.id,
+                              child: Text(utility.utilityName),
+                            ))
+                        .toList(),
+                    onChanged: (value) {
+                      selectedUtilityId = value;
+                      selectedUtilityName = utilities.firstWhere((u) => u.id == value).utilityName;
+                    },
+                    hint: const Text("Choose a utility"),
+                  ),
+                const SizedBox(height: 16),
+                _buildTextField(
+                  controller: nameController,
+                  label: "Table Name",
+                  hint: "e.g., VIP Table 1",
+                  icon: Icons.table_restaurant_outlined,
+                ),
+                const SizedBox(height: 16),
+                _buildTextField(
+                  controller: countController,
+                  label: "Seating Capacity",
+                  hint: "e.g., 4",
+                  icon: Icons.people_outline,
+                  keyboardType: TextInputType.number,
+                ),
+              ],
+            ),
+            onConfirm: () {
+              final name = nameController.text.trim();
+              final count = int.tryParse(countController.text.trim()) ?? 0;
+              if (selectedUtilityId != null && name.isNotEmpty && count > 0) {
+                Navigator.pop(context, {
+                  "utilityId": selectedUtilityId,
+                  "name": name,
+                  "count": count,
+                });
+              } else {
+                _showErrorSnackBar("Please select a utility and fill all fields correctly");
+              }
+            },
+          );
         },
       ),
     );
+
     if (result != null) {
-      setState(() => tables.add(result));
-      _showSuccessSnackBar("Table added successfully!");
+      context.read<TablesBloc>().add(AddTableItem(
+            result['utilityId'],
+            result['name'],
+            result['count'],
+          ));
+      _showSuccessSnackBar("Table item added successfully!");
     }
+  }
+
+  Future<void> _deleteTableItem(String utilityId, String itemName) async {
+    if (utilityId.isEmpty || itemName.isEmpty) {
+      _showErrorSnackBar("Invalid utility ID or item name");
+      return;
+    }
+    context.read<TablesBloc>().add(DeleteTableItem(utilityId, itemName));
+    _showSuccessSnackBar("Table item deleted successfully!");
   }
 
   Future<void> _addMenu() async {
@@ -95,7 +168,7 @@ class _UtilityScreenState extends State<UtilityScreen> {
   }
 
   Future<void> _addMenuItem(String menuName) async {
-    if (menuName.isEmpty || menuName.toLowerCase() == 'me') {
+    if (menuName.isEmpty) {
       _showErrorSnackBar("Invalid menu name: $menuName");
       return;
     }
@@ -144,12 +217,21 @@ class _UtilityScreenState extends State<UtilityScreen> {
   }
 
   Future<void> _deleteMenu(String menuName) async {
-    if (menuName.isEmpty || menuName.toLowerCase() == 'me') {
+    if (menuName.isEmpty) {
       _showErrorSnackBar("Invalid menu name: $menuName");
       return;
     }
     context.read<MenusBloc>().add(DeleteMenus(menuName));
     _showSuccessSnackBar("Menu deleted successfully!");
+  }
+
+  Future<void> _deleteMenuItem(String menuName, String itemName) async {
+    if (menuName.isEmpty || itemName.isEmpty) {
+      _showErrorSnackBar("Invalid menu or item name");
+      return;
+    }
+    context.read<MenusBloc>().add(DeleteMenuItem(menuName, itemName));
+    _showSuccessSnackBar("Menu item deleted successfully!");
   }
 
   Future<void> _addRoom() async {
@@ -417,6 +499,7 @@ class _UtilityScreenState extends State<UtilityScreen> {
     super.initState();
     context.read<AmenitiesBloc>().add(FetchAmenities());
     context.read<MenusBloc>().add(FetchMenus());
+    context.read<TablesBloc>().add(FetchTables());
   }
 
   @override
@@ -485,6 +568,7 @@ class _UtilityScreenState extends State<UtilityScreen> {
           onPressed: () {
             context.read<AmenitiesBloc>().add(FetchAmenities());
             context.read<MenusBloc>().add(FetchMenus());
+            context.read<TablesBloc>().add(FetchTables());
           },
         ),
         const SizedBox(width: 8),
@@ -505,67 +589,76 @@ class _UtilityScreenState extends State<UtilityScreen> {
             if (menuState is MenusLoaded) {
               menusCount = menuState.menus.length;
             }
-            final totalItems = tables.length + rooms.length + amenitiesCount + menusCount;
+            return BlocBuilder<TablesBloc, TablesState>(
+              builder: (context, tableState) {
+                int tablesCount = 0;
+                if (tableState is TablesLoaded) {
+                  tablesCount = tableState.tables.fold(
+                      0, (sum, table) => sum + table.utilityItems.length);
+                }
+                final totalItems = tablesCount + rooms.length + amenitiesCount + menusCount;
 
-            return Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: screenWidth > 600 ? 24 : 16,
-                vertical: 16,
-              ),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.blue[600]!, Colors.blue[700]!],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.blue.withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
+                return Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: screenWidth > 600 ? 24 : 16,
+                    vertical: 16,
                   ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Management Center",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: screenWidth > 600 ? 18 : 16,
-                            fontWeight: FontWeight.w600,
-                          ),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.blue[600]!, Colors.blue[700]!],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.blue.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Management Center",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: screenWidth > 600 ? 18 : 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              "$totalItems items configured",
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.9),
+                                fontSize: screenWidth > 600 ? 14 : 12,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "$totalItems items configured",
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.9),
-                            fontSize: screenWidth > 600 ? 14 : 12,
-                          ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                      ],
-                    ),
+                        child: Icon(
+                          Icons.dashboard_customize,
+                          color: Colors.white,
+                          size: screenWidth > 600 ? 28 : 24,
+                        ),
+                      ),
+                    ],
                   ),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      Icons.dashboard_customize,
-                      color: Colors.white,
-                      size: screenWidth > 600 ? 28 : 24,
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             );
           },
         );
@@ -581,8 +674,14 @@ class _UtilityScreenState extends State<UtilityScreen> {
         crossAxisSpacing: 20,
         mainAxisSpacing: 20,
         children: [
-          _buildModernSection("Tables", Icons.table_restaurant, Colors.orange, tables.map((t) => "${t.name} (${t.count} seats)").toList(), _addTable),
-          _buildModernSection("Rooms", Icons.hotel, Colors.purple, rooms.map((r) => "${r.name} - ${r.isAC ? "AC" : "Non-AC"}").toList(), _addRoom),
+          _buildTableSection(),
+          _buildModernSection(
+            "Rooms",
+            Icons.hotel,
+            Colors.purple,
+            rooms.map((r) => "${r.name} - ${r.isAC ? "AC" : "Non-AC"}").toList(),
+            _addRoom,
+          ),
           _buildMenuSection(),
           BlocBuilder<AmenitiesBloc, AmenitiesState>(
             builder: (context, state) {
@@ -621,11 +720,17 @@ class _UtilityScreenState extends State<UtilityScreen> {
     } else {
       return ListView(
         children: [
-          _buildModernSection("Tables", Icons.table_restaurant, Colors.orange, tables.map((t) => "${t.name} (${t.count} seats)").toList(), _addTable),
+          _buildTableSection(),
           const SizedBox(height: 16),
           _buildMenuSection(),
           const SizedBox(height: 16),
-          _buildModernSection("Rooms", Icons.hotel, Colors.purple, rooms.map((r) => "${r.name} - ${r.isAC ? "AC" : "Non-AC"}").toList(), _addRoom),
+          _buildModernSection(
+            "Rooms",
+            Icons.hotel,
+            Colors.purple,
+            rooms.map((r) => "${r.name} - ${r.isAC ? "AC" : "Non-AC"}").toList(),
+            _addRoom,
+          ),
           const SizedBox(height: 16),
           BlocBuilder<AmenitiesBloc, AmenitiesState>(
             builder: (context, state) {
@@ -664,7 +769,58 @@ class _UtilityScreenState extends State<UtilityScreen> {
     }
   }
 
-  Widget _buildModernSection(String title, IconData icon, Color color, List<String> items, VoidCallback onAdd, {Function(String)? onDelete}) {
+  Widget _buildTableSection() {
+    return BlocBuilder<TablesBloc, TablesState>(
+      builder: (context, state) {
+        if (state is TablesLoading) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (state is TablesLoaded) {
+          print('Table utilities loaded: ${state.tables.map((t) => t.utilityName).toList()}');
+          // Flatten table items with utilityId for deletion
+          final tableItems = state.tables
+              .expand((table) => table.utilityItems
+                  .map((item) => {
+                        'display': "${item.name} (${item.count} seats)",
+                        'utilityId': table.id,
+                        'itemName': item.name,
+                      }))
+              .toList();
+          return _buildModernSection(
+            "Tables",
+            Icons.table_restaurant,
+            Colors.orange,
+            tableItems.map((item) => item['display'] as String).toList(),
+            _addTableItem,
+            onDelete: (display) {
+              final item = tableItems.firstWhere((i) => i['display'] == display);
+              print('Deleting table item: ${item['itemName']} from utility: ${item['utilityId']}');
+              _deleteTableItem(item['utilityId'] as String, item['itemName'] as String);
+            },
+          );
+        } else if (state is TablesError) {
+          print('Tables error: ${state.message}');
+          return _buildModernSection(
+            "Tables",
+            Icons.table_restaurant,
+            Colors.orange,
+            [],
+            _addTableItem,
+            errorMessage: state.message,
+          );
+        }
+        print('No table utilities loaded');
+        return _buildModernSection(
+          "Tables",
+          Icons.table_restaurant,
+          Colors.orange,
+          [],
+          _addTableItem,
+        );
+      },
+    );
+  }
+
+  Widget _buildModernSection(String title, IconData icon, Color color, List<String> items, VoidCallback onAdd, {Function(String)? onDelete, String? errorMessage}) {
     print('Building $title section with items: $items');
     return Card(
       elevation: 4,
@@ -700,12 +856,33 @@ class _UtilityScreenState extends State<UtilityScreen> {
             ),
           ),
           subtitle: Text(
-            "${items.length} items",
-            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+            errorMessage != null ? "Error loading $title" : "${items.length} items",
+            style: TextStyle(color: errorMessage != null ? Colors.red[600] : Colors.grey[600], fontSize: 12),
           ),
           childrenPadding: const EdgeInsets.all(16),
           children: [
-            if (items.isEmpty)
+            if (errorMessage != null)
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.red[400], size: 32),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        errorMessage,
+                        style: TextStyle(color: Colors.red[600], fontSize: 14),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else if (items.isEmpty)
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -760,7 +937,7 @@ class _UtilityScreenState extends State<UtilityScreen> {
                           overflow: TextOverflow.visible,
                         ),
                       ),
-                      if (onDelete != null && title == "Amenities")
+                      if (onDelete != null)
                         IconButton(
                           icon: Icon(Icons.delete, color: Colors.red[400], size: 20),
                           onPressed: () {
@@ -911,17 +1088,19 @@ class _UtilityScreenState extends State<UtilityScreen> {
                                     else
                                       ...menu.items.map((item) => Container(
                                             margin: const EdgeInsets.only(bottom: 8),
-                                            padding: const EdgeInsets.all(10),
+                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                             decoration: BoxDecoration(
                                               color: Colors.red.withOpacity(0.05),
                                               borderRadius: BorderRadius.circular(8),
                                               border: Border.all(color: Colors.red.withOpacity(0.2)),
                                             ),
                                             child: Row(
+                                              crossAxisAlignment: CrossAxisAlignment.center,
                                               children: [
                                                 Container(
                                                   width: 4,
                                                   height: 4,
+                                                  margin: const EdgeInsets.only(top: 4),
                                                   decoration: const BoxDecoration(
                                                     color: Colors.red,
                                                     shape: BoxShape.circle,
@@ -930,10 +1109,17 @@ class _UtilityScreenState extends State<UtilityScreen> {
                                                 const SizedBox(width: 12),
                                                 Expanded(
                                                   child: Text(
-                                                    "${item.name} - ₹${item.price}",
+                                                    "${item.menuitemname} - ₹${item.price}",
                                                     style: const TextStyle(fontSize: 13),
                                                     overflow: TextOverflow.visible,
                                                   ),
+                                                ),
+                                                IconButton(
+                                                  icon: Icon(Icons.delete, color: Colors.red[400], size: 20),
+                                                  onPressed: () {
+                                                    print('Deleting menu item: ${item.menuitemname} from menu: ${menu.name}');
+                                                    _deleteMenuItem(menu.name, item.menuitemname);
+                                                  },
                                                 ),
                                               ],
                                             ),
@@ -1093,7 +1279,7 @@ class _UtilityScreenState extends State<UtilityScreen> {
                   color: Colors.red.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-              child: const Icon(Icons.restaurant_menu, color: Colors.red, size: 24),
+                child: const Icon(Icons.restaurant_menu, color: Colors.red, size: 24),
               ),
               title: const Text(
                 "Menus",

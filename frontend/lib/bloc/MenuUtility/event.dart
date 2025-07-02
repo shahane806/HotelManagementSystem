@@ -36,3 +36,13 @@ class DeleteMenus extends MenusEvents {
   @override
   List<Object?> get props => [menuName];
 }
+
+class DeleteMenuItem extends MenusEvents {
+  final String menuName;
+  final String itemName;
+
+  const DeleteMenuItem(this.menuName, this.itemName);
+
+  @override
+  List<Object?> get props => [menuName, itemName];
+}

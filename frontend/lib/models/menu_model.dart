@@ -1,19 +1,19 @@
 class MenuEntry {
-  final String name;
+  final String menuitemname;
   final String price;
 
-  MenuEntry({required this.name, required this.price});
+  MenuEntry({required this.menuitemname, required this.price});
 
   factory MenuEntry.fromJson(Map<String, dynamic> json) {
     return MenuEntry(
-      name: json['name'] as String? ?? 'Unnamed Item',
+      menuitemname: json['menuitemname'] as String? ?? 'Unnamed Item',
       price: json['price']?.toString() ?? '0',
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'name': name,
+      'menuitemname': menuitemname,
       'price': price,
     };
   }

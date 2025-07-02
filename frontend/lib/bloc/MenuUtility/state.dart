@@ -8,15 +8,20 @@ abstract class MenusState extends Equatable {
   List<Object?> get props => [];
 }
 
-class MenusInitial extends MenusState {}
+class MenusInitial extends MenusState {
+  // Initial state before any menu operations are performed
+}
 
-class MenusLoading extends MenusState {}
+class MenusLoading extends MenusState {
+  // Loading state used during fetch, add, delete, or delete item operations
+}
 
 class MenusLoaded extends MenusState {
   final List<MenuModel> menus;
 
   const MenusLoaded(this.menus);
 
+  // Used to display the updated list of menus after fetch, add, delete, or delete item operations
   @override
   List<Object?> get props => [menus];
 }
@@ -26,6 +31,7 @@ class MenusError extends MenusState {
 
   const MenusError(this.message);
 
+  // Used to display errors from fetch, add, delete, or delete item operations
   @override
   List<Object?> get props => [message];
 }

@@ -10,6 +10,7 @@ class MenusBloc extends Bloc<MenusEvents, MenusState> {
     on<AddMenus>(_onAddMenus);
     on<AddMenuItem>(_onAddMenuItem);
     on<DeleteMenus>(_onDeleteMenus);
+    on<DeleteMenuItem>(_onDeleteMenuItem); // Added handler for DeleteMenuItem
   }
 
   final ApiServiceMenus apiService = ApiServiceMenus();
@@ -66,6 +67,20 @@ class MenusBloc extends Bloc<MenusEvents, MenusState> {
       emit(MenusLoaded(menus));
     } catch (e) {
       emit(MenusError("Failed to delete menu: ${e.toString()}"));
+    }
+  }
+
+  Future<void> _onDeleteMenuItem(
+    DeleteMenuItem event,
+    Emitter<MenusState> emit,
+  ) async {
+    emit(MenusLoading());
+    try {
+      await apiService.deleteMenuItem(event.menuName, event.itemName);
+      final List<MenuModel> menus = await apiService.getMenuModel();
+      emit(MenusLoaded(menus));
+    } catch (e) {
+      emit(MenusError("Failed to delete menu item: ${e.toString()}"));
     }
   }
 }
