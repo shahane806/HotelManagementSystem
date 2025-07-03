@@ -54,7 +54,7 @@ class ApiServiceTables {
     }
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/utilities/Table/$utilityId/items'),
+        Uri.parse('$baseUrl/utilities/Table/items'),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -84,7 +84,7 @@ class ApiServiceTables {
     }
     try {
       final response = await http.delete(
-        Uri.parse('$baseUrl/utilities/Table/$utilityId/$itemName'),
+        Uri.parse('$baseUrl/utilities/Table/$itemName'),
         headers: {
           'Content-Type': 'application/json',
         },
