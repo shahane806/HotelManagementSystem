@@ -38,6 +38,7 @@ const getNamedUtilities =  async (req, res) => {
 const deleteUtilityItemController = async (req, res) => {
   try {
     const { utilityName, itemName } = req.params;
+    console.log(utilityName,itemName);
     const utility = await UtilityModel.findOne({ utilityName });
 
     if (!utility) {
@@ -45,7 +46,8 @@ const deleteUtilityItemController = async (req, res) => {
     }
 
     utility.utilityItems = utility.utilityItems.filter(
-      (item) => item.name !== itemName
+      (item) => 
+        item.name != itemName
     );
     await utility.save();
 
