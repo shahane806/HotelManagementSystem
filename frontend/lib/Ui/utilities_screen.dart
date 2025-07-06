@@ -1,15 +1,19 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:frontend/bloc/AmenitiesUtility/bloc.dart';
-import 'package:frontend/bloc/AmenitiesUtility/event.dart';
-import 'package:frontend/bloc/AmenitiesUtility/state.dart';
+import 'package:shimmer/shimmer.dart';
+import '../bloc/AmenitiesUtility/bloc.dart';
+import '../bloc/AmenitiesUtility/event.dart';
+import '../bloc/AmenitiesUtility/state.dart';
 import '../bloc/MenuUtility/bloc.dart';
 import '../bloc/MenuUtility/event.dart';
 import '../bloc/MenuUtility/state.dart';
+import '../bloc/RoomUtility/bloc.dart';
+import '../bloc/RoomUtility/event.dart';
+import '../bloc/RoomUtility/state.dart';
 import '../bloc/TableUtility/bloc.dart';
 import '../bloc/TableUtility/event.dart';
 import '../bloc/TableUtility/state.dart';
-import '../models/room_model.dart';
 import '../models/table_model.dart';
 
 class UtilityScreen extends StatefulWidget {
@@ -19,8 +23,6 @@ class UtilityScreen extends StatefulWidget {
 }
 
 class _UtilityScreenState extends State<UtilityScreen> {
-  final List<RoomModel> rooms = [];
-
   Future<void> _addTableItem() async {
     final nameController = TextEditingController();
     final countController = TextEditingController();
@@ -235,11 +237,11 @@ class _UtilityScreenState extends State<UtilityScreen> {
   }
 
   Future<void> _addRoom() async {
-    final roomController = TextEditingController();
+    final nameController = TextEditingController();
     final priceController = TextEditingController();
     bool isAC = false;
 
-    final result = await showDialog<RoomModel>(
+    final result = await showDialog<Map<String, dynamic>>(
       context: context,
       barrierDismissible: false,
       builder: (_) {
@@ -251,10 +253,11 @@ class _UtilityScreenState extends State<UtilityScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 _buildTextField(
-                  controller: roomController,
-                  label: "Room Name/Number",
-                  hint: "e.g., Deluxe Room 101",
+                  controller: nameController,
+                  label: "Room Number",
+                  hint: "e.g., 101",
                   icon: Icons.hotel_outlined,
+                  keyboardType: TextInputType.number,
                 ),
                 const SizedBox(height: 16),
                 _buildTextField(
@@ -295,12 +298,16 @@ class _UtilityScreenState extends State<UtilityScreen> {
               ],
             ),
             onConfirm: () {
-              final name = roomController.text.trim();
+              final name = int.tryParse(nameController.text.trim());
               final price = priceController.text.trim();
-              if (name.isNotEmpty && price.isNotEmpty) {
-                Navigator.pop(context, RoomModel(name: "$name - ₹$price/night", isAC: isAC));
+              if (name != null && name > 0 && price.isNotEmpty) {
+                Navigator.pop(context, {
+                  'name': name,
+                  'price': price,
+                  'isAC': isAC,
+                });
               } else {
-                _showErrorSnackBar("Please fill all fields");
+                _showErrorSnackBar("Please enter a valid room number and price");
               }
             },
           ),
@@ -309,9 +316,18 @@ class _UtilityScreenState extends State<UtilityScreen> {
     );
 
     if (result != null) {
-      setState(() => rooms.add(result));
+      context.read<RoomsBloc>().add(AddRoom(result['name'], result['price'], result['isAC']));
       _showSuccessSnackBar("Room added successfully!");
     }
+  }
+
+  Future<void> _deleteRoom(int name) async {
+    if (name <= 0) {
+      _showErrorSnackBar("Invalid room number");
+      return;
+    }
+    context.read<RoomsBloc>().add(DeleteRoom(name));
+    _showSuccessSnackBar("Room deleted successfully!");
   }
 
   Future<void> _addAmenity() async {
@@ -494,12 +510,117 @@ class _UtilityScreenState extends State<UtilityScreen> {
     );
   }
 
+  Widget _buildShimmerSection({required double screenWidth}) {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[300]!,
+      highlightColor: Colors.grey[100]!,
+      child: Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Colors.grey[200]!, width: 1),
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: LinearGradient(
+              colors: [Colors.white, Colors.grey[50]!],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: screenWidth * 0.25,
+                        height: 18,
+                        color: Colors.grey[300],
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        width: screenWidth * 0.15,
+                        height: 12,
+                        color: Colors.grey[300],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      margin: const EdgeInsets.only(top: 4),
+                      decoration: const BoxDecoration(
+                        color: Colors.grey,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Container(
+                        height: 14,
+                        color: Colors.grey[300],
+                      ),
+                    ),
+                    Container(
+                      width: 20,
+                      height: 20,
+                      color: Colors.grey[300],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
     context.read<AmenitiesBloc>().add(FetchAmenities());
     context.read<MenusBloc>().add(FetchMenus());
     context.read<TablesBloc>().add(FetchTables());
+    context.read<RoomsBloc>().add(FetchRooms());
   }
 
   @override
@@ -569,6 +690,7 @@ class _UtilityScreenState extends State<UtilityScreen> {
             context.read<AmenitiesBloc>().add(FetchAmenities());
             context.read<MenusBloc>().add(FetchMenus());
             context.read<TablesBloc>().add(FetchTables());
+            context.read<RoomsBloc>().add(FetchRooms());
           },
         ),
         const SizedBox(width: 8),
@@ -596,67 +718,75 @@ class _UtilityScreenState extends State<UtilityScreen> {
                   tablesCount = tableState.tables.fold(
                       0, (sum, table) => sum + table.utilityItems.length);
                 }
-                final totalItems = tablesCount + rooms.length + amenitiesCount + menusCount;
+                return BlocBuilder<RoomsBloc, RoomState>(
+                  builder: (context, roomState) {
+                    int roomsCount = 0;
+                    if (roomState is RoomLoaded) {
+                      roomsCount = roomState.rooms.length;
+                    }
+                    final totalItems = tablesCount + roomsCount + amenitiesCount + menusCount;
 
-                return Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: screenWidth > 600 ? 24 : 16,
-                    vertical: 16,
-                  ),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.blue[600]!, Colors.blue[700]!],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.blue.withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
+                    return Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: screenWidth > 600 ? 24 : 16,
+                        vertical: 16,
                       ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "Management Center",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: screenWidth > 600 ? 18 : 16,
-                                fontWeight: FontWeight.w600,
-                              ),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.blue[600]!, Colors.blue[700]!],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.blue.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Management Center",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: screenWidth > 600 ? 18 : 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  "$totalItems items configured",
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.9),
+                                    fontSize: screenWidth > 600 ? 14 : 12,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              "$totalItems items configured",
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.9),
-                                fontSize: screenWidth > 600 ? 14 : 12,
-                              ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                          ],
-                        ),
+                            child: Icon(
+                              Icons.dashboard_customize,
+                              color: Colors.white,
+                              size: screenWidth > 600 ? 28 : 24,
+                            ),
+                          ),
+                        ],
                       ),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          Icons.dashboard_customize,
-                          color: Colors.white,
-                          size: screenWidth > 600 ? 28 : 24,
-                        ),
-                      ),
-                    ],
-                  ),
+                    );
+                  },
                 );
               },
             );
@@ -674,22 +804,58 @@ class _UtilityScreenState extends State<UtilityScreen> {
         crossAxisSpacing: 20,
         mainAxisSpacing: 20,
         children: [
-          _buildTableSection(),
-          _buildModernSection(
-            "Rooms",
-            Icons.hotel,
-            Colors.purple,
-            rooms.map((r) => "${r.name} - ${r.isAC ? "AC" : "Non-AC"}").toList(),
-            _addRoom,
+          _buildTableSection(screenWidth),
+          BlocBuilder<RoomsBloc, RoomState>(
+            builder: (context, state) {
+              if (state is RoomLoading) {
+                return _buildShimmerSection(screenWidth: screenWidth);
+              } else if (state is RoomLoaded) {
+                print('Rooms loaded: ${state.rooms.map((r) => r.name).toList()}');
+                return _buildModernSection(
+                  "Rooms",
+                  Icons.hotel,
+                  Colors.purple,
+                  state.rooms.map((r) => "Room ${r.name} - ₹${r.price}/night - ${r.isAC ? 'AC' : 'Non-AC'}").toList(),
+                  _addRoom,
+                  onDelete: (display) {
+                    final name = int.parse(display.split(' ')[1]); // Extract name from "Room X - ₹Y/night - Z"
+                    _deleteRoom(name);
+                  },
+                  screenWidth: screenWidth,
+                );
+              } else if (state is RoomError) {
+                print('Rooms error: ${state.message}');
+                return _buildModernSection(
+                  "Rooms",
+                  Icons.hotel,
+                  Colors.purple,
+                  [],
+                  _addRoom,
+                  onDelete: (_) {},
+                  errorMessage: state.message,
+                  screenWidth: screenWidth,
+                );
+              }
+              print('No rooms loaded');
+              return _buildModernSection(
+                "Rooms",
+                Icons.hotel,
+                Colors.purple,
+                [],
+                _addRoom,
+                onDelete: (_) {},
+                screenWidth: screenWidth,
+              );
+            },
           ),
-          _buildMenuSection(),
+          _buildMenuSection(screenWidth),
           BlocBuilder<AmenitiesBloc, AmenitiesState>(
             builder: (context, state) {
               if (state is AmenitiesLoading) {
-                return const Center(child: CircularProgressIndicator());
+                return _buildShimmerSection(screenWidth: screenWidth);
               } else if (state is AmenitiesLoaded) {
                 final amenityNames = state.amenities
-                    .expand((a) => a.name?.isNotEmpty == true ? [a.name!] : ['Unnamed Amenity'])
+                    .expand((a) => a.name.isNotEmpty == true ? [a.name] : ['Unnamed Amenity'])
                     .toList();
                 print('Amenities loaded: $amenityNames');
                 return _buildModernSection(
@@ -699,6 +865,7 @@ class _UtilityScreenState extends State<UtilityScreen> {
                   amenityNames,
                   _addAmenity,
                   onDelete: _deleteAmenity,
+                  screenWidth: screenWidth,
                 );
               } else if (state is AmenitiesError) {
                 print('Amenities error: ${state.message}');
@@ -712,6 +879,7 @@ class _UtilityScreenState extends State<UtilityScreen> {
                 [],
                 _addAmenity,
                 onDelete: _deleteAmenity,
+                screenWidth: screenWidth,
               );
             },
           ),
@@ -720,25 +888,61 @@ class _UtilityScreenState extends State<UtilityScreen> {
     } else {
       return ListView(
         children: [
-          _buildTableSection(),
+          _buildTableSection(screenWidth),
           const SizedBox(height: 16),
-          _buildMenuSection(),
+          _buildMenuSection(screenWidth),
           const SizedBox(height: 16),
-          _buildModernSection(
-            "Rooms",
-            Icons.hotel,
-            Colors.purple,
-            rooms.map((r) => "${r.name} - ${r.isAC ? "AC" : "Non-AC"}").toList(),
-            _addRoom,
+          BlocBuilder<RoomsBloc, RoomState>(
+            builder: (context, state) {
+              if (state is RoomLoading) {
+                return _buildShimmerSection(screenWidth: screenWidth);
+              } else if (state is RoomLoaded) {
+                print('Rooms loaded: ${state.rooms.map((r) => r.name).toList()}');
+                return _buildModernSection(
+                  "Rooms",
+                  Icons.hotel,
+                  Colors.purple,
+                  state.rooms.map((r) => "Room ${r.name} - ₹${r.price}/night - ${r.isAC ? 'AC' : 'Non-AC'}").toList(),
+                  _addRoom,
+                  onDelete: (display) {
+                    final name = int.parse(display.split(' ')[1]); // Extract name from "Room X - ₹Y/night - Z"
+                    _deleteRoom(name);
+                  },
+                  screenWidth: screenWidth,
+                );
+              } else if (state is RoomError) {
+                print('Rooms error: ${state.message}');
+                return _buildModernSection(
+                  "Rooms",
+                  Icons.hotel,
+                  Colors.purple,
+                  [],
+                  _addRoom,
+                  onDelete: (_) {},
+                  errorMessage: state.message,
+                  screenWidth: screenWidth,
+                );
+              }
+              print('No rooms loaded');
+              return _buildModernSection(
+                "Rooms",
+                Icons.hotel,
+                Colors.purple,
+                [],
+                _addRoom,
+                onDelete: (_) {},
+                screenWidth: screenWidth,
+              );
+            },
           ),
           const SizedBox(height: 16),
           BlocBuilder<AmenitiesBloc, AmenitiesState>(
             builder: (context, state) {
               if (state is AmenitiesLoading) {
-                return const Center(child: CircularProgressIndicator());
+                return _buildShimmerSection(screenWidth: screenWidth);
               } else if (state is AmenitiesLoaded) {
                 final amenityNames = state.amenities
-                    .expand((a) => a.name?.isNotEmpty == true ? [a.name!] : ['Unnamed Amenity'])
+                    .expand((a) => a.name.isNotEmpty == true ? [a.name] : ['Unnamed Amenity'])
                     .toList();
                 print('Amenities loaded: $amenityNames');
                 return _buildModernSection(
@@ -748,12 +952,15 @@ class _UtilityScreenState extends State<UtilityScreen> {
                   amenityNames,
                   _addAmenity,
                   onDelete: _deleteAmenity,
+                  screenWidth: screenWidth,
                 );
               } else if (state is AmenitiesError) {
                 print('Amenities error: ${state.message}');
                 return Center(child: Text(state.message));
               }
-              print('No amenities loaded');
+              if (kDebugMode) {
+                print('No amenities loaded');
+              }
               return _buildModernSection(
                 "Amenities",
                 Icons.spa,
@@ -761,6 +968,7 @@ class _UtilityScreenState extends State<UtilityScreen> {
                 [],
                 _addAmenity,
                 onDelete: _deleteAmenity,
+                screenWidth: screenWidth,
               );
             },
           ),
@@ -769,14 +977,13 @@ class _UtilityScreenState extends State<UtilityScreen> {
     }
   }
 
-  Widget _buildTableSection() {
+  Widget _buildTableSection(double screenWidth) {
     return BlocBuilder<TablesBloc, TablesState>(
       builder: (context, state) {
         if (state is TablesLoading) {
-          return const Center(child: CircularProgressIndicator());
+          return _buildShimmerSection(screenWidth: screenWidth);
         } else if (state is TablesLoaded) {
           print('Table utilities loaded: ${state.tables.map((t) => t.utilityName).toList()}');
-          // Flatten table items with utilityId for deletion
           final tableItems = state.tables
               .expand((table) => table.utilityItems
                   .map((item) => {
@@ -796,6 +1003,7 @@ class _UtilityScreenState extends State<UtilityScreen> {
               print('Deleting table item: ${item['itemName']} from utility: ${item['utilityId']}');
               _deleteTableItem(item['utilityId'] as String, item['itemName'] as String);
             },
+            screenWidth: screenWidth,
           );
         } else if (state is TablesError) {
           print('Tables error: ${state.message}');
@@ -806,6 +1014,7 @@ class _UtilityScreenState extends State<UtilityScreen> {
             [],
             _addTableItem,
             errorMessage: state.message,
+            screenWidth: screenWidth,
           );
         }
         print('No table utilities loaded');
@@ -815,12 +1024,22 @@ class _UtilityScreenState extends State<UtilityScreen> {
           Colors.orange,
           [],
           _addTableItem,
+          screenWidth: screenWidth,
         );
       },
     );
   }
 
-  Widget _buildModernSection(String title, IconData icon, Color color, List<String> items, VoidCallback onAdd, {Function(String)? onDelete, String? errorMessage}) {
+  Widget _buildModernSection(
+    String title,
+    IconData icon,
+    Color color,
+    List<String> items,
+    VoidCallback onAdd, {
+    Function(String)? onDelete,
+    String? errorMessage,
+    required double screenWidth,
+  }) {
     print('Building $title section with items: $items');
     return Card(
       elevation: 4,
@@ -972,11 +1191,11 @@ class _UtilityScreenState extends State<UtilityScreen> {
     );
   }
 
-  Widget _buildMenuSection() {
+  Widget _buildMenuSection(double screenWidth) {
     return BlocBuilder<MenusBloc, MenusState>(
       builder: (context, state) {
         if (state is MenusLoading) {
-          return const Center(child: CircularProgressIndicator());
+          return _buildShimmerSection(screenWidth: screenWidth);
         } else if (state is MenusLoaded) {
           print('Menus loaded: ${state.menus.map((m) => m.name).toList()}');
           return Card(
@@ -1279,7 +1498,7 @@ class _UtilityScreenState extends State<UtilityScreen> {
                   color: Colors.red.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.restaurant_menu, color: Colors.red, size: 24),
+              child: const Icon(Icons.restaurant_menu, color: Colors.red, size: 24),
               ),
               title: const Text(
                 "Menus",
