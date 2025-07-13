@@ -12,6 +12,7 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
     with TickerProviderStateMixin {
   String selectedTable = 'Table 1';
   late AnimationController _animationController;
+  int _selectedIndex = 0; // Track selected BottomNavigationBar item
 
   final List<String> tables = [
     'Table 1', 'Table 2', 'Table 3', 'Table 4', 'Table 5',
@@ -76,41 +77,92 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
     return menuItems.map((item) => item.category).toSet().toList();
   }
 
+  void _onNavBarTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+    if (index == 0) {
+      _showRecentOrders(context);
+    } else if (index == 1) {
+      _showOrderBottomSheet(context);
+    }
+  }
+
+  void _showRecentOrders(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          title: const Row(
+            children: [
+              Icon(Icons.history, color: Colors.indigo, size: 24),
+              SizedBox(width: 8),
+              Text('Recent Orders', style: TextStyle(fontSize: 18)),
+            ],
+          ),
+          content: const Text('No recent orders available.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
     final isTablet = screenSize.width > 600;
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showOrderBottomSheet(context),
-        backgroundColor: Colors.indigo,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            const Icon(Icons.shopping_cart, color: Colors.white),
-            if (order.isNotEmpty)
-              Positioned(
-                right: 0,
-                top: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Text(
-                    '${order.length}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: _onNavBarTapped,
+        selectedItemColor: Colors.indigo,
+        unselectedItemColor: Colors.grey[600],
+        backgroundColor: Colors.white,
+        elevation: 8,
+        items: [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.history, size: isTablet ? 22 : 20),
+            label: 'Recent Order',
+          ),
+          BottomNavigationBarItem(
+            icon: Stack(
+              alignment: Alignment.center,
+              children: [
+                Icon(Icons.restaurant, size: isTablet ? 22 : 20),
+                if (order.isNotEmpty)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        '${order.length}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-          ],
-        ),
+              ],
+            ),
+            label: 'Current Order',
+          ),
+        ],
+        selectedLabelStyle: TextStyle(fontSize: isTablet ? 13 : 11, fontWeight: FontWeight.w600),
+        unselectedLabelStyle: TextStyle(fontSize: isTablet ? 12 : 10),
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -126,21 +178,21 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
               _buildAppBar(context, isTablet),
               Expanded(
                 child: Container(
-                  margin: const EdgeInsets.only(top: 10),
+                  margin: const EdgeInsets.only(top: 8),
                   decoration: const BoxDecoration(
                     color: Color(0xFFF8F9FA),
                     borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(30),
-                      topRight: Radius.circular(30),
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
                     ),
                   ),
                   child: ClipRRect(
                     borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(30),
-                      topRight: Radius.circular(30),
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
                     ),
                     child: Padding(
-                      padding: EdgeInsets.all(isTablet ? 24 : 16),
+                      padding: EdgeInsets.all(isTablet ? 20 : 12),
                       child: _buildMenuSection(context, isTablet),
                     ),
                   ),
@@ -155,21 +207,21 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
 
   Widget _buildAppBar(BuildContext context, bool isTablet) {
     return Container(
-      padding: EdgeInsets.all(isTablet ? 24 : 20),
+      padding: EdgeInsets.all(isTablet ? 20 : 16),
       child: Row(
         children: [
           GestureDetector(
             onTap: () => Navigator.of(context).pop(),
             child: Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+              child: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 18),
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -178,7 +230,7 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
                   'Table Orders',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: isTablet ? 24 : 20,
+                    fontSize: isTablet ? 22 : 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -186,7 +238,7 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
                   'Manage table orders and menu',
                   style: TextStyle(
                     color: Colors.white70,
-                    fontSize: isTablet ? 14 : 12,
+                    fontSize: isTablet ? 13 : 11,
                   ),
                 ),
               ],
@@ -202,30 +254,30 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildTableSelector(isTablet),
-        SizedBox(height: isTablet ? 20 : 16),
+        SizedBox(height: isTablet ? 16 : 12),
         Row(
           children: [
-            Icon(Icons.restaurant_menu, color: Colors.indigo, size: isTablet ? 24 : 20),
-            const SizedBox(width: 8),
+            Icon(Icons.restaurant_menu, color: Colors.indigo, size: isTablet ? 22 : 18),
+            const SizedBox(width: 6),
             Text(
               'Menu Items',
               style: TextStyle(
-                fontSize: isTablet ? 20 : 18,
+                fontSize: isTablet ? 18 : 16,
                 fontWeight: FontWeight.bold,
                 color: const Color(0xFF2D3748),
               ),
             ),
           ],
         ),
-        SizedBox(height: isTablet ? 12 : 8),
+        SizedBox(height: isTablet ? 10 : 6),
         Expanded(
           child: GridView.builder(
             physics: const BouncingScrollPhysics(),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: isTablet ? 2 : 1,
-              childAspectRatio: isTablet ? 2.5 : 3.5,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
+              childAspectRatio: isTablet ? 2.7 : 3.7,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
             ),
             itemCount: menuItems.length,
             itemBuilder: (context, index) {
@@ -242,12 +294,12 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -255,26 +307,26 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
         color: Colors.transparent,
         child: InkWell(
           onTap: () => addToOrder(item),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           child: Padding(
-            padding: EdgeInsets.all(isTablet ? 16 : 12),
+            padding: EdgeInsets.all(isTablet ? 12 : 10),
             child: Row(
               children: [
                 Container(
-                  width: isTablet ? 60 : 50,
-                  height: isTablet ? 60 : 50,
+                  width: isTablet ? 50 : 40,
+                  height: isTablet ? 50 : 40,
                   decoration: BoxDecoration(
                     color: Colors.indigo.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: Center(
                     child: Text(
                       item.image,
-                      style: TextStyle(fontSize: isTablet ? 24 : 20),
+                      style: TextStyle(fontSize: isTablet ? 20 : 18),
                     ),
                   ),
                 ),
-                SizedBox(width: isTablet ? 16 : 12),
+                SizedBox(width: isTablet ? 12 : 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -283,26 +335,26 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
                       Text(
                         item.name,
                         style: TextStyle(
-                          fontSize: isTablet ? 16 : 14,
+                          fontSize: isTablet ? 15 : 13,
                           fontWeight: FontWeight.bold,
                           color: const Color(0xFF2D3748),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 3),
                       Text(
                         item.category,
                         style: TextStyle(
-                          fontSize: isTablet ? 12 : 11,
+                          fontSize: isTablet ? 11 : 10,
                           color: Colors.grey[600],
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 3),
                       Text(
                         '₹${item.price}',
                         style: TextStyle(
-                          fontSize: isTablet ? 16 : 14,
+                          fontSize: isTablet ? 15 : 13,
                           fontWeight: FontWeight.bold,
                           color: Colors.green[600],
                         ),
@@ -313,15 +365,15 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
                 ScaleTransition(
                   scale: Tween<double>(begin: 1.0, end: 1.2).animate(_animationController),
                   child: Container(
-                    padding: EdgeInsets.all(isTablet ? 12 : 8),
+                    padding: EdgeInsets.all(isTablet ? 10 : 6),
                     decoration: BoxDecoration(
                       color: Colors.indigo,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(6),
                     ),
                     child: Icon(
                       Icons.add,
                       color: Colors.white,
-                      size: isTablet ? 20 : 16,
+                      size: isTablet ? 18 : 14,
                     ),
                   ),
                 ),
@@ -341,16 +393,16 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        minChildSize: 0.4,
-        maxChildSize: 0.9,
+        initialChildSize: 0.65,
+        minChildSize: 0.35,
+        maxChildSize: 0.85,
         builder: (context, scrollController) => Container(
           decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
           ),
           child: Padding(
-            padding: EdgeInsets.all(isTablet ? 20 : 16),
+            padding: EdgeInsets.all(isTablet ? 16 : 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -358,24 +410,24 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Container(
-                      width: 40,
-                      height: 5,
+                      width: 36,
+                      height: 4,
                       decoration: BoxDecoration(
                         color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(2.5),
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
                   ],
                 ),
-                SizedBox(height: isTablet ? 16 : 12),
+                SizedBox(height: isTablet ? 12 : 10),
                 Row(
                   children: [
-                    Icon(Icons.shopping_cart, color: Colors.indigo, size: isTablet ? 24 : 20),
-                    const SizedBox(width: 8),
+                    Icon(Icons.restaurant, color: Colors.indigo, size: isTablet ? 22 : 18),
+                    const SizedBox(width: 6),
                     Text(
                       'Current Order',
                       style: TextStyle(
-                        fontSize: isTablet ? 20 : 18,
+                        fontSize: isTablet ? 18 : 16,
                         fontWeight: FontWeight.bold,
                         color: const Color(0xFF2D3748),
                       ),
@@ -383,23 +435,23 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
                     const Spacer(),
                     if (order.isNotEmpty)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                         decoration: BoxDecoration(
                           color: Colors.indigo.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
                           '${order.length} items',
                           style: TextStyle(
                             color: Colors.indigo,
-                            fontSize: isTablet ? 12 : 10,
+                            fontSize: isTablet ? 11 : 9,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
                   ],
                 ),
-                SizedBox(height: isTablet ? 16 : 12),
+                SizedBox(height: isTablet ? 12 : 10),
                 Expanded(
                   child: order.isEmpty
                       ? Center(
@@ -407,24 +459,24 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(
-                                Icons.shopping_cart_outlined,
-                                size: isTablet ? 64 : 48,
+                                Icons.restaurant_outlined,
+                                size: isTablet ? 56 : 40,
                                 color: Colors.grey[400],
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 12),
                               Text(
                                 'No items added',
                                 style: TextStyle(
-                                  fontSize: isTablet ? 16 : 14,
+                                  fontSize: isTablet ? 15 : 13,
                                   color: Colors.grey[600],
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 6),
                               Text(
                                 'Start adding items from menu',
                                 style: TextStyle(
-                                  fontSize: isTablet ? 12 : 11,
+                                  fontSize: isTablet ? 11 : 10,
                                   color: Colors.grey[500],
                                 ),
                               ),
@@ -443,15 +495,15 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
                         ),
                 ),
                 if (order.isNotEmpty) ...[
-                  const Divider(thickness: 2),
-                  SizedBox(height: isTablet ? 12 : 8),
+                  const Divider(thickness: 1.5),
+                  SizedBox(height: isTablet ? 10 : 6),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
                         'Total Amount:',
                         style: TextStyle(
-                          fontSize: isTablet ? 18 : 16,
+                          fontSize: isTablet ? 16 : 14,
                           fontWeight: FontWeight.bold,
                           color: const Color(0xFF2D3748),
                         ),
@@ -459,24 +511,24 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
                       Text(
                         '₹${getTotalPrice()}',
                         style: TextStyle(
-                          fontSize: isTablet ? 20 : 18,
+                          fontSize: isTablet ? 18 : 16,
                           fontWeight: FontWeight.bold,
                           color: Colors.green[600],
                         ),
                       ),
                     ],
                   ),
-                  SizedBox(height: isTablet ? 16 : 12),
+                  SizedBox(height: isTablet ? 12 : 10),
                   SizedBox(
                     width: double.infinity,
-                    height: isTablet ? 50 : 45,
+                    height: isTablet ? 48 : 40,
                     child: ElevatedButton.icon(
                       onPressed: () => _placeOrder(context),
-                      icon: const Icon(Icons.check_circle, color: Colors.white),
+                      icon: const Icon(Icons.check_circle, color: Colors.white, size: 20),
                       label: Text(
                         'Place Order',
                         style: TextStyle(
-                          fontSize: isTablet ? 16 : 14,
+                          fontSize: isTablet ? 15 : 13,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -484,9 +536,9 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        elevation: 2,
+                        elevation: 1,
                       ),
                     ),
                   ),
@@ -501,24 +553,24 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
 
   Widget _buildOrderItem(MapEntry<MenuItem, int> entry, bool isTablet) {
     return Container(
-      padding: EdgeInsets.symmetric(vertical: isTablet ? 12 : 8),
+      padding: EdgeInsets.symmetric(vertical: isTablet ? 10 : 6),
       child: Row(
         children: [
           Container(
-            width: isTablet ? 40 : 32,
-            height: isTablet ? 40 : 32,
+            width: isTablet ? 36 : 28,
+            height: isTablet ? 36 : 28,
             decoration: BoxDecoration(
               color: Colors.indigo.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(6),
             ),
             child: Center(
               child: Text(
                 entry.key.image,
-                style: TextStyle(fontSize: isTablet ? 16 : 14),
+                style: TextStyle(fontSize: isTablet ? 14 : 12),
               ),
             ),
           ),
-          SizedBox(width: isTablet ? 12 : 8),
+          SizedBox(width: isTablet ? 10 : 6),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -526,7 +578,7 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
                 Text(
                   entry.key.name,
                   style: TextStyle(
-                    fontSize: isTablet ? 14 : 12,
+                    fontSize: isTablet ? 13 : 11,
                     fontWeight: FontWeight.w600,
                     color: const Color(0xFF2D3748),
                   ),
@@ -536,7 +588,7 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
                 Text(
                   '₹${entry.key.price} × ${entry.value}',
                   style: TextStyle(
-                    fontSize: isTablet ? 12 : 10,
+                    fontSize: isTablet ? 11 : 10,
                     color: Colors.grey[600],
                   ),
                 ),
@@ -549,24 +601,24 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
               GestureDetector(
                 onTap: () => removeFromOrder(entry.key),
                 child: Container(
-                  padding: EdgeInsets.all(isTablet ? 8 : 6),
+                  padding: EdgeInsets.all(isTablet ? 6 : 4),
                   decoration: BoxDecoration(
                     color: Colors.red.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(4),
                   ),
                   child: Icon(
                     Icons.remove,
-                    size: isTablet ? 16 : 14,
+                    size: isTablet ? 14 : 12,
                     color: Colors.red,
                   ),
                 ),
               ),
               Padding(
-                padding: EdgeInsets.symmetric(horizontal: isTablet ? 16 : 12),
+                padding: EdgeInsets.symmetric(horizontal: isTablet ? 12 : 10),
                 child: Text(
                   '${entry.value}',
                   style: TextStyle(
-                    fontSize: isTablet ? 16 : 14,
+                    fontSize: isTablet ? 14 : 12,
                     fontWeight: FontWeight.bold,
                     color: const Color(0xFF2D3748),
                   ),
@@ -575,14 +627,14 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
               GestureDetector(
                 onTap: () => addToOrder(entry.key),
                 child: Container(
-                  padding: EdgeInsets.all(isTablet ? 8 : 6),
+                  padding: EdgeInsets.all(isTablet ? 6 : 4),
                   decoration: BoxDecoration(
                     color: Colors.green.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(4),
                   ),
                   child: Icon(
                     Icons.add,
-                    size: isTablet ? 16 : 14,
+                    size: isTablet ? 14 : 12,
                     color: Colors.green,
                   ),
                 ),
@@ -596,48 +648,48 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
 
   Widget _buildTableSelector(bool isTablet) {
     return Container(
-      padding: EdgeInsets.all(isTablet ? 16 : 12),
+      padding: EdgeInsets.all(isTablet ? 12 : 10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Row(
         children: [
-          Icon(Icons.table_restaurant, color: Colors.indigo, size: isTablet ? 20 : 18),
-          SizedBox(width: isTablet ? 12 : 8),
+          Icon(Icons.table_restaurant, color: Colors.indigo, size: isTablet ? 18 : 16),
+          SizedBox(width: isTablet ? 10 : 6),
           Text(
             'Select Table:',
             style: TextStyle(
-              fontSize: isTablet ? 16 : 14,
+              fontSize: isTablet ? 15 : 13,
               fontWeight: FontWeight.w600,
               color: const Color(0xFF2D3748),
             ),
           ),
           const Spacer(),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
               color: Colors.indigo.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(6),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value: selectedTable,
-                icon: const Icon(Icons.keyboard_arrow_down, color: Colors.indigo),
+                icon: const Icon(Icons.keyboard_arrow_down, color: Colors.indigo, size: 20),
                 items: tables.map((table) {
                   return DropdownMenuItem(
                     value: table,
                     child: Text(
                       table,
                       style: TextStyle(
-                        fontSize: isTablet ? 14 : 12,
+                        fontSize: isTablet ? 13 : 11,
                         fontWeight: FontWeight.w500,
                         color: Colors.indigo,
                       ),
@@ -666,12 +718,12 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Row(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          title: const Row(
             children: [
-              const Icon(Icons.check_circle, color: Colors.green, size: 28),
-              const SizedBox(width: 8),
-              const Text('Order Confirmation', style: TextStyle(fontSize: 20)),
+              Icon(Icons.check_circle, color: Colors.green, size: 24),
+              SizedBox(width: 8),
+              Text('Order Confirmation', style: TextStyle(fontSize: 18)),
             ],
           ),
           content: Text('Order placed successfully for $selectedTable!\nTotal: ₹${getTotalPrice()}'),
