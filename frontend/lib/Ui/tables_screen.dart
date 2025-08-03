@@ -1,5 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shimmer/shimmer.dart';
+import '../bloc/MenuUtility/bloc.dart';
+import '../bloc/MenuUtility/event.dart';
+import '../bloc/MenuUtility/state.dart';
+import '../bloc/OrderBloc/bloc.dart';
+import '../bloc/OrderBloc/event.dart';
+import '../bloc/OrderBloc/state.dart';
+import '../bloc/TableUtility/bloc.dart';
+import '../bloc/TableUtility/event.dart';
+import '../bloc/TableUtility/state.dart';
+import '../models/order_model.dart';
+import '../models/table_model.dart';
+import '../models/menu_model.dart';
+import '../models/user_model.dart';
+import 'package:uuid/uuid.dart';
+import 'dart:developer' as developer;
+import '../services/socketService.dart';
+import 'buy_page.dart'; // Assuming BuyPage is in a file named buy_page.dart
 
 class TableDashboardScreen extends StatefulWidget {
   const TableDashboardScreen({super.key});
@@ -10,26 +29,20 @@ class TableDashboardScreen extends StatefulWidget {
 
 class _TableDashboardScreenState extends State<TableDashboardScreen>
     with TickerProviderStateMixin {
-  String selectedTable = 'Table 1';
+  String? selectedTable;
   late AnimationController _animationController;
-
-  final List<String> tables = [
-    'Table 1', 'Table 2', 'Table 3', 'Table 4', 'Table 5',
-    'Table 6', 'Table 7', 'Table 8', 'Table 9', 'Table 10',
-  ];
-
-  final List<MenuItem> menuItems = [
-    MenuItem(name: 'Paneer Butter Masala', price: 180, category: 'Main Course', image: '🍛'),
-    MenuItem(name: 'Chicken Biryani', price: 220, category: 'Main Course', image: '🍚'),
-    MenuItem(name: 'Veg Fried Rice', price: 150, category: 'Main Course', image: '🍳'),
-    MenuItem(name: 'Masala Dosa', price: 100, category: 'South Indian', image: '🥞'),
-    MenuItem(name: 'Cold Coffee', price: 80, category: 'Beverages', image: '☕'),
-    MenuItem(name: 'Ice Cream', price: 70, category: 'Desserts', image: '🍦'),
-    MenuItem(name: 'Pizza Margherita', price: 250, category: 'Italian', image: '🍕'),
-    MenuItem(name: 'Burger Deluxe', price: 180, category: 'Fast Food', image: '🍔'),
-  ];
-
-  final Map<MenuItem, int> order = {};
+  int _selectedIndex = 0;
+  final Map<MenuItem, String> selectedOptions = {};
+  late List<String> _categories;
+  late List<MenuItem> _menuItems;
+  bool _isInitialLoad = true;
+  // Dummy user for demonstration; replace with actual user data source
+  final UserModel _user = UserModel(
+    userId: 'USER123',
+    fullName: 'John Doe',
+    email: 'john.doe@example.com',
+    mobile: '9876543210',
+  );
 
   @override
   void initState() {
@@ -38,42 +51,552 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
+    _categories = [];
+    _menuItems = [];
+
+    // Initialize SocketService
+    SocketService().connect();
+
+    SocketService().socket.on('orderUpdated', (data) {
+      final update = Map<String, dynamic>.from(data);
+      final orderId = update['orderId'] as String;
+      final status = update['status'] as String;
+      context.read<OrdersBloc>().add(UpdateOrderStatus(orderId, status));
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<TablesBloc>().add(FetchTables());
+      context.read<MenusBloc>().add(FetchMenus());
+      context.read<OrdersBloc>().add(const FetchRecentOrders());
+    });
   }
 
   @override
   void dispose() {
     _animationController.dispose();
+    SocketService().disconnect();
     super.dispose();
   }
 
-  void addToOrder(MenuItem item) {
-    HapticFeedback.lightImpact();
-    setState(() {
-      order[item] = (order[item] ?? 0) + 1;
-    });
-    _animationController.forward().then((_) => _animationController.reverse());
-  }
-
-  void removeFromOrder(MenuItem item) {
-    HapticFeedback.lightImpact();
-    setState(() {
-      if (order[item] != null && order[item]! > 0) {
-        order[item] = order[item]! - 1;
-        if (order[item]! <= 0) {
-          order.remove(item);
-        }
-      }
-    });
-  }
-
-  int getTotalPrice() {
+  int getTotalPrice(Map<OrderItem, int> order) {
     return order.entries
-        .map((entry) => entry.key.price * entry.value)
+        .map((entry) => entry.key.menuItem.price * entry.value)
         .fold(0, (a, b) => a + b);
   }
 
-  List<String> get categories {
-    return menuItems.map((item) => item.category).toSet().toList();
+  List<String> get categories => _categories;
+
+  List<MenuItem> _getMenuItemsFromMenus(List<MenuModel> menus) {
+    const categoryEmojis = {
+      'Main Course': '🍛',
+      'South Indian': '🥞',
+      'Beverages': '☕',
+      'Desserts': '🍦',
+      'Italian': '🍕',
+      'Fast Food': '🍔',
+      'Juice': '🍹',
+      'Starter': '🥗',
+    };
+    return menus.expand((menu) => menu.items.map((entry) => MenuItem(
+          name: entry.menuitemname,
+          price: int.tryParse(entry.price) ?? 0,
+          category: menu.name,
+          image: categoryEmojis[menu.name] ?? '🍽️',
+        ))).toList();
+  }
+
+  void _onNavBarTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+    if (index == 0) {
+      _showRecentOrders(context);
+    } else if (index == 1) {
+      _showOrderBottomSheet(context);
+    }
+  }
+
+  Future<void> _generateBillPDF(List<Order> orders) async {
+    // Navigate to BuyPage instead of directly generating PDF
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BuyPage(
+          orders: orders,
+          user: _user,
+          isGstApplied: true, // Adjust based on your requirements
+        ),
+      ),
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'Pending':
+        return Colors.red;
+      case 'Preparing':
+        return Colors.orange;
+      case 'Ready':
+        return Colors.green;
+      case 'Served':
+        return Colors.blue;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  void _showRecentOrders(BuildContext context) {
+    final isTablet = MediaQuery.of(context).size.width > 600;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          body: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+              ),
+            ),
+            child: SafeArea(
+              child: Column(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(isTablet ? 20 : 16),
+                    child: Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () => Navigator.of(context).pop(),
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.arrow_back_ios,
+                                color: Colors.white, size: 18),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Recent Orders',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: isTablet ? 22 : 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                'View past orders and their status',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: isTablet ? 13 : 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF8F9FA),
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(24),
+                          topRight: Radius.circular(24),
+                        ),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(24),
+                          topRight: Radius.circular(24),
+                        ),
+                        child: Padding(
+                          padding: EdgeInsets.all(isTablet ? 20 : 12),
+                          child: BlocBuilder<OrdersBloc, OrdersState>(
+                            builder: (context, state) {
+                              if (state.status == OrdersStatus.error) {
+                                return Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        state.errorMessage ?? 'Failed to load orders',
+                                        style: TextStyle(
+                                          fontSize: isTablet ? 15 : 13,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      TextButton(
+                                        onPressed: () => context
+                                            .read<OrdersBloc>()
+                                            .add(const FetchRecentOrders()),
+                                        child: const Text('Retry'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
+                              final recentOrders = state.recentOrders;
+                              final totalAmount = recentOrders.fold<int>(
+                                  0, (sum, order) => sum + order.total);
+                              return Column(
+                                children: [
+                                  Expanded(
+                                    child: recentOrders.isEmpty
+                                        ? Center(
+                                            child: Column(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                Icon(
+                                                  Icons.history_outlined,
+                                                  size: isTablet ? 56 : 40,
+                                                  color: Colors.grey[400],
+                                                ),
+                                                const SizedBox(height: 12),
+                                                Text(
+                                                  'No recent orders available',
+                                                  style: TextStyle(
+                                                    fontSize:
+                                                        isTablet ? 15 : 13,
+                                                    color: Colors.grey[600],
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 6),
+                                                Text(
+                                                  'Place an order to see it here',
+                                                  style: TextStyle(
+                                                    fontSize:
+                                                        isTablet ? 11 : 10,
+                                                    color: Colors.grey[500],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          )
+                                        : ListView.separated(
+                                            physics:
+                                                const BouncingScrollPhysics(),
+                                            itemCount: recentOrders.length,
+                                            separatorBuilder:
+                                                (context, index) =>
+                                                    const SizedBox(height: 12),
+                                            itemBuilder: (context, index) {
+                                              final order = recentOrders[
+                                                  recentOrders.length -
+                                                      1 -
+                                                      index];
+                                              return Container(
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white,
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: Colors.black
+                                                          .withOpacity(0.05),
+                                                      blurRadius: 8,
+                                                      offset:
+                                                          const Offset(0, 3),
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: ExpansionTile(
+                                                  tilePadding:
+                                                      EdgeInsets.symmetric(
+                                                    horizontal:
+                                                        isTablet ? 16 : 12,
+                                                    vertical: isTablet ? 8 : 6,
+                                                  ),
+                                                  childrenPadding:
+                                                      EdgeInsets.symmetric(
+                                                    horizontal:
+                                                        isTablet ? 16 : 12,
+                                                    vertical: isTablet ? 8 : 6,
+                                                  ),
+                                                  title: Row(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .spaceBetween,
+                                                    children: [
+                                                      Text(
+                                                        'Table: ${order.table}',
+                                                        style: TextStyle(
+                                                          fontSize:
+                                                              isTablet ? 16 : 14,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          color: const Color(
+                                                              0xFF2D3748),
+                                                        ),
+                                                      ),
+                                                      Container(
+                                                        padding: const EdgeInsets
+                                                            .symmetric(
+                                                                horizontal: 8,
+                                                                vertical: 4),
+                                                        decoration:
+                                                            BoxDecoration(
+                                                          color: _getStatusColor(
+                                                                  order.status)
+                                                              .withOpacity(0.1),
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(8),
+                                                        ),
+                                                        child: Text(
+                                                          order.status,
+                                                          style: TextStyle(
+                                                            fontSize: isTablet
+                                                                ? 12
+                                                                : 10,
+                                                            color:
+                                                                _getStatusColor(
+                                                                    order.status),
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  subtitle: Container(
+                                                    margin: EdgeInsets.only(
+                                                        top: isTablet ? 8 : 6),
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
+                                                        horizontal: 12,
+                                                        vertical: 6),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.grey[100],
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              8),
+                                                    ),
+                                                    child: Row(
+                                                      mainAxisSize:
+                                                          MainAxisSize.min,
+                                                      children: [
+                                                        Text(
+                                                          'Total:',
+                                                          style: TextStyle(
+                                                            fontSize: isTablet
+                                                                ? 14
+                                                                : 12,
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                            color:
+                                                                Colors.grey[900],
+                                                          ),
+                                                        ),
+                                                        const SizedBox(width: 8),
+                                                        Text(
+                                                          '₹${order.total}',
+                                                          style: TextStyle(
+                                                            fontSize: isTablet
+                                                                ? 14
+                                                                : 12,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            color: Colors
+                                                                .green[600],
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  children: order.items.entries
+                                                      .map((entry) {
+                                                    return Padding(
+                                                      padding:
+                                                          EdgeInsets.symmetric(
+                                                        vertical:
+                                                            isTablet ? 8 : 6,
+                                                      ),
+                                                      child: Row(
+                                                        children: [
+                                                          Container(
+                                                            width: isTablet
+                                                                ? 36
+                                                                : 28,
+                                                            height: isTablet
+                                                                ? 36
+                                                                : 28,
+                                                            decoration:
+                                                                BoxDecoration(
+                                                              color: Colors.indigo
+                                                                  .withOpacity(
+                                                                      0.1),
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          6),
+                                                            ),
+                                                            child: Center(
+                                                              child: Text(
+                                                                entry
+                                                                    .key
+                                                                    .menuItem
+                                                                    .image,
+                                                                style: TextStyle(
+                                                                    fontSize:
+                                                                        isTablet
+                                                                            ? 14
+                                                                            : 12),
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          SizedBox(
+                                                              width: isTablet
+                                                                  ? 10
+                                                                  : 8),
+                                                          Expanded(
+                                                            child: Column(
+                                                              crossAxisAlignment:
+                                                                  CrossAxisAlignment
+                                                                      .start,
+                                                              children: [
+                                                                Text(
+                                                                  '${entry.key.menuItem.name} (${entry.key.customization})',
+                                                                  style:
+                                                                      TextStyle(
+                                                                    fontSize:
+                                                                        isTablet
+                                                                            ? 13
+                                                                            : 11,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w600,
+                                                                    color: const Color(
+                                                                        0xFF2D3748),
+                                                                  ),
+                                                                  maxLines: 1,
+                                                                  overflow:
+                                                                      TextOverflow
+                                                                          .ellipsis,
+                                                                ),
+                                                                Text(
+                                                                  '₹${entry.key.menuItem.price} × ${entry.value}',
+                                                                  style:
+                                                                      TextStyle(
+                                                                    fontSize:
+                                                                        isTablet
+                                                                            ? 11
+                                                                            : 10,
+                                                                    color: Colors
+                                                                            .grey[
+                                                                        600],
+                                                                  ),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    );
+                                                  }).toList(),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                  ),
+                                  if (recentOrders.isNotEmpty)
+                                    Padding(
+                                      padding: EdgeInsets.all(isTablet ? 20 : 16),
+                                      child: Column(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 12, vertical: 6),
+                                            decoration: BoxDecoration(
+                                              color: Colors.grey[100],
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                            child: Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
+                                              children: [
+                                                Text(
+                                                  'Total All Orders:',
+                                                  style: TextStyle(
+                                                    fontSize:
+                                                        isTablet ? 16 : 14,
+                                                    fontWeight: FontWeight.bold,
+                                                    color:
+                                                        const Color(0xFF2D3748),
+                                                  ),
+                                                ),
+                                                Text(
+                                                  '₹$totalAmount',
+                                                  style: TextStyle(
+                                                    fontSize:
+                                                        isTablet ? 16 : 14,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.green[600],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 12),
+                                          SizedBox(
+                                            width: double.infinity,
+                                            height: isTablet ? 48 : 40,
+                                            child: ElevatedButton.icon(
+                                              onPressed: () =>
+                                                  _generateBillPDF(
+                                                      recentOrders),
+                                              icon: const Icon(Icons.receipt,
+                                                  color: Colors.white, size: 20),
+                                              label: Text(
+                                                'Proceed to Payment',
+                                                style: TextStyle(
+                                                  fontSize:
+                                                      isTablet ? 15 : 13,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.green,
+                                                foregroundColor: Colors.white,
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
+                                                ),
+                                                elevation: 1,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                ],
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -81,72 +604,106 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
     final screenSize = MediaQuery.of(context).size;
     final isTablet = screenSize.width > 600;
 
-    return Scaffold(
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showOrderBottomSheet(context),
-        backgroundColor: Colors.indigo,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            const Icon(Icons.shopping_cart, color: Colors.white),
-            if (order.isNotEmpty)
-              Positioned(
-                right: 0,
-                top: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Text(
-                    '${order.length}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
+    return BlocListener<OrdersBloc, OrdersState>(
+      listener: (context, state) {
+        if (state.status == OrdersStatus.error) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.errorMessage ?? 'Failed to process order'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      },
+      child: Scaffold(
+        bottomNavigationBar: BottomNavigationBar(
+          currentIndex: _selectedIndex,
+          onTap: _onNavBarTapped,
+          selectedItemColor: Colors.indigo,
+          unselectedItemColor: Colors.grey[600],
+          backgroundColor: Colors.white,
+          elevation: 8,
+          items: [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.history, size: isTablet ? 22 : 20),
+              label: 'Recent Order',
+            ),
+            BottomNavigationBarItem(
+              icon: BlocSelector<OrdersBloc, OrdersState, Map<OrderItem, int>>(
+                selector: (state) => state.currentOrder,
+                builder: (context, currentOrder) {
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Icon(Icons.restaurant, size: isTablet ? 22 : 20),
+                      if (currentOrder.isNotEmpty)
+                        Positioned(
+                          right: 0,
+                          top: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              '${currentOrder.length}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
               ),
+              label: 'Current Order',
+            ),
           ],
+          selectedLabelStyle:
+              TextStyle(fontSize: isTablet ? 13 : 11, fontWeight: FontWeight.w600),
+          unselectedLabelStyle: TextStyle(fontSize: isTablet ? 12 : 10),
         ),
-      ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              _buildAppBar(context, isTablet),
-              Expanded(
-                child: Container(
-                  margin: const EdgeInsets.only(top: 10),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFF8F9FA),
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(30),
-                      topRight: Radius.circular(30),
+          child: SafeArea(
+            child: Column(
+              children: [
+                _buildAppBar(context, isTablet),
+                Expanded(
+                  child: Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF8F9FA),
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(24),
+                        topRight: Radius.circular(24),
+                      ),
                     ),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(30),
-                      topRight: Radius.circular(30),
-                    ),
-                    child: Padding(
-                      padding: EdgeInsets.all(isTablet ? 24 : 16),
-                      child: _buildMenuSection(context, isTablet),
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(24),
+                        topRight: Radius.circular(24),
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.all(isTablet ? 20 : 12),
+                        child: _buildMenuSection(context, isTablet),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -155,21 +712,22 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
 
   Widget _buildAppBar(BuildContext context, bool isTablet) {
     return Container(
-      padding: EdgeInsets.all(isTablet ? 24 : 20),
+      padding: EdgeInsets.all(isTablet ? 20 : 16),
       child: Row(
         children: [
           GestureDetector(
             onTap: () => Navigator.of(context).pop(),
             child: Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+              child: const Icon(Icons.arrow_back_ios,
+                  color: Colors.white, size: 18),
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -178,7 +736,7 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
                   'Table Orders',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: isTablet ? 24 : 20,
+                    fontSize: isTablet ? 22 : 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -186,7 +744,7 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
                   'Manage table orders and menu',
                   style: TextStyle(
                     color: Colors.white70,
-                    fontSize: isTablet ? 14 : 12,
+                    fontSize: isTablet ? 13 : 11,
                   ),
                 ),
               ],
@@ -198,43 +756,321 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
   }
 
   Widget _buildMenuSection(BuildContext context, bool isTablet) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildTableSelector(isTablet),
-        SizedBox(height: isTablet ? 20 : 16),
-        Row(
-          children: [
-            Icon(Icons.restaurant_menu, color: Colors.indigo, size: isTablet ? 24 : 20),
-            const SizedBox(width: 8),
-            Text(
-              'Menu Items',
-              style: TextStyle(
-                fontSize: isTablet ? 20 : 18,
-                fontWeight: FontWeight.bold,
-                color: const Color(0xFF2D3748),
+    return BlocListener<MenusBloc, MenusState>(
+      listener: (context, state) {
+        if (state is MenusLoaded) {
+          setState(() {
+            _categories = state.menus.map((menu) => menu.name).toSet().toList();
+            _menuItems = _getMenuItemsFromMenus(state.menus);
+            _isInitialLoad = false;
+          });
+        }
+      },
+      child: _isInitialLoad
+          ? Shimmer.fromColors(
+              baseColor: Colors.grey[300]!,
+              highlightColor: Colors.grey[100]!,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(isTablet ? 14 : 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: isTablet ? 20 : 18,
+                          height: isTablet ? 20 : 18,
+                          color: Colors.grey[300],
+                        ),
+                        SizedBox(width: isTablet ? 12 : 8),
+                        Container(
+                          width: 100,
+                          height: isTablet ? 16 : 14,
+                          color: Colors.grey[300],
+                        ),
+                        const Spacer(),
+                        Container(
+                          width: isTablet ? 120 : 100,
+                          height: isTablet ? 32 : 28,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: isTablet ? 16 : 12),
+                  Row(
+                    children: [
+                      Container(
+                        width: isTablet ? 22 : 18,
+                        height: isTablet ? 22 : 18,
+                        color: Colors.grey[300],
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        width: 100,
+                        height: isTablet ? 18 : 16,
+                        color: Colors.grey[300],
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: isTablet ? 10 : 6),
+                  Expanded(
+                    child: GridView.builder(
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: isTablet ? 2 : 1,
+                        childAspectRatio: isTablet ? 2.4 : 3.4,
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                      ),
+                      itemCount: 6,
+                      itemBuilder: (context, index) {
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Padding(
+                            padding: EdgeInsets.all(isTablet ? 12 : 10),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: isTablet ? 50 : 40,
+                                  height: isTablet ? 50 : 40,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[300],
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                SizedBox(width: isTablet ? 12 : 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Container(
+                                        width: double.infinity,
+                                        height: isTablet ? 15 : 13,
+                                        color: Colors.grey[300],
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Container(
+                                        width: 80,
+                                        height: isTablet ? 11 : 10,
+                                        color: Colors.grey[300],
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Container(
+                                        width: 60,
+                                        height: isTablet ? 15 : 13,
+                                        color: Colors.grey[300],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
+            )
+          : BlocSelector<TablesBloc, TablesState, TablesState>(
+              selector: (state) => state,
+              builder: (context, tableState) {
+                if (tableState is TablesLoaded) {
+                  final tableItems =
+                      tableState.tables.expand((table) => table.utilityItems).toList();
+                  if (tableItems.isEmpty) {
+                    return const Center(child: Text('No table items available'));
+                  }
+                  if (selectedTable == null && tableItems.isNotEmpty) {
+                    selectedTable = tableItems[0].name;
+                  }
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildTableSelector(isTablet, tableItems),
+                      SizedBox(height: isTablet ? 16 : 12),
+                      Row(
+                        children: [
+                          Icon(Icons.restaurant_menu,
+                              color: Colors.indigo, size: isTablet ? 22 : 18),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Menu Items',
+                            style: TextStyle(
+                              fontSize: isTablet ? 18 : 16,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF2D3748),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: isTablet ? 10 : 6),
+                      Expanded(
+                        child: GridView.builder(
+                          physics: const BouncingScrollPhysics(),
+                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: isTablet ? 2 : 1,
+                            childAspectRatio: isTablet ? 2.4 : 3.4,
+                            mainAxisSpacing: 10,
+                            crossAxisSpacing: 10,
+                          ),
+                          itemCount: _menuItems.length,
+                          itemBuilder: (context, index) {
+                            final item = _menuItems[index];
+                            return _buildMenuItemCard(item, isTablet);
+                          },
+                        ),
+                      ),
+                    ],
+                  );
+                } else if (tableState is TablesError) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(tableState.message),
+                        TextButton(
+                          onPressed: () =>
+                              context.read<TablesBloc>().add(FetchTables()),
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                return Shimmer.fromColors(
+                  baseColor: Colors.grey[300]!,
+                  highlightColor: Colors.grey[100]!,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(isTablet ? 14 : 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: isTablet ? 20 : 18,
+                              height: isTablet ? 20 : 18,
+                              color: Colors.grey[300],
+                            ),
+                            SizedBox(width: isTablet ? 12 : 8),
+                            Container(
+                              width: 100,
+                              height: isTablet ? 16 : 14,
+                              color: Colors.grey[300],
+                            ),
+                            const Spacer(),
+                            Container(
+                              width: isTablet ? 120 : 100,
+                              height: isTablet ? 32 : 28,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[300],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(height: isTablet ? 16 : 12),
+                      Row(
+                        children: [
+                          Container(
+                            width: isTablet ? 22 : 18,
+                            height: isTablet ? 22 : 18,
+                            color: Colors.grey[300],
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            width: 100,
+                            height: isTablet ? 18 : 16,
+                            color: Colors.grey[300],
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: isTablet ? 10 : 6),
+                      Expanded(
+                        child: GridView.builder(
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: isTablet ? 2 : 1,
+                            childAspectRatio: isTablet ? 2.4 : 3.4,
+                            mainAxisSpacing: 10,
+                            crossAxisSpacing: 10,
+                          ),
+                          itemCount: 6,
+                          itemBuilder: (context, index) {
+                            return Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Padding(
+                                padding: EdgeInsets.all(isTablet ? 12 : 10),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: isTablet ? 50 : 40,
+                                      height: isTablet ? 50 : 40,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[300],
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    SizedBox(width: isTablet ? 12 : 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Container(
+                                            width: double.infinity,
+                                            height: isTablet ? 15 : 13,
+                                            color: Colors.grey[300],
+                                          ),
+                                          const SizedBox(height: 3),
+                                          Container(
+                                            width: 80,
+                                            height: isTablet ? 11 : 10,
+                                            color: Colors.grey[300],
+                                          ),
+                                          const SizedBox(height: 3),
+                                          Container(
+                                            width: 60,
+                                            height: isTablet ? 15 : 13,
+                                            color: Colors.grey[300],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
-          ],
-        ),
-        SizedBox(height: isTablet ? 12 : 8),
-        Expanded(
-          child: GridView.builder(
-            physics: const BouncingScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: isTablet ? 2 : 1,
-              childAspectRatio: isTablet ? 2.5 : 3.5,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-            ),
-            itemCount: menuItems.length,
-            itemBuilder: (context, index) {
-              final item = menuItems[index];
-              return _buildMenuItemCard(item, isTablet);
-            },
-          ),
-        ),
-      ],
     );
   }
 
@@ -242,70 +1078,152 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => addToOrder(item),
-          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            HapticFeedback.lightImpact();
+            context.read<OrdersBloc>().add(AddOrderItem(
+                  OrderItem(
+                    menuItem: item,
+                    customization: selectedOptions[item] ?? 'Medium',
+                  ),
+                ));
+            _animationController.forward().then((_) => _animationController.reverse());
+          },
+          borderRadius: BorderRadius.circular(12),
           child: Padding(
-            padding: EdgeInsets.all(isTablet ? 16 : 12),
+            padding: EdgeInsets.all(isTablet ? 12 : 10),
             child: Row(
               children: [
                 Container(
-                  width: isTablet ? 60 : 50,
-                  height: isTablet ? 60 : 50,
+                  width: isTablet ? 50 : 40,
+                  height: isTablet ? 50 : 40,
                   decoration: BoxDecoration(
                     color: Colors.indigo.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: Center(
                     child: Text(
                       item.image,
-                      style: TextStyle(fontSize: isTablet ? 24 : 20),
+                      style: TextStyle(fontSize: isTablet ? 20 : 18),
                     ),
                   ),
                 ),
-                SizedBox(width: isTablet ? 16 : 12),
+                SizedBox(width: isTablet ? 12 : 10),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        item.name,
-                        style: TextStyle(
-                          fontSize: isTablet ? 16 : 14,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF2D3748),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            item.name,
+                            style: TextStyle(
+                              fontSize: isTablet ? 15 : 13,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF2D3748),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            item.category,
+                            style: TextStyle(
+                              fontSize: isTablet ? 11 : 10,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            '₹${item.price}',
+                            style: TextStyle(
+                              fontSize: isTablet ? 15 : 13,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green[600],
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        item.category,
-                        style: TextStyle(
-                          fontSize: isTablet ? 12 : 11,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '₹${item.price}',
-                        style: TextStyle(
-                          fontSize: isTablet ? 16 : 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green[600],
-                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: SizedBox(
+                              width: isTablet ? 100 : 80,
+                              child: Container(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  border: Border.all(
+                                      color: Colors.indigo[700]!, width: 1.0),
+                                  borderRadius: BorderRadius.circular(8),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.08),
+                                      blurRadius: 3,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: DropdownButton<String>(
+                                  value: selectedOptions[item] ?? 'Medium',
+                                  items: [
+                                    'Spicy',
+                                    'Less Spicy',
+                                    'Medium',
+                                  ].map((option) {
+                                    return DropdownMenuItem<String>(
+                                      value: option,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                                        child: Text(
+                                          option,
+                                          style: TextStyle(
+                                            fontSize: isTablet ? 12 : 10,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.indigo[700],
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      selectedOptions[item] = value!;
+                                    });
+                                  },
+                                  underline: const SizedBox(),
+                                  icon: Icon(Icons.arrow_drop_down,
+                                      color: Colors.indigo[700], size: 18),
+                                  isExpanded: true,
+                                  style: TextStyle(
+                                    fontSize: isTablet ? 12 : 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.indigo[700],
+                                  ),
+                                  dropdownColor: Colors.white,
+                                  alignment: Alignment.center,
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: isTablet ? 12 : 8),
+                        ],
                       ),
                     ],
                   ),
@@ -313,15 +1231,15 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
                 ScaleTransition(
                   scale: Tween<double>(begin: 1.0, end: 1.2).animate(_animationController),
                   child: Container(
-                    padding: EdgeInsets.all(isTablet ? 12 : 8),
+                    padding: EdgeInsets.all(isTablet ? 10 : 6),
                     decoration: BoxDecoration(
                       color: Colors.indigo,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(6),
                     ),
                     child: Icon(
                       Icons.add,
                       color: Colors.white,
-                      size: isTablet ? 20 : 16,
+                      size: isTablet ? 18 : 14,
                     ),
                   ),
                 ),
@@ -341,16 +1259,16 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        minChildSize: 0.4,
-        maxChildSize: 0.9,
+        initialChildSize: 0.65,
+        minChildSize: 0.35,
+        maxChildSize: 0.85,
         builder: (context, scrollController) => Container(
           decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
           ),
           child: Padding(
-            padding: EdgeInsets.all(isTablet ? 20 : 16),
+            padding: EdgeInsets.all(isTablet ? 16 : 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -358,139 +1276,165 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Container(
-                      width: 40,
-                      height: 5,
+                      width: 36,
+                      height: 4,
                       decoration: BoxDecoration(
                         color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(2.5),
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
                   ],
                 ),
-                SizedBox(height: isTablet ? 16 : 12),
+                SizedBox(height: isTablet ? 12 : 10),
                 Row(
                   children: [
-                    Icon(Icons.shopping_cart, color: Colors.indigo, size: isTablet ? 24 : 20),
-                    const SizedBox(width: 8),
+                    Icon(Icons.restaurant,
+                        color: Colors.indigo, size: isTablet ? 22 : 18),
+                    const SizedBox(width: 6),
                     Text(
                       'Current Order',
                       style: TextStyle(
-                        fontSize: isTablet ? 20 : 18,
+                        fontSize: isTablet ? 18 : 16,
                         fontWeight: FontWeight.bold,
                         color: const Color(0xFF2D3748),
                       ),
                     ),
                     const Spacer(),
-                    if (order.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.indigo.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          '${order.length} items',
-                          style: TextStyle(
-                            color: Colors.indigo,
-                            fontSize: isTablet ? 12 : 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
+                    BlocSelector<OrdersBloc, OrdersState, Map<OrderItem, int>>(
+                      selector: (state) => state.currentOrder,
+                      builder: (context, currentOrder) {
+                        if (currentOrder.isNotEmpty) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.indigo.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '${currentOrder.length} items',
+                              style: TextStyle(
+                                color: Colors.indigo,
+                                fontSize: isTablet ? 11 : 9,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          );
+                        }
+                        return const SizedBox();
+                      },
+                    ),
                   ],
                 ),
-                SizedBox(height: isTablet ? 16 : 12),
+                SizedBox(height: isTablet ? 12 : 10),
                 Expanded(
-                  child: order.isEmpty
-                      ? Center(
+                  child: BlocSelector<OrdersBloc, OrdersState, Map<OrderItem, int>>(
+                    selector: (state) => state.currentOrder,
+                    builder: (context, order) {
+                      if (order.isEmpty) {
+                        return Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(
-                                Icons.shopping_cart_outlined,
-                                size: isTablet ? 64 : 48,
+                                Icons.restaurant_outlined,
+                                size: isTablet ? 56 : 40,
                                 color: Colors.grey[400],
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 12),
                               Text(
                                 'No items added',
                                 style: TextStyle(
-                                  fontSize: isTablet ? 16 : 14,
+                                  fontSize: isTablet ? 15 : 13,
                                   color: Colors.grey[600],
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 6),
                               Text(
                                 'Start adding items from menu',
                                 style: TextStyle(
-                                  fontSize: isTablet ? 12 : 11,
+                                  fontSize: isTablet ? 11 : 10,
                                   color: Colors.grey[500],
                                 ),
                               ),
                             ],
                           ),
-                        )
-                      : ListView.separated(
-                          controller: scrollController,
-                          physics: const BouncingScrollPhysics(),
-                          itemCount: order.entries.length,
-                          separatorBuilder: (context, index) => const Divider(height: 1),
-                          itemBuilder: (context, index) {
-                            final entry = order.entries.elementAt(index);
-                            return _buildOrderItem(entry, isTablet);
-                          },
-                        ),
+                        );
+                      }
+                      return ListView.separated(
+                        controller: scrollController,
+                        physics: const BouncingScrollPhysics(),
+                        itemCount: order.entries.length,
+                        separatorBuilder: (context, index) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final entry = order.entries.elementAt(index);
+                          return _buildOrderItem(entry, isTablet);
+                        },
+                      );
+                    },
+                  ),
                 ),
-                if (order.isNotEmpty) ...[
-                  const Divider(thickness: 2),
-                  SizedBox(height: isTablet ? 12 : 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Total Amount:',
-                        style: TextStyle(
-                          fontSize: isTablet ? 18 : 16,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF2D3748),
-                        ),
-                      ),
-                      Text(
-                        '₹${getTotalPrice()}',
-                        style: TextStyle(
-                          fontSize: isTablet ? 20 : 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: isTablet ? 16 : 12),
-                  SizedBox(
-                    width: double.infinity,
-                    height: isTablet ? 50 : 45,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _placeOrder(context),
-                      icon: const Icon(Icons.check_circle, color: Colors.white),
-                      label: Text(
-                        'Place Order',
-                        style: TextStyle(
-                          fontSize: isTablet ? 16 : 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 2,
-                      ),
-                    ),
-                  ),
-                ],
+                BlocSelector<OrdersBloc, OrdersState, Map<OrderItem, int>>(
+                  selector: (state) => state.currentOrder,
+                  builder: (context, currentOrder) {
+                    if (currentOrder.isNotEmpty) {
+                      return Column(
+                        children: [
+                          const Divider(thickness: 1.5),
+                          SizedBox(height: isTablet ? 10 : 6),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Total Amount:',
+                                style: TextStyle(
+                                  fontSize: isTablet ? 16 : 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: const Color(0xFF2D3748),
+                                ),
+                              ),
+                              Text(
+                                '₹${getTotalPrice(currentOrder)}',
+                                style: TextStyle(
+                                  fontSize: isTablet ? 18 : 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: isTablet ? 12 : 10),
+                          SizedBox(
+                            width: double.infinity,
+                            height: isTablet ? 48 : 40,
+                            child: ElevatedButton.icon(
+                              onPressed: () => _placeOrder(context),
+                              icon: const Icon(Icons.check_circle,
+                                  color: Colors.white, size: 20),
+                              label: Text(
+                                'Place Order',
+                                style: TextStyle(
+                                  fontSize: isTablet ? 15 : 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                elevation: 1,
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+                    return const SizedBox();
+                  },
+                ),
               ],
             ),
           ),
@@ -499,34 +1443,34 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
     );
   }
 
-  Widget _buildOrderItem(MapEntry<MenuItem, int> entry, bool isTablet) {
+  Widget _buildOrderItem(MapEntry<OrderItem, int> entry, bool isTablet) {
     return Container(
-      padding: EdgeInsets.symmetric(vertical: isTablet ? 12 : 8),
+      padding: EdgeInsets.symmetric(vertical: isTablet ? 10 : 6),
       child: Row(
         children: [
           Container(
-            width: isTablet ? 40 : 32,
-            height: isTablet ? 40 : 32,
+            width: isTablet ? 36 : 28,
+            height: isTablet ? 36 : 28,
             decoration: BoxDecoration(
               color: Colors.indigo.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(6),
             ),
             child: Center(
               child: Text(
-                entry.key.image,
-                style: TextStyle(fontSize: isTablet ? 16 : 14),
+                entry.key.menuItem.image,
+                style: TextStyle(fontSize: isTablet ? 14 : 12),
               ),
             ),
           ),
-          SizedBox(width: isTablet ? 12 : 8),
+          SizedBox(width: isTablet ? 10 : 6),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  entry.key.name,
+                  '${entry.key.menuItem.name} (${entry.key.customization})',
                   style: TextStyle(
-                    fontSize: isTablet ? 14 : 12,
+                    fontSize: isTablet ? 13 : 11,
                     fontWeight: FontWeight.w600,
                     color: const Color(0xFF2D3748),
                   ),
@@ -534,9 +1478,9 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  '₹${entry.key.price} × ${entry.value}',
+                  '₹${entry.key.menuItem.price} × ${entry.value}',
                   style: TextStyle(
-                    fontSize: isTablet ? 12 : 10,
+                    fontSize: isTablet ? 11 : 10,
                     color: Colors.grey[600],
                   ),
                 ),
@@ -547,42 +1491,48 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
             mainAxisSize: MainAxisSize.min,
             children: [
               GestureDetector(
-                onTap: () => removeFromOrder(entry.key),
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  context.read<OrdersBloc>().add(RemoveOrderItem(entry.key));
+                },
                 child: Container(
-                  padding: EdgeInsets.all(isTablet ? 8 : 6),
+                  padding: EdgeInsets.all(isTablet ? 6 : 4),
                   decoration: BoxDecoration(
                     color: Colors.red.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(4),
                   ),
                   child: Icon(
                     Icons.remove,
-                    size: isTablet ? 16 : 14,
+                    size: isTablet ? 14 : 12,
                     color: Colors.red,
                   ),
                 ),
               ),
               Padding(
-                padding: EdgeInsets.symmetric(horizontal: isTablet ? 16 : 12),
+                padding: EdgeInsets.symmetric(horizontal: isTablet ? 12 : 10),
                 child: Text(
                   '${entry.value}',
                   style: TextStyle(
-                    fontSize: isTablet ? 16 : 14,
+                    fontSize: isTablet ? 14 : 12,
                     fontWeight: FontWeight.bold,
                     color: const Color(0xFF2D3748),
                   ),
                 ),
               ),
               GestureDetector(
-                onTap: () => addToOrder(entry.key),
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  context.read<OrdersBloc>().add(AddOrderItem(entry.key));
+                },
                 child: Container(
-                  padding: EdgeInsets.all(isTablet ? 8 : 6),
+                  padding: EdgeInsets.all(isTablet ? 6 : 4),
                   decoration: BoxDecoration(
                     color: Colors.green.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(4),
                   ),
                   child: Icon(
                     Icons.add,
-                    size: isTablet ? 16 : 14,
+                    size: isTablet ? 14 : 12,
                     color: Colors.green,
                   ),
                 ),
@@ -594,119 +1544,485 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
     );
   }
 
-  Widget _buildTableSelector(bool isTablet) {
+  Widget _buildTableSelector(bool isTablet, List<TableItem> tableItems) {
+    return BlocSelector<TablesBloc, TablesState, TablesState>(
+      selector: (state) => state,
+      builder: (context, tableState) {
+        if (tableState is TablesLoaded) {
+          final tableItems =
+              tableState.tables.expand((table) => table.utilityItems).toList();
+          if (tableItems.isEmpty) {
+            return const Center(child: Text('No table items available'));
+          }
+          if (selectedTable == null && tableItems.isNotEmpty) {
+            selectedTable = tableItems[0].name;
+          }
+          return Container(
+            padding: EdgeInsets.all(isTablet ? 14 : 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.table_restaurant,
+                    color: Colors.indigo, size: isTablet ? 20 : 18),
+                SizedBox(width: isTablet ? 12 : 8),
+                Text(
+                  'Select Table:',
+                  style: TextStyle(
+                    fontSize: isTablet ? 16 : 14,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF2D3748),
+                  ),
+                ),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (context) => Container(
+                        height: MediaQuery.of(context).size.height,
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                          ),
+                          borderRadius:
+                              BorderRadius.vertical(top: Radius.circular(24)),
+                        ),
+                        child: Column(
+                          children: [
+                            Padding(
+                              padding: EdgeInsets.all(isTablet ? 24 : 20),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Select a Table',
+                                    style: TextStyle(
+                                      fontSize: isTablet ? 20 : 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.close,
+                                        color: Colors.white, size: 28),
+                                    onPressed: () => Navigator.pop(context),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              child: Container(
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFF8F9FA),
+                                  borderRadius: BorderRadius.only(
+                                    topLeft: Radius.circular(24),
+                                    topRight: Radius.circular(24),
+                                  ),
+                                ),
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: isTablet ? 20 : 12),
+                                  child: GridView.builder(
+                                    physics: const BouncingScrollPhysics(),
+                                    gridDelegate:
+                                        SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: isTablet ? 2 : 1,
+                                      childAspectRatio: isTablet ? 2.7 : 3.7,
+                                      mainAxisSpacing: 10,
+                                      crossAxisSpacing: 10,
+                                    ),
+                                    itemCount: tableItems.length,
+                                    itemBuilder: (context, index) {
+                                      final tableItem = tableItems[index];
+                                      return _buildTableItemCard(tableItem, isTablet);
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.indigo.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          selectedTable ?? 'Select a table',
+                          style: TextStyle(
+                            fontSize: isTablet ? 14 : 12,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.indigo,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        const Icon(Icons.keyboard_arrow_down,
+                            color: Colors.indigo, size: 24),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        } else if (tableState is TablesError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(tableState.message),
+                TextButton(
+                  onPressed: () =>
+                      context.read<TablesBloc>().add(FetchTables()),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          );
+        }
+        return Shimmer.fromColors(
+          baseColor: Colors.grey[300]!,
+          highlightColor: Colors.grey[100]!,
+          child: Container(
+            padding: EdgeInsets.all(isTablet ? 14 : 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: isTablet ? 20 : 18,
+                  height: isTablet ? 20 : 18,
+                  color: Colors.grey[300],
+                ),
+                SizedBox(width: isTablet ? 12 : 8),
+                Container(
+                  width: 100,
+                  height: isTablet ? 16 : 14,
+                  color: Colors.grey[300],
+                ),
+                const Spacer(),
+                Container(
+                  width: isTablet ? 120 : 100,
+                  height: isTablet ? 32 : 28,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTableItemCard(TableItem tableItem, bool isTablet) {
     return Container(
-      padding: EdgeInsets.all(isTablet ? 16 : 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Icon(Icons.table_restaurant, color: Colors.indigo, size: isTablet ? 20 : 18),
-          SizedBox(width: isTablet ? 12 : 8),
-          Text(
-            'Select Table:',
-            style: TextStyle(
-              fontSize: isTablet ? 16 : 14,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF2D3748),
-            ),
-          ),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.indigo.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: selectedTable,
-                icon: const Icon(Icons.keyboard_arrow_down, color: Colors.indigo),
-                items: tables.map((table) {
-                  return DropdownMenuItem(
-                    value: table,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            setState(() => selectedTable = tableItem.name);
+            Navigator.pop(context);
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: EdgeInsets.all(isTablet ? 14 : 12),
+            child: Row(
+              children: [
+                Container(
+                  width: isTablet ? 56 : 48,
+                  height: isTablet ? 56 : 48,
+                  decoration: BoxDecoration(
+                    color: Colors.indigo.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Center(
                     child: Text(
-                      table,
-                      style: TextStyle(
-                        fontSize: isTablet ? 14 : 12,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.indigo,
-                      ),
+                      '🪑',
+                      style: TextStyle(fontSize: isTablet ? 22 : 20),
                     ),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() => selectedTable = value);
-                  }
-                },
-              ),
+                  ),
+                ),
+                SizedBox(width: isTablet ? 14 : 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        tableItem.name,
+                        style: TextStyle(
+                          fontSize: isTablet ? 16 : 14,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF2D3748),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'Seats: ${tableItem.count}',
+                        style: TextStyle(
+                          fontSize: isTablet ? 12 : 11,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 
-  void _placeOrder(BuildContext context) {
-    if (order.isEmpty) return;
+  void _placeOrder(BuildContext context) async {
+    if (selectedTable == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a table')),
+      );
+      return;
+    }
 
     HapticFeedback.mediumImpact();
+    final ordersBloc = context.read<OrdersBloc>();
+    final currentState = ordersBloc.state;
 
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Row(
-            children: [
-              const Icon(Icons.check_circle, color: Colors.green, size: 28),
-              const SizedBox(width: 8),
-              const Text('Order Confirmation', style: TextStyle(fontSize: 20)),
-            ],
-          ),
-          content: Text('Order placed successfully for $selectedTable!\nTotal: ₹${getTotalPrice()}'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).pop(); // Close bottom sheet
-                setState(() => order.clear());
-              },
-              child: const Text('OK'),
+    if (currentState.currentOrder.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No items in the order')),
+      );
+      return;
+    }
+
+    final total = getTotalPrice(currentState.currentOrder);
+    final orderId = const Uuid().v4();
+
+    final orderData = {
+      'id': orderId,
+      'table': selectedTable,
+      'items': currentState.currentOrder.entries.map((entry) => {
+            'name': entry.key.menuItem.name,
+            'customization': entry.key.customization,
+            'quantity': entry.value,
+            'price': entry.key.menuItem.price,
+          }).toList(),
+      'total': total,
+      'status': 'Pending',
+      'time': DateTime.now().toIso8601String(),
+    };
+
+    try {
+      SocketService().placeOrder(orderData);
+      ordersBloc.add(PlaceOrder(orderId, selectedTable!));
+
+      // Create an Order object to pass to BuyPage
+      final order = Order(
+        id: orderId,
+        table: selectedTable!,
+        items: currentState.currentOrder,
+        total: total,
+        status: 'Pending',
+        timestamp: DateTime.now(),
+      );
+
+      setState(() {
+        selectedOptions.clear();
+      });
+
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            elevation: 8,
+            backgroundColor: Colors.white,
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.white,
+                    Colors.grey[50]!,
+                  ],
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.check_circle,
+                          color: Colors.green,
+                          size: 32,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Order Confirmed',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[900],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Your order for $selectedTable has been successfully placed!',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey[800],
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Total Amount:',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[900],
+                          ),
+                        ),
+                        Text(
+                          '₹$total',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          Navigator.of(context).pop();
+                          _showRecentOrders(context);
+                        },
+                        child: Text(
+                          'View Recent Orders',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.indigo[700],
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          Navigator.of(context).pop();
+                          // Navigate to BuyPage
+                          // Navigator.push(
+                          //   context,
+                          //   MaterialPageRoute(
+                          //     builder: (context) => BuyPage(
+                          //       orders: [order],
+                          //       user: _user,
+                          //       isGstApplied: true,
+                          //     ),
+                          //   ),
+                          // );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          elevation: 1,
+                        ),
+                        child: const Text(
+                          'Done',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ],
-        );
-      },
-    );
+          );
+        },
+      );
+    } catch (e) {
+      developer.log('Error sending order via socket: $e', error: e);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to send order to server')),
+      );
+    }
   }
-}
-
-class MenuItem {
-  final String name;
-  final int price;
-  final String category;
-  final String image;
-
-  MenuItem({
-    required this.name,
-    required this.price,
-    required this.category,
-    required this.image,
-  });
-
-  @override
-  bool operator ==(Object other) => other is MenuItem && name == other.name;
-
-  @override
-  int get hashCode => name.hashCode;
 }

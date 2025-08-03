@@ -76,3 +76,30 @@ class MenuModel {
     };
   }
 }
+
+class MenuItem {
+  final String name;
+  final int price;
+  final String category;
+  final String image;
+
+  MenuItem({
+    required this.name,
+    required this.price,
+    required this.category,
+    required this.image,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      other is MenuItem && name == other.name;
+
+  @override
+  int get hashCode => name.hashCode;
+
+  @override
+  String toString() {
+    return 'MenuItem(name: $name, price: $price, category: $category, image: $image)';
+  }
+}
+

@@ -1,6 +1,21 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:frontend/ui/dashboard_screen.dart';
+import 'package:frontend/widgets/internet_check.dart';
+
+import '../bloc/AmenitiesUtility/bloc.dart';
+import '../bloc/AmenitiesUtility/event.dart';
+import '../bloc/AmenitiesUtility/state.dart';
+import '../bloc/MenuUtility/bloc.dart';
+import '../bloc/MenuUtility/event.dart';
+import '../bloc/MenuUtility/state.dart';
+import '../bloc/RoomUtility/bloc.dart';
+import '../bloc/RoomUtility/event.dart';
+import '../bloc/RoomUtility/state.dart';
+import '../bloc/TableUtility/bloc.dart';
+import '../bloc/TableUtility/event.dart';
+import '../bloc/TableUtility/state.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -16,14 +31,22 @@ class _SplashScreenState extends State<SplashScreen>
   late Animation<double> _logoAnimation;
   late Animation<double> _textAnimation;
   late Animation<Offset> _slideAnimation;
+
+  bool _amenitiesLoaded = false;
+  bool _menusLoaded = false;
+  bool _tablesLoaded = false;
+  bool _roomsLoaded = false;
+
   @override
   void initState() {
     super.initState();
+
+    // Initialize animation controllers
     _logoController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
-    
+
     _textController = AnimationController(
       duration: const Duration(milliseconds: 1000),
       vsync: this,
@@ -53,8 +76,14 @@ class _SplashScreenState extends State<SplashScreen>
       curve: Curves.easeOutCubic,
     ));
 
+    // Start animations
     _startAnimations();
-    _navigateToHome();
+
+    // Dispatch fetch events
+    context.read<AmenitiesBloc>().add(FetchAmenities());
+    context.read<MenusBloc>().add(FetchMenus());
+    context.read<TablesBloc>().add(FetchTables());
+    context.read<RoomsBloc>().add(FetchRooms());
   }
 
   void _startAnimations() async {
@@ -63,13 +92,19 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   void _navigateToHome() {
-    Timer(const Duration(seconds: 4), () {
+    if (_amenitiesLoaded && _menusLoaded && _tablesLoaded && _roomsLoaded) {
       if (mounted) {
         Navigator.pushReplacement(
           context,
           PageRouteBuilder(
             pageBuilder: (context, animation, secondaryAnimation) =>
-                const DashboardScreen(),
+                const Stack(
+              children: [
+                InternetCheckWidget(
+                  child: DashboardScreen(),
+                ),
+              ],
+            ),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
               return FadeTransition(
                 opacity: animation,
@@ -80,7 +115,7 @@ class _SplashScreenState extends State<SplashScreen>
           ),
         );
       }
-    });
+    }
   }
 
   @override
@@ -94,32 +129,87 @@ class _SplashScreenState extends State<SplashScreen>
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
     final isTablet = screenSize.width > 600;
-    
-    return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF667eea),
-              Color(0xFF764ba2),
-            ],
-          ),
+
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<AmenitiesBloc, AmenitiesState>(
+          listener: (context, state) {
+            if (state is AmenitiesLoaded) {
+              setState(() {
+                _amenitiesLoaded = true;
+              });
+              _navigateToHome();
+            } else if (state is AmenitiesError) {
+              // Handle error (e.g., show a snackbar or retry)
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Failed to load amenities: ${state.message}')),
+              );
+            }
+          },
         ),
-        child: SafeArea(
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: screenSize.width * 0.08,
-              vertical: screenSize.height * 0.05,
+        BlocListener<MenusBloc, MenusState>(
+          listener: (context, state) {
+            if (state is MenusLoaded) {
+              setState(() {
+                _menusLoaded = true;
+              });
+              _navigateToHome();
+            } else if (state is MenusError) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Failed to load menus: ${state.message}')),
+              );
+            }
+          },
+        ),
+        BlocListener<TablesBloc, TablesState>(
+          listener: (context, state) {
+            if (state is TablesLoaded) {
+              setState(() {
+                _tablesLoaded = true;
+              });
+              _navigateToHome();
+            } else if (state is TablesError) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Failed to load tables: ${state.message}')),
+              );
+            }
+          },
+        ),
+        BlocListener<RoomsBloc, RoomState>(
+          listener: (context, state) {
+            if (state is RoomLoaded) {
+              setState(() {
+                _roomsLoaded = true;
+              });
+              _navigateToHome();
+            } else if (state is RoomError) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Failed to load rooms: ${state.message}')),
+              );
+            }
+          },
+        ),
+      ],
+      child: Scaffold(
+        body: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF667eea),
+                Color(0xFF764ba2),
+              ],
             ),
+          ),
+          child: SafeArea(
+           
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Spacer(),
-                
                 // Animated Logo
                 ScaleTransition(
                   scale: _logoAnimation,
@@ -143,9 +233,7 @@ class _SplashScreenState extends State<SplashScreen>
                     ),
                   ),
                 ),
-                
                 SizedBox(height: screenSize.height * 0.04),
-                
                 // Animated Text
                 SlideTransition(
                   position: _slideAnimation,
@@ -163,9 +251,7 @@ class _SplashScreenState extends State<SplashScreen>
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        
                         SizedBox(height: screenSize.height * 0.02),
-                        
                         Container(
                           constraints: BoxConstraints(
                             maxWidth: screenSize.width * 0.8,
@@ -184,9 +270,7 @@ class _SplashScreenState extends State<SplashScreen>
                     ),
                   ),
                 ),
-                
                 const Spacer(),
-                
                 // Loading Indicator
                 FadeTransition(
                   opacity: _textAnimation,
@@ -215,7 +299,6 @@ class _SplashScreenState extends State<SplashScreen>
                     ],
                   ),
                 ),
-                
                 SizedBox(height: screenSize.height * 0.05),
               ],
             ),

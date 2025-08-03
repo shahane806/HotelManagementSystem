@@ -6,9 +6,7 @@ abstract class RoomEvents extends Equatable {
   List<Object?> get props => [];
 }
 
-class FetchRooms extends RoomEvents {
-  const FetchRooms();
-}
+class FetchRooms extends RoomEvents {}
 
 class AddRoom extends RoomEvents {
   final int name;

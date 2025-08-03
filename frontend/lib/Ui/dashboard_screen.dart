@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:frontend/ui/kitchen_screen.dart';
 import 'package:frontend/ui/tables_screen.dart';
+import 'package:frontend/widgets/internet_check.dart';
 import 'utilities_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -298,7 +299,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       Navigator.push(
         context,
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const TableDashboardScreen(),
+          pageBuilder: (context, animation, secondaryAnimation) => const InternetCheckWidget(child:  TableDashboardScreen()),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return SlideTransition(
               position: animation.drive(Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)),
@@ -311,7 +312,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       Navigator.push(
         context,
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const KitchenDashboardScreen(),
+          pageBuilder: (context, animation, secondaryAnimation) => const InternetCheckWidget(child: KitchenDashboardScreen()),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return SlideTransition(
               position: animation.drive(Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)),
@@ -324,7 +325,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       Navigator.push(
         context,
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const UtilityScreen(),
+          pageBuilder: (context, animation, secondaryAnimation) => const InternetCheckWidget(child:  UtilityScreen()),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return SlideTransition(
               position: animation.drive(Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)),
