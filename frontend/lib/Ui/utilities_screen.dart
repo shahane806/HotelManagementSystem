@@ -23,11 +23,12 @@ class UtilityScreen extends StatefulWidget {
 }
 
 class _UtilityScreenState extends State<UtilityScreen> {
+  String? selectedUtilityName;
+
   Future<void> _addTableItem() async {
     final nameController = TextEditingController();
     final countController = TextEditingController();
     String? selectedUtilityId;
-    String? selectedUtilityName;
 
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
@@ -121,11 +122,13 @@ class _UtilityScreenState extends State<UtilityScreen> {
     );
 
     if (result != null) {
-      context.read<TablesBloc>().add(AddTableItem(
+       if(mounted){
+        context.read<TablesBloc>().add(AddTableItem(
             result['utilityId'],
             result['name'],
             result['count'],
           ));
+       }
       _showSuccessSnackBar("Table item added successfully!");
     }
   }
@@ -164,7 +167,9 @@ class _UtilityScreenState extends State<UtilityScreen> {
       ),
     );
     if (result != null) {
-      context.read<MenusBloc>().add(AddMenus(result));
+       if(mounted){
+        context.read<MenusBloc>().add(AddMenus(result));
+       }
       _showSuccessSnackBar("Menu created successfully!");
     }
   }
@@ -213,7 +218,9 @@ class _UtilityScreenState extends State<UtilityScreen> {
       ),
     );
     if (result != null) {
-      context.read<MenusBloc>().add(AddMenuItem(menuName, result['item'], result['price']));
+       if(mounted){
+        context.read<MenusBloc>().add(AddMenuItem(menuName, result['item'], result['price']));
+       }
       _showSuccessSnackBar("Menu item added successfully!");
     }
   }
@@ -316,7 +323,9 @@ class _UtilityScreenState extends State<UtilityScreen> {
     );
 
     if (result != null) {
-      context.read<RoomsBloc>().add(AddRoom(result['name'], result['price'], result['isAC']));
+       if(mounted){
+        context.read<RoomsBloc>().add(AddRoom(result['name'], result['price'], result['isAC']));
+       }
       _showSuccessSnackBar("Room added successfully!");
     }
   }
@@ -355,7 +364,9 @@ class _UtilityScreenState extends State<UtilityScreen> {
       ),
     );
     if (result != null) {
-      context.read<AmenitiesBloc>().add(AddAmenities(result));
+       if(mounted){
+        context.read<AmenitiesBloc>().add(AddAmenities(result));
+       }
       _showSuccessSnackBar("Amenity added successfully!");
     }
   }
@@ -617,10 +628,7 @@ class _UtilityScreenState extends State<UtilityScreen> {
   @override
   void initState() {
     super.initState();
-    context.read<AmenitiesBloc>().add(FetchAmenities());
-    context.read<MenusBloc>().add(FetchMenus());
-    context.read<TablesBloc>().add(FetchTables());
-    context.read<RoomsBloc>().add(FetchRooms());
+    
   }
 
   @override

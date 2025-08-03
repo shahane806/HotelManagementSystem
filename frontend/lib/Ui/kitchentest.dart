@@ -10,50 +10,53 @@ class KitchenDashboardScreen extends StatefulWidget {
 }
 
 class _KitchenDashboardScreenState extends State<KitchenDashboardScreen> {
+  final SocketService _socketService = SocketService();
   List<Map<String, dynamic>> orders = [];
   String selectedStatusFilter = 'All';
   final List<String> statusFilters = ['All', 'Pending', 'Preparing', 'Ready', 'Served'];
 
   @override
-void initState() {
-  super.initState();
-  SocketService().connect(); // Connect to socket server
+  void initState() {
+    super.initState();
+    // Ensure socket is connected
+    if (!_socketService.socket.connected) {
+      _socketService.connect();
+    }
 
-  // Listen for new orders
-  SocketService().socket.on('newOrder', (order) {
-    final parsedOrder = Map<String, dynamic>.from(order);
+    // Request initial orders
+    _socketService.socket.emit('getOrders');
 
-    setState(() {
-      final orderExists = orders.any((o) => o['id'].toString() == parsedOrder['id'].toString());
-
-      if (!orderExists) {
-        orders.add(parsedOrder);
-        print('[SOCKET] New order added: ${parsedOrder['id']}');
-      } else {
-        print('[SOCKET] Order already exists, skipping: ${parsedOrder['id']}');
-      }
+    // Listen for initial orders
+    _socketService.socket.on('initialOrders', (data) {
+      setState(() {
+        orders = List<Map<String, dynamic>>.from(data);
+      });
     });
-  });
 
-  // Listen for order updates
-  SocketService().socket.on('orderUpdated', (data) {
-    final update = Map<String, dynamic>.from(data);
-
-    setState(() {
-      orders = orders.map((order) {
-        if (order['id'].toString() == update['orderId'].toString()) {
-          print('[SOCKET] Updating order ${update['orderId']} to status: ${update['status']}');
-          return {...order, 'status': update['status']};
-        }
-        return order;
-      }).toList();
+    // Listen for new orders
+    _socketService.socket.on('newOrder', (data) {
+      setState(() {
+        orders.add(data);
+      });
     });
-  });
-}
+
+    // Listen for order status updates
+    _socketService.socket.on('orderStatusUpdate', (data) {
+      setState(() {
+        orders = orders.map((order) {
+          if (order['id'] == data['orderId']) {
+            return {...order, 'status': data['status']};
+          }
+          return order;
+        }).toList();
+      });
+    });
+  }
 
   @override
   void dispose() {
-    SocketService().disconnect(); // Disconnect socket
+    // Do not disconnect the socket to preserve connection
+    // _socketService.disconnect();
     super.dispose();
   }
 
@@ -72,10 +75,6 @@ void initState() {
     }
   }
 
-  void updateOrderStatus(String orderId, String status) {
-    SocketService().updateOrderStatus(orderId, status); // Use SocketService to update status
-  }
-
   String _formatTime(String time) {
     final dateTime = DateTime.parse(time);
     return '${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')} ${dateTime.hour >= 12 ? 'PM' : 'AM'}';
@@ -88,10 +87,12 @@ void initState() {
     final isTablet = screenWidth > 600;
     final isDesktop = screenWidth > 1200;
 
+    // Filter orders based on selected status
     final filteredOrders = selectedStatusFilter == 'All'
         ? orders
         : orders.where((order) => order['status'] == selectedStatusFilter).toList();
 
+    // New orders are those with status 'Pending'
     final newOrders = orders.where((order) => order['status'] == 'Pending').toList();
 
     return Scaffold(
@@ -175,9 +176,7 @@ void initState() {
         IconButton(
           icon: const Icon(Icons.refresh, color: Colors.white),
           onPressed: () {
-            setState(() {
-              orders.clear(); // Optionally clear orders on refresh
-            });
+            _socketService.socket.emit('getOrders');
           },
         ),
         if (screenWidth > 600)
@@ -319,19 +318,18 @@ void initState() {
       itemCount: orders.length,
       separatorBuilder: (context, index) => const SizedBox(height: 16),
       itemBuilder: (context, index) {
-        return _buildOrderCard(context, orders[index], screenWidth, isTablet);
+        return _buildOrderCard(context, orders[index], screenWidth, false);
       },
     );
   }
 
   Widget _buildOrderCard(BuildContext context, Map<String, dynamic> order,
-      double screenWidth, bool isTablet) {
+      double screenWidth, bool isGridLayout) {
     final table = order['table'] as String;
     final items = order['items'] as List<dynamic>;
     final status = order['status'] as String;
     final time = order['time'] as String;
     final orderId = order['id'] as String;
-    final total = order['total'] as int;
 
     Color statusColor = _getStatusColor(status);
 
@@ -361,7 +359,7 @@ void initState() {
             child: Icon(
               Icons.table_restaurant,
               color: statusColor,
-              size: isTablet ? 24 : 20,
+              size: screenWidth > 600 ? 24 : 20,
             ),
           ),
           title: Row(
@@ -370,15 +368,17 @@ void initState() {
                 child: Text(
                   table,
                   style: TextStyle(
-                    fontSize: isTablet ? 18 : 16,
+                    fontSize: screenWidth > 600 ? 18 : 16,
                     fontWeight: FontWeight.bold,
                     color: Colors.grey[800],
                   ),
                   overflow: TextOverflow.visible,
                 ),
               ),
-              if (screenWidth > 400)
+              if (screenWidth > 400) ...[
+                const SizedBox(width: 8),
                 _buildStatusChip(status, statusColor, screenWidth),
+              ],
             ],
           ),
           subtitle: Column(
@@ -412,7 +412,7 @@ void initState() {
             ],
           ),
           childrenPadding: EdgeInsets.symmetric(
-            horizontal: isTablet ? 20 : 16,
+            horizontal: screenWidth > 600 ? 20 : 16,
             vertical: 12,
           ),
           expandedCrossAxisAlignment: CrossAxisAlignment.start,
@@ -430,7 +430,7 @@ void initState() {
                   Text(
                     "Order Items",
                     style: TextStyle(
-                      fontSize: isTablet ? 14 : 12,
+                      fontSize: screenWidth > 600 ? 14 : 12,
                       fontWeight: FontWeight.w600,
                       color: Colors.grey[700],
                     ),
@@ -446,7 +446,7 @@ void initState() {
                             child: Text(
                               '${item['name']} (${item['customization']}) x${item['quantity']}',
                               style: TextStyle(
-                                fontSize: isTablet ? 14 : 12,
+                                fontSize: screenWidth > 600 ? 14 : 12,
                                 color: Colors.grey[800],
                               ),
                             ),
@@ -454,7 +454,7 @@ void initState() {
                           Text(
                             '₹${item['price'] * item['quantity']}',
                             style: TextStyle(
-                              fontSize: isTablet ? 14 : 12,
+                              fontSize: screenWidth > 600 ? 14 : 12,
                               fontWeight: FontWeight.w600,
                               color: Colors.green[600],
                             ),
@@ -465,20 +465,12 @@ void initState() {
                   }).toList(),
                   const SizedBox(height: 12),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       Text(
-                        'Total:',
+                        'Total: ₹${order['total']}',
                         style: TextStyle(
-                          fontSize: isTablet ? 14 : 12,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey[700],
-                        ),
-                      ),
-                      Text(
-                        '₹$total',
-                        style: TextStyle(
-                          fontSize: isTablet ? 14 : 12,
+                          fontSize: screenWidth > 600 ? 16 : 14,
                           fontWeight: FontWeight.bold,
                           color: Colors.green[600],
                         ),
@@ -491,85 +483,34 @@ void initState() {
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
-              runSpacing: 8,
-              children: [
-                if (status != 'Pending')
-                  ElevatedButton(
-                    onPressed: () => updateOrderStatus(orderId, 'Pending'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red[50],
-                      foregroundColor: Colors.red,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    child: Text(
-                      'Set Pending',
-                      style: TextStyle(
-                        fontSize: isTablet ? 12 : 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                if (status != 'Preparing')
-                  ElevatedButton(
-                    onPressed: () => updateOrderStatus(orderId, 'Preparing'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange[50],
-                      foregroundColor: Colors.orange,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    child: Text(
-                      'Set Preparing',
-                      style: TextStyle(
-                        fontSize: isTablet ? 12 : 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                if (status != 'Ready')
-                  ElevatedButton(
-                    onPressed: () => updateOrderStatus(orderId, 'Ready'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green[50],
-                      foregroundColor: Colors.green,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    child: Text(
-                      'Set Ready',
-                      style: TextStyle(
-                        fontSize: isTablet ? 12 : 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                if (status != 'Served')
-                  ElevatedButton(
-                    onPressed: () => updateOrderStatus(orderId, 'Served'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue[50],
-                      foregroundColor: Colors.blue,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    child: Text(
-                      'Set Served',
-                      style: TextStyle(
-                        fontSize: isTablet ? 12 : 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-              ],
+              children: statusFilters
+                  .where((s) => s != 'All')
+                  .map((newStatus) => ElevatedButton(
+                        onPressed: () {
+                          _socketService.updateOrderStatus(orderId, newStatus);
+                          // Emit the status update to ensure TableDashboardScreen receives it
+                          _socketService.socket.emit('orderStatusUpdate', {
+                            'orderId': orderId,
+                            'status': newStatus,
+                          });
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _getStatusColor(newStatus).withOpacity(0.1),
+                          foregroundColor: _getStatusColor(newStatus),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        ),
+                        child: Text(
+                          newStatus,
+                          style: TextStyle(
+                            fontSize: screenWidth > 600 ? 14 : 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ))
+                  .toList(),
             ),
           ],
         ),
@@ -579,13 +520,10 @@ void initState() {
 
   Widget _buildStatusChip(String status, Color statusColor, double screenWidth) {
     return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: screenWidth > 600 ? 12 : 8,
-        vertical: 4,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: statusColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: statusColor.withOpacity(0.5)),
       ),
       child: Text(
