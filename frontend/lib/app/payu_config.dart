@@ -35,7 +35,7 @@ class PayUConfig {
       'ios_furl': PayUConfig.iosFurl,
       'android_surl': PayUConfig.androidSurl,
       'android_furl': PayUConfig.androidFurl,
-      'environment': "1", // Change to "1" for production
+      'environment': "0", // Change to "1" for production
       'userCredential': "${PayUConfig.merchantKey}:$name",
       'transactionId': txnId,
       'additionalParam': additionalParam,

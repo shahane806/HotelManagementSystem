@@ -16,6 +16,7 @@ class PayUService {
 
   String generateTxnId(String userId) {
     final rand = Random().nextInt(9000) + 1000;
+    print("U${userId}D${DateTime.now().millisecondsSinceEpoch}R$rand");
     return "U${userId}D${DateTime.now().millisecondsSinceEpoch}R$rand";
   }
 
