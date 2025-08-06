@@ -73,16 +73,29 @@ class KitchenDashboardView extends StatelessWidget {
                 horizontal: isDesktop ? 32 : (isTablet ? 24 : 16),
                 vertical: 16,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeader(context, screenWidth, filteredOrders.length),
-                  const SizedBox(height: 20),
-                  _buildFilterRow(context, screenWidth, isTablet),
-                  const SizedBox(height: 20),
-                  if (newOrders.isNotEmpty) ...[
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeader(context, screenWidth, filteredOrders.length),
+                    const SizedBox(height: 20),
+                    _buildFilterRow(context, screenWidth, isTablet),
+                    const SizedBox(height: 20),
+                    if (newOrders.isNotEmpty) ...[
+                      Text(
+                        'New Orders',
+                        style: TextStyle(
+                          fontSize: isTablet ? 18 : 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _buildOrdersList(context, newOrders, screenWidth, isTablet, isDesktop),
+                      const SizedBox(height: 20),
+                    ],
                     Text(
-                      'New Orders',
+                      state.selectedStatusFilter == 'All' ? 'All Orders' : '${state.selectedStatusFilter} Orders',
                       style: TextStyle(
                         fontSize: isTablet ? 18 : 16,
                         fontWeight: FontWeight.bold,
@@ -90,22 +103,9 @@ class KitchenDashboardView extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    _buildOrdersList(context, newOrders, screenWidth, isTablet, isDesktop),
-                    const SizedBox(height: 20),
+                    _buildOrdersList(context, filteredOrders, screenWidth, isTablet, isDesktop),
                   ],
-                  Text(
-                    state.selectedStatusFilter == 'All' ? 'All Orders' : '${state.selectedStatusFilter} Orders',
-                    style: TextStyle(
-                      fontSize: isTablet ? 18 : 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[800],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: _buildOrdersList(context, filteredOrders, screenWidth, isTablet, isDesktop),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -272,6 +272,8 @@ class KitchenDashboardView extends StatelessWidget {
 
   Widget _buildGridLayout(BuildContext context, List<Map<String, dynamic>> orders, double screenWidth) {
     return GridView.builder(
+      physics: const NeverScrollableScrollPhysics(),
+      shrinkWrap: true,
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: screenWidth > 1400 ? 3 : 2,
         childAspectRatio: 1.2,
@@ -288,6 +290,7 @@ class KitchenDashboardView extends StatelessWidget {
   Widget _buildListLayout(BuildContext context, List<Map<String, dynamic>> orders,
       double screenWidth, bool isTablet) {
     return ListView.separated(
+      physics: const NeverScrollableScrollPhysics(),
       shrinkWrap: true,
       itemCount: orders.length,
       separatorBuilder: (context, index) => const SizedBox(height: 16),
@@ -398,81 +401,86 @@ class KitchenDashboardView extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.grey[200]!),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Order Items",
-                      style: TextStyle(
-                        fontSize: isTablet ? 14 : 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    if (items.isEmpty)
-                      Text(
-                        'No items available',
-                        style: TextStyle(
-                          fontSize: isTablet ? 14 : 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ...items.map((item) {
-                      final name = item['name'] as String? ?? 'Unknown Item';
-                      final customization = item['customization'] as String? ?? 'None';
-                      final quantity = item['quantity'] as int? ?? 1;
-                      final price = item['price'] as int? ?? 0;
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                '$name ($customization) x$quantity',
-                                style: TextStyle(
-                                  fontSize: isTablet ? 14 : 12,
-                                  color: Colors.grey[800],
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            Text(
-                              '₹${price * quantity}',
-                              style: TextStyle(
-                                fontSize: isTablet ? 14 : 12,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.green[600],
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                child: SizedBox(
+                  height: 200, // Constrain height to prevent overflow
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Total:',
+                          "Order Items",
                           style: TextStyle(
                             fontSize: isTablet ? 14 : 12,
                             fontWeight: FontWeight.w600,
                             color: Colors.grey[700],
                           ),
                         ),
-                        Text(
-                          '₹$total',
-                          style: TextStyle(
-                            fontSize: isTablet ? 14 : 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green[600],
+                        const SizedBox(height: 8),
+                        if (items.isEmpty)
+                          Text(
+                            'No items available',
+                            style: TextStyle(
+                              fontSize: isTablet ? 14 : 12,
+                              color: Colors.grey[600],
+                            ),
                           ),
+                        ...items.map((item) {
+                          final name = item['name'] as String? ?? 'Unknown Item';
+                          final customization = item['customization'] as String? ?? 'None';
+                          final quantity = item['quantity'] as int? ?? 1;
+                          final price = item['price'] as int? ?? 0;
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    '$name ($customization) x$quantity',
+                                    style: TextStyle(
+                                      fontSize: isTablet ? 14 : 12,
+                                      color: Colors.grey[800],
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Text(
+                                  '₹${price * quantity}',
+                                  style: TextStyle(
+                                    fontSize: isTablet ? 14 : 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.green[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Total:',
+                              style: TextStyle(
+                                fontSize: isTablet ? 14 : 12,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                            Text(
+                              '₹$total',
+                              style: TextStyle(
+                                fontSize: isTablet ? 14 : 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green[600],
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
