@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:uuid/uuid.dart';
+import 'dart:developer' as developer;
 import '../bloc/MenuUtility/bloc.dart';
 import '../bloc/MenuUtility/event.dart';
 import '../bloc/MenuUtility/state.dart';
@@ -15,10 +17,8 @@ import '../models/order_model.dart';
 import '../models/table_model.dart';
 import '../models/menu_model.dart';
 import '../models/user_model.dart';
-import 'package:uuid/uuid.dart';
-import 'dart:developer' as developer;
 import '../services/socketService.dart';
-import 'buy_page.dart'; // Assuming BuyPage is in a file named buy_page.dart
+import 'buy_page.dart';
 
 class TableDashboardScreen extends StatefulWidget {
   const TableDashboardScreen({super.key});
@@ -33,10 +33,11 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
   late AnimationController _animationController;
   int _selectedIndex = 0;
   final Map<MenuItem, String> selectedOptions = {};
-  late List<String> _categories;
-  late List<MenuItem> _menuItems;
+  List<String> _categories = [];
+  List<MenuItem> _menuItems = [];
   bool _isInitialLoad = true;
-  final UserModel _user = UserModel(
+  bool _isVegFilter = true;
+  final UserModel _user =  UserModel(
     userId: '0001',
     fullName: 'John Doe',
     email: 'john.doe@example.com',
@@ -50,17 +51,17 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    _categories = [];
-    _menuItems = [];
 
-    // Initialize SocketService
     SocketService().connect();
-
     SocketService().socket.on('orderUpdated', (data) {
       final update = Map<String, dynamic>.from(data);
-      final orderId = update['orderId'] as String;
-      final status = update['status'] as String;
-      context.read<OrdersBloc>().add(UpdateOrderStatus(orderId, status));
+      final orderId = update['orderId'] as String?;
+      final status = update['status'] as String?;
+      if (orderId != null && status != null) {
+        context.read<OrdersBloc>().add(UpdateOrderStatus(orderId, status));
+      } else {
+        developer.log('Invalid order update data: $data', name: 'TableDashboardScreen');
+      }
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -78,12 +79,9 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
   }
 
   int getTotalPrice(Map<OrderItem, int> order) {
-    return order.entries
-        .map((entry) => entry.key.menuItem.price * entry.value)
-        .fold(0, (a, b) => a + b);
+    return order.entries.fold(
+        0, (sum, entry) => sum + (entry.key.menuItem.price * entry.value));
   }
-
-  List<String> get categories => _categories;
 
   List<MenuItem> _getMenuItemsFromMenus(List<MenuModel> menus) {
     const categoryEmojis = {
@@ -95,13 +93,27 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
       'Fast Food': '🍔',
       'Juice': '🍹',
       'Starter': '🥗',
+      'Chicken 🍗': '🍗',
     };
-    return menus.expand((menu) => menu.items.map((entry) => MenuItem(
+    final items = menus.expand((menu) {
+      developer.log('Filtering menu: ${menu.name}, type: ${menu.type}, items: ${menu.items.length}', name: 'TableDashboardScreen');
+      return menu.items.where((item) {
+        final matchesFilter = _isVegFilter ? item.type == 'Veg' : item.type == 'Non-Veg';
+        developer.log('Item: ${item.menuitemname}, type: ${item.type}, matchesFilter: $matchesFilter', name: 'TableDashboardScreen');
+        return matchesFilter;
+      }).map((entry) {
+        final price = int.tryParse(entry.price) ?? 0;
+        return MenuItem(
           name: entry.menuitemname,
-          price: int.tryParse(entry.price) ?? 0,
+          price: price,
           category: menu.name,
           image: categoryEmojis[menu.name] ?? '🍽️',
-        ))).toList();
+          type: entry.type,
+        );
+      });
+    }).toList();
+    developer.log('Filtered items: ${items.length}, filter: ${_isVegFilter ? 'Veg' : 'Non-Veg'}', name: 'TableDashboardScreen');
+    return items;
   }
 
   void _onNavBarTapped(int index) {
@@ -116,14 +128,14 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
   }
 
   Future<void> _generateBillPDF(List<Order> orders) async {
-    // Navigate to BuyPage instead of directly generating PDF
-    Navigator.push(
+    if (!mounted) return;
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => BuyPage(
           orders: orders,
           user: _user,
-          isGstApplied: true, // Adjust based on your requirements
+          isGstApplied: true,
         ),
       ),
     );
@@ -245,13 +257,9 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
                                 );
                               }
                               final recentOrders = state.recentOrders;
-                              // Group orders by table
                               final Map<String, List<Order>> groupedOrders = {};
                               for (var order in recentOrders) {
-                                if (!groupedOrders.containsKey(order.table)) {
-                                  groupedOrders[order.table] = [];
-                                }
-                                groupedOrders[order.table]!.add(order);
+                                groupedOrders.putIfAbsent(order.table, () => []).add(order);
                               }
                               final totalAmount = recentOrders.fold<int>(
                                   0, (sum, order) => sum + order.total);
@@ -621,7 +629,7 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
                                         ],
                                       ),
                                     ),
-                                  const SizedBox(height: 80), // Added padding for visibility
+                                  const SizedBox(height: 80),
                                 ],
                               );
                             },
@@ -641,12 +649,11 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
 
   @override
   Widget build(BuildContext context) {
-    final screenSize = MediaQuery.of(context).size;
-    final isTablet = screenSize.width > 600;
+    final isTablet = MediaQuery.of(context).size.width > 600;
 
     return BlocListener<OrdersBloc, OrdersState>(
       listener: (context, state) {
-        if (state.status == OrdersStatus.error) {
+        if (state.status == OrdersStatus.error && mounted) {
           Navigator.of(context).pop();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -790,6 +797,47 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
               ],
             ),
           ),
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _isVegFilter = !_isVegFilter;
+                final menusState = context.read<MenusBloc>().state;
+                if (menusState is MenusLoaded) {
+                  _menuItems = _getMenuItemsFromMenus(menusState.menus);
+                }
+              });
+            },
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                  horizontal: isTablet ? 12 : 10, vertical: isTablet ? 6 : 4),
+              decoration: BoxDecoration(
+                color: _isVegFilter ? Colors.green.withOpacity(0.2) : Colors.red.withOpacity(0.2),
+                border: Border.all(
+                  color: _isVegFilter ? Colors.green : Colors.red,
+                  width: 1,
+                ),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _isVegFilter ? Icons.eco : Icons.dinner_dining,
+                    color: _isVegFilter ? Colors.green : Colors.red,
+                    size: isTablet ? 20 : 18,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _isVegFilter ? 'Veg' : 'Non-Veg',
+                    style: TextStyle(
+                      color: _isVegFilter ? Colors.green : Colors.red,
+                      fontSize: isTablet ? 12 : 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -804,313 +852,233 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
             _menuItems = _getMenuItemsFromMenus(state.menus);
             _isInitialLoad = false;
           });
+        } else if (state is MenusError) {
+          developer.log('MenusBloc error: ${state.message}', name: 'TableDashboardScreen');
         }
       },
-      child: _isInitialLoad
-          ? Shimmer.fromColors(
-              baseColor: Colors.grey[300]!,
-              highlightColor: Colors.grey[100]!,
+      child: BlocBuilder<MenusBloc, MenusState>(
+        builder: (context, state) {
+          if (_isInitialLoad && state is MenusLoading) {
+            return _buildShimmerMenu(isTablet);
+          } else if (state is MenusError) {
+            return Center(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
-                    padding: EdgeInsets.all(isTablet ? 14 : 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: isTablet ? 20 : 18,
-                          height: isTablet ? 20 : 18,
-                          color: Colors.grey[300],
-                        ),
-                        SizedBox(width: isTablet ? 12 : 8),
-                        Container(
-                          width: 100,
-                          height: isTablet ? 16 : 14,
-                          color: Colors.grey[300],
-                        ),
-                        const Spacer(),
-                        Container(
-                          width: isTablet ? 120 : 100,
-                          height: isTablet ? 32 : 28,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[300],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ],
+                  Icon(
+                    Icons.error_outline,
+                    size: isTablet ? 56 : 40,
+                    color: Colors.red[400],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    state.message ?? 'Failed to load menus',
+                    style: TextStyle(
+                      fontSize: isTablet ? 15 : 13,
+                      color: Colors.grey[600],
                     ),
                   ),
-                  SizedBox(height: isTablet ? 16 : 12),
-                  Row(
-                    children: [
-                      Container(
-                        width: isTablet ? 22 : 18,
-                        height: isTablet ? 22 : 18,
-                        color: Colors.grey[300],
-                      ),
-                      const SizedBox(width: 6),
-                      Container(
-                        width: 100,
-                        height: isTablet ? 18 : 16,
-                        color: Colors.grey[300],
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: isTablet ? 10 : 6),
-                  Expanded(
-                    child: GridView.builder(
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: isTablet ? 2 : 1,
-                        childAspectRatio: isTablet ? 2.4 : 3.4,
-                        mainAxisSpacing: 10,
-                        crossAxisSpacing: 10,
-                      ),
-                      itemCount: 6,
-                      itemBuilder: (context, index) {
-                        return Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Padding(
-                            padding: EdgeInsets.all(isTablet ? 12 : 10),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: isTablet ? 50 : 40,
-                                  height: isTablet ? 50 : 40,
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey[300],
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                                SizedBox(width: isTablet ? 12 : 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Container(
-                                        width: double.infinity,
-                                        height: isTablet ? 15 : 13,
-                                        color: Colors.grey[300],
-                                      ),
-                                      const SizedBox(height: 3),
-                                      Container(
-                                        width: 80,
-                                        height: isTablet ? 11 : 10,
-                                        color: Colors.grey[300],
-                                      ),
-                                      const SizedBox(height: 3),
-                                      Container(
-                                        width: 60,
-                                        height: isTablet ? 15 : 13,
-                                        color: Colors.grey[300],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                  const SizedBox(height: 12),
+                  TextButton(
+                    onPressed: () => context.read<MenusBloc>().add(FetchMenus()),
+                    child: const Text('Retry'),
                   ),
                 ],
               ),
-            )
-          : BlocSelector<TablesBloc, TablesState, TablesState>(
-              selector: (state) => state,
-              builder: (context, tableState) {
-                if (tableState is TablesLoaded) {
-                  final tableItems =
-                      tableState.tables.expand((table) => table.utilityItems).toList();
-                  if (tableItems.isEmpty) {
-                    return const Center(child: Text('No table items available'));
-                  }
-                  if (selectedTable == null && tableItems.isNotEmpty) {
-                    selectedTable = tableItems[0].name;
-                  }
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildTableSelector(isTablet, tableItems),
-                      SizedBox(height: isTablet ? 16 : 12),
-                      Row(
-                        children: [
-                          Icon(Icons.restaurant_menu,
-                              color: Colors.indigo, size: isTablet ? 22 : 18),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Menu Items',
-                            style: TextStyle(
-                              fontSize: isTablet ? 18 : 16,
-                              fontWeight: FontWeight.bold,
-                              color: const Color(0xFF2D3748),
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: isTablet ? 10 : 6),
-                      Expanded(
-                        child: GridView.builder(
-                          physics: const BouncingScrollPhysics(),
-                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: isTablet ? 2 : 1,
-                            childAspectRatio: isTablet ? 2.4 : 3.4,
-                            mainAxisSpacing: 10,
-                            crossAxisSpacing: 10,
-                          ),
-                          itemCount: _menuItems.length,
-                          itemBuilder: (context, index) {
-                            final item = _menuItems[index];
-                            return _buildMenuItemCard(item, isTablet);
-                          },
-                        ),
-                      ),
-                    ],
-                  );
-                } else if (tableState is TablesError) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+            );
+          }
+          return BlocSelector<TablesBloc, TablesState, TablesState>(
+            selector: (state) => state,
+            builder: (context, tableState) {
+              if (tableState is TablesLoaded) {
+                final tableItems =
+                    tableState.tables.expand((table) => table.utilityItems).toList();
+                if (tableItems.isEmpty) {
+                  return const Center(child: Text('No table items available'));
+                }
+                if (selectedTable == null && tableItems.isNotEmpty) {
+                  selectedTable = tableItems[0].name;
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildTableSelector(isTablet, tableItems),
+                    SizedBox(height: isTablet ? 16 : 12),
+                    Row(
                       children: [
-                        Text(tableState.message),
-                        TextButton(
-                          onPressed: () =>
-                              context.read<TablesBloc>().add(FetchTables()),
-                          child: const Text('Retry'),
+                        Icon(Icons.restaurant_menu,
+                            color: Colors.indigo, size: isTablet ? 22 : 18),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Menu Items',
+                          style: TextStyle(
+                            fontSize: isTablet ? 18 : 16,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF2D3748),
+                          ),
                         ),
                       ],
                     ),
-                  );
-                }
-                return Shimmer.fromColors(
-                  baseColor: Colors.grey[300]!,
-                  highlightColor: Colors.grey[100]!,
+                    SizedBox(height: isTablet ? 10 : 6),
+                    Expanded(
+                      child: GridView.builder(
+                        physics: const BouncingScrollPhysics(),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: isTablet ? 2 : 1,
+                          childAspectRatio: isTablet ? 2.4 : 3.4,
+                          mainAxisSpacing: 10,
+                          crossAxisSpacing: 10,
+                        ),
+                        itemCount: _menuItems.length,
+                        itemBuilder: (context, index) {
+                          final item = _menuItems[index];
+                          return _buildMenuItemCard(item, isTablet);
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              } else if (tableState is TablesError) {
+                return Center(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Container(
-                        padding: EdgeInsets.all(isTablet ? 14 : 12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: isTablet ? 20 : 18,
-                              height: isTablet ? 20 : 18,
-                              color: Colors.grey[300],
-                            ),
-                            SizedBox(width: isTablet ? 12 : 8),
-                            Container(
-                              width: 100,
-                              height: isTablet ? 16 : 14,
-                              color: Colors.grey[300],
-                            ),
-                            const Spacer(),
-                            Container(
-                              width: isTablet ? 120 : 100,
-                              height: isTablet ? 32 : 28,
-                              decoration: BoxDecoration(
-                                color: Colors.grey[300],
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(height: isTablet ? 16 : 12),
-                      Row(
-                        children: [
-                          Container(
-                            width: isTablet ? 22 : 18,
-                            height: isTablet ? 22 : 18,
-                            color: Colors.grey[300],
-                          ),
-                          const SizedBox(width: 6),
-                          Container(
-                            width: 100,
-                            height: isTablet ? 18 : 16,
-                            color: Colors.grey[300],
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: isTablet ? 10 : 6),
-                      Expanded(
-                        child: GridView.builder(
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: isTablet ? 2 : 1,
-                            childAspectRatio: isTablet ? 2.4 : 3.4,
-                            mainAxisSpacing: 10,
-                            crossAxisSpacing: 10,
-                          ),
-                          itemCount: 6,
-                          itemBuilder: (context, index) {
-                            return Container(
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Padding(
-                                padding: EdgeInsets.all(isTablet ? 12 : 10),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: isTablet ? 50 : 40,
-                                      height: isTablet ? 50 : 40,
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey[300],
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                    ),
-                                    SizedBox(width: isTablet ? 12 : 10),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Container(
-                                            width: double.infinity,
-                                            height: isTablet ? 15 : 13,
-                                            color: Colors.grey[300],
-                                          ),
-                                          const SizedBox(height: 3),
-                                          Container(
-                                            width: 80,
-                                            height: isTablet ? 11 : 10,
-                                            color: Colors.grey[300],
-                                          ),
-                                          const SizedBox(height: 3),
-                                          Container(
-                                            width: 60,
-                                            height: isTablet ? 15 : 13,
-                                            color: Colors.grey[300],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
+                      Text(tableState.message),
+                      TextButton(
+                        onPressed: () =>
+                            context.read<TablesBloc>().add(FetchTables()),
+                        child: const Text('Retry'),
                       ),
                     ],
                   ),
                 );
+              }
+              return _buildShimmerMenu(isTablet);
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildShimmerMenu(bool isTablet) {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[300]!,
+      highlightColor: Colors.grey[100]!,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: EdgeInsets.all(isTablet ? 14 : 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: isTablet ? 20 : 18,
+                  height: isTablet ? 20 : 18,
+                  color: Colors.grey[300],
+                ),
+                SizedBox(width: isTablet ? 12 : 8),
+                Container(
+                  width: 100,
+                  height: isTablet ? 16 : 14,
+                  color: Colors.grey[300],
+                ),
+                const Spacer(),
+                Container(
+                  width: isTablet ? 120 : 100,
+                  height: isTablet ? 32 : 28,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: isTablet ? 16 : 12),
+          Row(
+            children: [
+              Container(
+                width: isTablet ? 22 : 18,
+                height: isTablet ? 22 : 18,
+                color: Colors.grey[300],
+              ),
+              const SizedBox(width: 6),
+              Container(
+                width: 100,
+                height: isTablet ? 18 : 16,
+                color: Colors.grey[300],
+              ),
+            ],
+          ),
+          SizedBox(height: isTablet ? 10 : 6),
+          Expanded(
+            child: GridView.builder(
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: isTablet ? 2 : 1,
+                childAspectRatio: isTablet ? 2.4 : 3.4,
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+              ),
+              itemCount: 6,
+              itemBuilder: (context, index) {
+                return Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.all(isTablet ? 12 : 10),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: isTablet ? 50 : 40,
+                          height: isTablet ? 50 : 40,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        SizedBox(width: isTablet ? 12 : 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                width: double.infinity,
+                                height: isTablet ? 15 : 13,
+                                color: Colors.grey[300],
+                              ),
+                              const SizedBox(height: 3),
+                              Container(
+                                width: 80,
+                                height: isTablet ? 11 : 10,
+                                color: Colors.grey[300],
+                              ),
+                              const SizedBox(height: 3),
+                              Container(
+                                width: 60,
+                                height: isTablet ? 15 : 13,
+                                color: Colors.grey[300],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
               },
             ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1222,30 +1190,29 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
                                 ),
                                 child: DropdownButton<String>(
                                   value: selectedOptions[item] ?? 'Medium',
-                                  items: [
-                                    'Spicy',
-                                    'Less Spicy',
-                                    'Medium',
-                                  ].map((option) {
-                                    return DropdownMenuItem<String>(
-                                      value: option,
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                                        child: Text(
-                                          option,
-                                          style: TextStyle(
-                                            fontSize: isTablet ? 12 : 10,
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.indigo[700],
-                                          ),
-                                        ),
-                                      ),
-                                    );
-                                  }).toList(),
+                                  items: ['Spicy', 'Less Spicy', 'Medium']
+                                      .map((option) => DropdownMenuItem<String>(
+                                            value: option,
+                                            child: Padding(
+                                              padding: const EdgeInsets.symmetric(
+                                                  horizontal: 8),
+                                              child: Text(
+                                                option,
+                                                style: TextStyle(
+                                                  fontSize: isTablet ? 12 : 10,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Colors.indigo[700],
+                                                ),
+                                              ),
+                                            ),
+                                          ))
+                                      .toList(),
                                   onChanged: (value) {
-                                    setState(() {
-                                      selectedOptions[item] = value!;
-                                    });
+                                    if (value != null) {
+                                      setState(() {
+                                        selectedOptions[item] = value;
+                                      });
+                                    }
                                   },
                                   underline: const SizedBox(),
                                   icon: Icon(Icons.arrow_drop_down,
@@ -1475,7 +1442,7 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
                     return const SizedBox();
                   },
                 ),
-                const SizedBox(height: 80), // Added padding for visibility
+                const SizedBox(height: 80),
               ],
             ),
           ),
@@ -1744,41 +1711,7 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
             ),
           );
         }
-        return Shimmer.fromColors(
-          baseColor: Colors.grey[300]!,
-          highlightColor: Colors.grey[100]!,
-          child: Container(
-            padding: EdgeInsets.all(isTablet ? 14 : 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: isTablet ? 20 : 18,
-                  height: isTablet ? 20 : 18,
-                  color: Colors.grey[300],
-                ),
-                SizedBox(width: isTablet ? 12 : 8),
-                Container(
-                  width: 100,
-                  height: isTablet ? 16 : 14,
-                  color: Colors.grey[300],
-                ),
-                const Spacer(),
-                Container(
-                  width: isTablet ? 120 : 100,
-                  height: isTablet ? 32 : 28,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
+        return _buildShimmerMenu(isTablet);
       },
     );
   }
@@ -1882,12 +1815,14 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
     final orderData = {
       'id': orderId,
       'table': selectedTable,
-      'items': currentState.currentOrder.entries.map((entry) => {
-            'name': entry.key.menuItem.name,
-            'customization': entry.key.customization,
-            'quantity': entry.value,
-            'price': entry.key.menuItem.price,
-          }).toList(),
+      'items': currentState.currentOrder.entries
+          .map((entry) => {
+                'name': entry.key.menuItem.name,
+                'customization': entry.key.customization,
+                'quantity': entry.value,
+                'price': entry.key.menuItem.price,
+              })
+          .toList(),
       'total': total,
       'status': 'Pending',
       'time': DateTime.now().toIso8601String(),
@@ -1897,7 +1832,6 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
       SocketService().placeOrder(orderData);
       ordersBloc.add(PlaceOrder(orderId, selectedTable!));
 
-      // Create an Order object to pass to BuyPage
       final order = Order(
         id: orderId,
         table: selectedTable!,
@@ -1911,7 +1845,8 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
         selectedOptions.clear();
       });
 
-      showDialog(
+      if (!mounted) return;
+      await showDialog(
         context: context,
         barrierDismissible: false,
         builder: (BuildContext context) {
@@ -2049,10 +1984,12 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
         },
       );
     } catch (e) {
-      developer.log('Error sending order via socket: $e', error: e);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to send order to server')),
-      );
+      developer.log('Error sending order via socket: $e', name: 'TableDashboardScreen');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to send order to server')),
+        );
+      }
     }
   }
 }
