@@ -34,7 +34,7 @@ class MenusBloc extends Bloc<MenusEvents, MenusState> {
   ) async {
     emit(MenusLoading());
     try {
-      await apiService.addMenu(event.menuName);
+      await apiService.addMenu(event.menuName,event.menuType);
       final List<MenuModel> menus = await apiService.getMenuModel();
       emit(MenusLoaded(menus));
     } catch (e) {
@@ -48,7 +48,7 @@ class MenusBloc extends Bloc<MenusEvents, MenusState> {
   ) async {
     emit(MenusLoading());
     try {
-      await apiService.addMenuItem(event.menuName, event.itemName, event.price);
+      await apiService.addMenuItem(event.menuName, event.itemName, event.price, event.menuType);
       final List<MenuModel> menus = await apiService.getMenuModel();
       emit(MenusLoaded(menus));
     } catch (e) {
