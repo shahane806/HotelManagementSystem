@@ -1,6 +1,7 @@
-const UtilityModel = require("../Models/utilitiesModel")
-const utilityController = async(req,res)=>{
-try {
+const UtilityModel = require("../Models/utilitiesModel");
+
+const utilityController = async (req, res) => {
+  try {
     const { utilityName } = req.body;
     const utility = new UtilityModel({ utilityName, utilityItems: [] });
     await utility.save();
@@ -8,7 +9,7 @@ try {
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
-}
+};
 
 const utilityItemController = async (req, res) => {
   try {
@@ -24,21 +25,23 @@ const utilityItemController = async (req, res) => {
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
-}
-const getNamedUtilities =  async (req, res) => {
-  console.log("HIT")
-  const {utilityName} = req?.params;
+};
+
+const getNamedUtilities = async (req, res) => {
+  console.log("HIT");
+  const { utilityName } = req?.params;
   try {
-    const utilities = await UtilityModel.find({utilityName: utilityName});
+    const utilities = await UtilityModel.find({ utilityName: utilityName });
     res.status(200).json(utilities);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
-}
+};
+
 const deleteUtilityItemController = async (req, res) => {
   try {
     const { utilityName, itemName } = req.params;
-    console.log(utilityName,itemName);
+    console.log(utilityName, itemName);
     const utility = await UtilityModel.findOne({ utilityName });
 
     if (!utility) {
@@ -46,8 +49,7 @@ const deleteUtilityItemController = async (req, res) => {
     }
 
     utility.utilityItems = utility.utilityItems.filter(
-      (item) => 
-        item.name != itemName
+      (item) => item.name != itemName
     );
     await utility.save();
 
@@ -59,14 +61,14 @@ const deleteUtilityItemController = async (req, res) => {
 
 const addMenuItemController = async (req, res) => {
   const { utilityName, menuName } = req.params;
-  const { menuitemname, price } = req.body;
+  const { menuitemname, price, type } = req.body;
 
   try {
     const updated = await UtilityModel.findOneAndUpdate(
       { utilityName, "utilityItems.name": menuName },
       {
         $push: {
-          "utilityItems.$.items": { menuitemname, price }
+          "utilityItems.$.items": { menuitemname, price, type }
         }
       },
       { new: true }
@@ -100,4 +102,4 @@ const deleteMenuItemController = async (req, res) => {
   }
 };
 
-module.exports = {utilityController,utilityItemController,getNamedUtilities,deleteUtilityItemController,addMenuItemController,deleteMenuItemController}
+module.exports = { utilityController, utilityItemController, getNamedUtilities, deleteUtilityItemController, addMenuItemController, deleteMenuItemController };
