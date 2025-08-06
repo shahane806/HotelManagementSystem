@@ -1,13 +1,64 @@
-class MenuEntry {
+import 'package:equatable/equatable.dart';
+import 'dart:developer' as developer;
+
+class MenuModel extends Equatable {
+  final String name;
+  final List<MenuItemModel> items;
+  final String type;
+
+  const MenuModel({
+    required this.name,
+    required this.items,
+    required this.type,
+  });
+
+  factory MenuModel.fromJson(Map<String, dynamic> json) {
+    final type = json['type']?.toString() ?? 'Veg';
+    final items = (json['items'] as List<dynamic>?)
+            ?.map((item) => MenuItemModel.fromJson(item as Map<String, dynamic>, type))
+            .toList() ?? [];
+    developer.log('Parsed MenuModel: ${json['name']}, type: $type, items: ${items.length}', name: 'MenuModel');
+    return MenuModel(
+      name: json['name']?.toString() ?? 'Unknown',
+      items: items,
+      type: type,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'items': items.map((item) => item.toJson()).toList(),
+      'type': type,
+    };
+  }
+
+  @override
+  List<Object> get props => [name, items, type];
+}
+
+class MenuItemModel extends Equatable {
   final String menuitemname;
   final String price;
+  final String type;
 
-  MenuEntry({required this.menuitemname, required this.price});
+  const MenuItemModel({
+    required this.menuitemname,
+    required this.price,
+    required this.type,
+  });
 
-  factory MenuEntry.fromJson(Map<String, dynamic> json) {
-    return MenuEntry(
-      menuitemname: json['menuitemname'] as String? ?? 'Unnamed Item',
+  factory MenuItemModel.fromJson(Map<String, dynamic> json, String parentType) {
+    final itemName = json['menuitemname']?.toString() ?? 'Unknown Item';
+    // Infer Non-Veg type from item name if it contains "chicken" or "biryani"
+    final inferredType = itemName.toLowerCase().contains('chicken') || itemName.toLowerCase().contains('biryani')
+        ? 'Non-Veg'
+        : (json['type']?.toString() ?? parentType);
+    developer.log('Parsed MenuItemModel: $itemName, price: ${json['price']}, type: $inferredType', name: 'MenuItemModel');
+    return MenuItemModel(
+      menuitemname: itemName,
       price: json['price']?.toString() ?? '0',
+      type: inferredType,
     );
   }
 
@@ -15,91 +66,29 @@ class MenuEntry {
     return {
       'menuitemname': menuitemname,
       'price': price,
+      'type': type,
     };
   }
+
+  @override
+  List<Object> get props => [menuitemname, price, type];
 }
 
-class MenuModel {
-  final String name;
-  final List<MenuEntry> items;
-
-  MenuModel({required this.name, required this.items});
-
-  factory MenuModel.fromJson(Map<String, dynamic> json) {
-    // Handle flat structure with name as Map
-    if (json.containsKey('name')) {
-      String name;
-      if (json['name'] is String) {
-        name = json['name'] as String? ?? 'Unnamed Menu';
-      } else if (json['name'] is Map<String, dynamic>) {
-        name = json['name']['value'] as String? ?? 'Unnamed Menu';
-      } else {
-        name = 'Unnamed Menu';
-      }
-      return MenuModel(
-        name: name,
-        items: (json['items'] as List<dynamic>?)
-                ?.map((item) => MenuEntry.fromJson(item as Map<String, dynamic>))
-                .toList() ??
-            [],
-      );
-    }
-    // Handle nested utilityItems structure
-    else if (json.containsKey('utilityItems')) {
-      final utilityItems = json['utilityItems'] as List<dynamic>?;
-      if (utilityItems != null && utilityItems.isNotEmpty) {
-        final firstItem = utilityItems[0] as Map<String, dynamic>;
-        String name;
-        if (firstItem['name'] is String) {
-          name = firstItem['name'] as String? ?? 'Unnamed Menu';
-        } else if (firstItem['name'] is Map<String, dynamic>) {
-          name = firstItem['name']['value'] as String? ?? 'Unnamed Menu';
-        } else {
-          name = 'Unnamed Menu';
-        }
-        return MenuModel(
-          name: name,
-          items: (firstItem['items'] as List<dynamic>?)
-                  ?.map((item) => MenuEntry.fromJson(item as Map<String, dynamic>))
-                  .toList() ??
-              [],
-        );
-      }
-    }
-    return MenuModel(name: 'Unnamed Menu', items: []);
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'name': name,
-      'items': items.map((item) => item.toJson()).toList(),
-    };
-  }
-}
-
-class MenuItem {
+class MenuItem extends Equatable {
   final String name;
   final int price;
   final String category;
   final String image;
+  final String type;
 
-  MenuItem({
+  const MenuItem({
     required this.name,
     required this.price,
     required this.category,
     required this.image,
+    required this.type,
   });
 
   @override
-  bool operator ==(Object other) =>
-      other is MenuItem && name == other.name;
-
-  @override
-  int get hashCode => name.hashCode;
-
-  @override
-  String toString() {
-    return 'MenuItem(name: $name, price: $price, category: $category, image: $image)';
-  }
+  List<Object> get props => [name, price, category, image, type];
 }
-
