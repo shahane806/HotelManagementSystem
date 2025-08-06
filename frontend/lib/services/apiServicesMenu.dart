@@ -26,7 +26,6 @@ class ApiServiceMenus {
         final List<dynamic> data = jsonDecode(response.body);
 
         if (data.isNotEmpty) {
-          // The API returns a list with one object, which contains utilityItems (the menus)
           final utilityItems = data[0]['utilityItems'] as List<dynamic>;
           List<MenuModel> menus = utilityItems
               .map((json) => MenuModel.fromJson(json as Map<String, dynamic>))
@@ -46,7 +45,7 @@ class ApiServiceMenus {
     }
   }
 
-  Future<void> addMenu(String name) async {
+  Future<void> addMenu(String name, String type) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/utilities/Menu/items'),
@@ -55,6 +54,7 @@ class ApiServiceMenus {
         },
         body: jsonEncode({
           'name': name,
+          'type': type,
           'items': [],
         }),
       );
@@ -70,29 +70,30 @@ class ApiServiceMenus {
     }
   }
 
-  Future<void> addMenuItem(String menuName, String itemName, String price) async {
-  try {
-    final response = await http.post(
-      Uri.parse('$baseUrl/utilities/Menu/$menuName/items'),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'menuitemname': itemName, 
-        'price': double.parse(price), 
-      }),
-    );
+  Future<void> addMenuItem(String menuName, String itemName, String price, String type) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/utilities/Menu/$menuName/items'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'menuitemname': itemName,
+          'price': double.parse(price),
+          'type': type,
+        }),
+      );
 
-    print("Add menu item response: ${response.statusCode} - ${response.body}");
+      print("Add menu item response: ${response.statusCode} - ${response.body}");
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to add menu item: ${response.statusCode} - ${response.body}');
+      if (response.statusCode != 200) {
+        throw Exception('Failed to add menu item: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print("Error in addMenuItem: $e");
+      throw Exception('Failed to add menu item: $e');
     }
-  } catch (e) {
-    print("Error in addMenuItem: $e");
-    throw Exception('Failed to add menu item: $e');
   }
-}
 
   Future<void> deleteMenu(String menuName) async {
     try {
