@@ -36,9 +36,8 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
   late List<String> _categories;
   late List<MenuItem> _menuItems;
   bool _isInitialLoad = true;
-  // Dummy user for demonstration; replace with actual user data source
   final UserModel _user = UserModel(
-    userId: 'USER123',
+    userId: '0001',
     fullName: 'John Doe',
     email: 'john.doe@example.com',
     mobile: '9876543210',
