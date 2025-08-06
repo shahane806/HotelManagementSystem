@@ -4,12 +4,12 @@ const utilitySchema = new mongoose.Schema({
   utilityName: {
     type: String,
     required: true,
-    enum: ["Table", "Room", "Menu", "Amenity"], 
+    enum: ["Table", "Room", "Menu", "Amenity"],
     unique: true,
   },
   utilityItems: [
     {
-      type: mongoose.Schema.Types.Mixed, 
+      type: mongoose.Schema.Types.Mixed,
       required: true,
     },
   ],
