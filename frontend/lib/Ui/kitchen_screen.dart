@@ -1,87 +1,27 @@
 import 'package:flutter/material.dart';
-
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../bloc/KitchenBloc/bloc.dart';
+import '../bloc/KitchenBloc/event.dart';
+import '../bloc/KitchenBloc/state.dart';
 import '../services/socketService.dart';
 
-class KitchenDashboardScreen extends StatefulWidget {
+class KitchenDashboardScreen extends StatelessWidget {
   const KitchenDashboardScreen({super.key});
 
   @override
-  State<KitchenDashboardScreen> createState() => _KitchenDashboardScreenState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) {
+        final bloc = KitchenDashboardBloc(SocketService());
+        return bloc;
+      },
+      child: const KitchenDashboardView(),
+    );
+  }
 }
 
-class _KitchenDashboardScreenState extends State<KitchenDashboardScreen> {
-  List<Map<String, dynamic>> orders = [];
-  String selectedStatusFilter = 'All';
-  final List<String> statusFilters = ['All', 'Pending', 'Preparing', 'Ready', 'Served'];
-  int _refreshKey = 0; // Added to force UI rebuild
-
-  @override
-  void initState() {
-    super.initState();
-    print('Initializing KitchenDashboardScreen');
-    SocketService().connect(); // Connect to socket server
-
-    // Listen for new orders
-    SocketService().socket.on('newOrder', (order) {
-      print('Received newOrder: $order');
-      try {
-        final parsedOrder = Map<String, dynamic>.from(order);
-        // Validate required fields
-        if (!parsedOrder.containsKey('id') ||
-            !parsedOrder.containsKey('table') ||
-            !parsedOrder.containsKey('items') ||
-            !parsedOrder.containsKey('status') ||
-            !parsedOrder.containsKey('time') ||
-            !parsedOrder.containsKey('total')) {
-          print('Invalid order data, skipping: $parsedOrder');
-          return;
-        }
-        setState(() {
-          final orderExists = orders.any((o) => o['id'].toString() == parsedOrder['id'].toString());
-          if (!orderExists) {
-            orders.add(parsedOrder);
-            _refreshKey++; // Force UI rebuild
-            print('[SOCKET] New order added: ${parsedOrder['id']}');
-          } else {
-            print('[SOCKET] Order already exists, skipping: ${parsedOrder['id']}');
-          }
-        });
-      } catch (e) {
-        print('Error parsing newOrder: $e');
-      }
-    });
-
-    // Listen for order updates
-    SocketService().socket.on('orderUpdated', (data) {
-      print('Received orderUpdated: $data');
-      try {
-        final update = Map<String, dynamic>.from(data);
-        if (!update.containsKey('orderId') || !update.containsKey('status')) {
-          print('Invalid update data, skipping: $update');
-          return;
-        }
-        setState(() {
-          orders = orders.map((order) {
-            if (order['id'].toString() == update['orderId'].toString()) {
-              print('[SOCKET] Updating order ${update['orderId']} to status: ${update['status']}');
-              return {...order, 'status': update['status']};
-            }
-            return order;
-          }).toList();
-          _refreshKey++; // Force UI rebuild
-        });
-      } catch (e) {
-        print('Error parsing orderUpdated: $e');
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    print('Disposing KitchenDashboardScreen');
-    SocketService().disconnect(); // Disconnect socket
-    super.dispose();
-  }
+class KitchenDashboardView extends StatelessWidget {
+  const KitchenDashboardView({super.key});
 
   Color _getStatusColor(String status) {
     switch (status) {
@@ -96,11 +36,6 @@ class _KitchenDashboardScreenState extends State<KitchenDashboardScreen> {
       default:
         return Colors.grey;
     }
-  }
-
-  void updateOrderStatus(String orderId, String status) {
-    print('Updating order status: orderId=$orderId, status=$status');
-    SocketService().updateOrderStatus(orderId, status); // Use SocketService to update status
   }
 
   String _formatTime(String time) {
@@ -120,58 +55,62 @@ class _KitchenDashboardScreenState extends State<KitchenDashboardScreen> {
     final isTablet = screenWidth > 600;
     final isDesktop = screenWidth > 1200;
 
-    final filteredOrders = selectedStatusFilter == 'All'
-        ? orders
-        : orders.where((order) => order['status'] == selectedStatusFilter).toList();
-    final newOrders = orders.where((order) => order['status'] == 'Pending').toList();
+    return BlocBuilder<KitchenDashboardBloc, KitchenDashboardState>(
+      builder: (context, state) {
+        final filteredOrders = state.selectedStatusFilter == 'All'
+            ? state.orders
+            : state.orders.where((order) => order['status'] == state.selectedStatusFilter).toList();
+        final newOrders = state.orders.where((order) => order['status'] == 'Pending').toList();
 
-    print('Building UI with orders: ${orders.length}, filtered: ${filteredOrders.length}, new: ${newOrders.length}, refreshKey: $_refreshKey');
+        print('Building UI with orders: ${state.orders.length}, filtered: ${filteredOrders.length}, new: ${newOrders.length}, refreshKey: ${state.refreshKey}');
 
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: _buildAppBar(context, screenWidth),
-      body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: isDesktop ? 32 : (isTablet ? 24 : 16),
-            vertical: 16,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(context, screenWidth, filteredOrders.length),
-              const SizedBox(height: 20),
-              _buildFilterRow(context, screenWidth, isTablet),
-              const SizedBox(height: 20),
-              if (newOrders.isNotEmpty) ...[
-                Text(
-                  'New Orders',
-                  style: TextStyle(
-                    fontSize: isTablet ? 18 : 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[800],
+        return Scaffold(
+          backgroundColor: Colors.grey[50],
+          appBar: _buildAppBar(context, screenWidth),
+          body: SafeArea(
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: isDesktop ? 32 : (isTablet ? 24 : 16),
+                vertical: 16,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(context, screenWidth, filteredOrders.length),
+                  const SizedBox(height: 20),
+                  _buildFilterRow(context, screenWidth, isTablet),
+                  const SizedBox(height: 20),
+                  if (newOrders.isNotEmpty) ...[
+                    Text(
+                      'New Orders',
+                      style: TextStyle(
+                        fontSize: isTablet ? 18 : 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildOrdersList(context, newOrders, screenWidth, isTablet, isDesktop),
+                    const SizedBox(height: 20),
+                  ],
+                  Text(
+                    state.selectedStatusFilter == 'All' ? 'All Orders' : '${state.selectedStatusFilter} Orders',
+                    style: TextStyle(
+                      fontSize: isTablet ? 18 : 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[800],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                _buildOrdersList(context, newOrders, screenWidth, isTablet, isDesktop),
-                const SizedBox(height: 20),
-              ],
-              Text(
-                selectedStatusFilter == 'All' ? 'All Orders' : '$selectedStatusFilter Orders',
-                style: TextStyle(
-                  fontSize: isTablet ? 18 : 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[800],
-                ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: _buildOrdersList(context, filteredOrders, screenWidth, isTablet, isDesktop),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: _buildOrdersList(context, filteredOrders, screenWidth, isTablet, isDesktop),
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -208,11 +147,7 @@ class _KitchenDashboardScreenState extends State<KitchenDashboardScreen> {
         IconButton(
           icon: const Icon(Icons.refresh, color: Colors.white),
           onPressed: () {
-            setState(() {
-              orders.clear(); // Optionally clear orders on refresh
-              _refreshKey++; // Force UI rebuild
-              print('Orders cleared, refreshKey: $_refreshKey');
-            });
+            context.read<KitchenDashboardBloc>().add(RefreshDashboard());
           },
         ),
         if (screenWidth > 600)
@@ -289,6 +224,9 @@ class _KitchenDashboardScreenState extends State<KitchenDashboardScreen> {
   }
 
   Widget _buildFilterRow(BuildContext context, double screenWidth, bool isTablet) {
+    final state = context.read<KitchenDashboardBloc>().state;
+    const statusFilters = ['All', 'Pending', 'Preparing', 'Ready', 'Served'];
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -301,17 +239,13 @@ class _KitchenDashboardScreenState extends State<KitchenDashboardScreen> {
                 style: TextStyle(
                   fontSize: isTablet ? 14 : 12,
                   fontWeight: FontWeight.w600,
-                  color: selectedStatusFilter == status ? Colors.white : Colors.grey[800],
+                  color: state.selectedStatusFilter == status ? Colors.white : Colors.grey[800],
                 ),
               ),
-              selected: selectedStatusFilter == status,
+              selected: state.selectedStatusFilter == status,
               onSelected: (selected) {
                 if (selected) {
-                  setState(() {
-                    selectedStatusFilter = status;
-                    _refreshKey++; // Force UI rebuild
-                    print('Filter changed to: $status, refreshKey: $_refreshKey');
-                  });
+                  context.read<KitchenDashboardBloc>().add(ChangeFilter(status));
                 }
               },
               selectedColor: Colors.indigo,
@@ -354,7 +288,7 @@ class _KitchenDashboardScreenState extends State<KitchenDashboardScreen> {
   Widget _buildListLayout(BuildContext context, List<Map<String, dynamic>> orders,
       double screenWidth, bool isTablet) {
     return ListView.separated(
-      shrinkWrap: true, // Added to prevent layout issues
+      shrinkWrap: true,
       itemCount: orders.length,
       separatorBuilder: (context, index) => const SizedBox(height: 16),
       itemBuilder: (context, index) {
@@ -548,7 +482,9 @@ class _KitchenDashboardScreenState extends State<KitchenDashboardScreen> {
                 children: [
                   if (status != 'Pending')
                     ElevatedButton(
-                      onPressed: () => updateOrderStatus(orderId, 'Pending'),
+                      onPressed: () => context.read<KitchenDashboardBloc>().add(
+                            UpdateOrderStatusEvent(orderId, 'Pending'),
+                          ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red[50],
                         foregroundColor: Colors.red,
@@ -567,7 +503,9 @@ class _KitchenDashboardScreenState extends State<KitchenDashboardScreen> {
                     ),
                   if (status != 'Preparing')
                     ElevatedButton(
-                      onPressed: () => updateOrderStatus(orderId, 'Preparing'),
+                      onPressed: () => context.read<KitchenDashboardBloc>().add(
+                            UpdateOrderStatusEvent(orderId, 'Preparing'),
+                          ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.orange[50],
                         foregroundColor: Colors.orange,
@@ -586,7 +524,9 @@ class _KitchenDashboardScreenState extends State<KitchenDashboardScreen> {
                     ),
                   if (status != 'Ready')
                     ElevatedButton(
-                      onPressed: () => updateOrderStatus(orderId, 'Ready'),
+                      onPressed: () => context.read<KitchenDashboardBloc>().add(
+                            UpdateOrderStatusEvent(orderId, 'Ready'),
+                          ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green[50],
                         foregroundColor: Colors.green,
@@ -605,7 +545,9 @@ class _KitchenDashboardScreenState extends State<KitchenDashboardScreen> {
                     ),
                   if (status != 'Served')
                     ElevatedButton(
-                      onPressed: () => updateOrderStatus(orderId, 'Served'),
+                      onPressed: () => context.read<KitchenDashboardBloc>().add(
+                            UpdateOrderStatusEvent(orderId, 'Served'),
+                          ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue[50],
                         foregroundColor: Colors.blue,
