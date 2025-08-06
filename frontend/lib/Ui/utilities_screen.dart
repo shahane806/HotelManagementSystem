@@ -122,13 +122,13 @@ class _UtilityScreenState extends State<UtilityScreen> {
     );
 
     if (result != null) {
-       if(mounted){
+      if (mounted) {
         context.read<TablesBloc>().add(AddTableItem(
-            result['utilityId'],
-            result['name'],
-            result['count'],
-          ));
-       }
+              result['utilityId'],
+              result['name'],
+              result['count'],
+            ));
+      }
       _showSuccessSnackBar("Table item added successfully!");
     }
   }
@@ -144,32 +144,70 @@ class _UtilityScreenState extends State<UtilityScreen> {
 
   Future<void> _addMenu() async {
     final menuController = TextEditingController();
-    final result = await showDialog<String>(
+    String? menuType;
+    final result = await showDialog<Map<String, dynamic>>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _buildModernDialog(
         title: "Create New Menu",
         icon: Icons.restaurant_menu,
-        content: _buildTextField(
-          controller: menuController,
-          label: "Menu Name",
-          hint: "e.g., Breakfast Menu",
-          icon: Icons.restaurant_menu_outlined,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildTextField(
+              controller: menuController,
+              label: "Menu Name",
+              hint: "e.g., Breakfast Menu",
+              icon: Icons.restaurant_menu_outlined,
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              decoration: InputDecoration(
+                labelText: "Menu Type",
+                prefixIcon: Icon(Icons.category, color: Colors.blue[600]),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.blue[600]!, width: 2),
+                ),
+                filled: true,
+                fillColor: Colors.grey[50],
+              ),
+              value: menuType,
+              items: ['Veg', 'Non-Veg']
+                  .map((type) => DropdownMenuItem(
+                        value: type,
+                        child: Text(type),
+                      ))
+                  .toList(),
+              onChanged: (value) {
+                menuType = value;
+              },
+              hint: const Text("Select menu type"),
+            ),
+          ],
         ),
         onConfirm: () {
           final name = menuController.text.trim();
-          if (name.isNotEmpty && name.toLowerCase() != 'me') {
-            Navigator.pop(context, name);
+          if (name.isNotEmpty && name.toLowerCase() != 'me' && menuType != null) {
+            Navigator.pop(context, {'name': name, 'type': menuType});
           } else {
-            _showErrorSnackBar("Please enter a valid menu name (not 'me')");
+            _showErrorSnackBar("Please enter a valid menu name (not 'me') and select a menu type");
           }
         },
       ),
     );
     if (result != null) {
-       if(mounted){
-        context.read<MenusBloc>().add(AddMenus(result));
-       }
+      if (mounted) {
+        context.read<MenusBloc>().add(AddMenus(result['name'], result['type']));
+      }
       _showSuccessSnackBar("Menu created successfully!");
     }
   }
@@ -181,6 +219,7 @@ class _UtilityScreenState extends State<UtilityScreen> {
     }
     final itemController = TextEditingController();
     final priceController = TextEditingController();
+    String? itemType;
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       barrierDismissible: false,
@@ -204,23 +243,55 @@ class _UtilityScreenState extends State<UtilityScreen> {
               icon: Icons.currency_rupee,
               keyboardType: TextInputType.number,
             ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              decoration: InputDecoration(
+                labelText: "Item Type",
+                prefixIcon: Icon(Icons.category, color: Colors.blue[600]),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.blue[600]!, width: 2),
+                ),
+                filled: true,
+                fillColor: Colors.grey[50],
+              ),
+              value: itemType,
+              items: ['Veg', 'Non-Veg']
+                  .map((type) => DropdownMenuItem(
+                        value: type,
+                        child: Text(type),
+                      ))
+                  .toList(),
+              onChanged: (value) {
+                itemType = value;
+              },
+              hint: const Text("Select item type"),
+            ),
           ],
         ),
         onConfirm: () {
           final item = itemController.text.trim();
           final price = priceController.text.trim();
-          if (item.isNotEmpty && price.isNotEmpty) {
-            Navigator.pop(context, {"item": item, "price": price});
+          if (item.isNotEmpty && price.isNotEmpty && itemType != null) {
+            Navigator.pop(context, {"item": item, "price": price, "type": itemType});
           } else {
-            _showErrorSnackBar("Please fill all fields");
+            _showErrorSnackBar("Please fill all fields and select an item type");
           }
         },
       ),
     );
     if (result != null) {
-       if(mounted){
-        context.read<MenusBloc>().add(AddMenuItem(menuName, result['item'], result['price']));
-       }
+      if (mounted) {
+        context.read<MenusBloc>().add(AddMenuItem(menuName, result['item'], result['price'],result, result['type']));
+      }
       _showSuccessSnackBar("Menu item added successfully!");
     }
   }
@@ -323,9 +394,9 @@ class _UtilityScreenState extends State<UtilityScreen> {
     );
 
     if (result != null) {
-       if(mounted){
+      if (mounted) {
         context.read<RoomsBloc>().add(AddRoom(result['name'], result['price'], result['isAC']));
-       }
+      }
       _showSuccessSnackBar("Room added successfully!");
     }
   }
@@ -364,9 +435,9 @@ class _UtilityScreenState extends State<UtilityScreen> {
       ),
     );
     if (result != null) {
-       if(mounted){
+      if (mounted) {
         context.read<AmenitiesBloc>().add(AddAmenities(result));
-       }
+      }
       _showSuccessSnackBar("Amenity added successfully!");
     }
   }
@@ -628,7 +699,6 @@ class _UtilityScreenState extends State<UtilityScreen> {
   @override
   void initState() {
     super.initState();
-    
   }
 
   @override
@@ -826,7 +896,7 @@ class _UtilityScreenState extends State<UtilityScreen> {
                   state.rooms.map((r) => "Room ${r.name} - ₹${r.price}/night - ${r.isAC ? 'AC' : 'Non-AC'}").toList(),
                   _addRoom,
                   onDelete: (display) {
-                    final name = int.parse(display.split(' ')[1]); // Extract name from "Room X - ₹Y/night - Z"
+                    final name = int.parse(display.split(' ')[1]);
                     _deleteRoom(name);
                   },
                   screenWidth: screenWidth,
@@ -913,7 +983,7 @@ class _UtilityScreenState extends State<UtilityScreen> {
                   state.rooms.map((r) => "Room ${r.name} - ₹${r.price}/night - ${r.isAC ? 'AC' : 'Non-AC'}").toList(),
                   _addRoom,
                   onDelete: (display) {
-                    final name = int.parse(display.split(' ')[1]); // Extract name from "Room X - ₹Y/night - Z"
+                    final name = int.parse(display.split(' ')[1]);
                     _deleteRoom(name);
                   },
                   screenWidth: screenWidth,
@@ -1281,7 +1351,7 @@ class _UtilityScreenState extends State<UtilityScreen> {
                               child: const Icon(Icons.fastfood, color: Colors.red, size: 20),
                             ),
                             title: Text(
-                              menu.name,
+                              "${menu.name} (${menu.type})",
                               style: const TextStyle(fontWeight: FontWeight.w600),
                             ),
                             subtitle: Text("${menu.items.length} items"),
@@ -1336,7 +1406,7 @@ class _UtilityScreenState extends State<UtilityScreen> {
                                                 const SizedBox(width: 12),
                                                 Expanded(
                                                   child: Text(
-                                                    "${item.menuitemname} - ₹${item.price}",
+                                                    "${item.menuitemname} - ₹${item.price} (${item.type})",
                                                     style: const TextStyle(fontSize: 13),
                                                     overflow: TextOverflow.visible,
                                                   ),
@@ -1506,7 +1576,7 @@ class _UtilityScreenState extends State<UtilityScreen> {
                   color: Colors.red.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-              child: const Icon(Icons.restaurant_menu, color: Colors.red, size: 24),
+                child: const Icon(Icons.restaurant_menu, color: Colors.red, size: 24),
               ),
               title: const Text(
                 "Menus",
