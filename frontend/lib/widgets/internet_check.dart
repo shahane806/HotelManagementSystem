@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:http/http.dart' as http;
@@ -27,10 +28,10 @@ class _InternetCheckWidgetState extends State<InternetCheckWidget> {
 
     _connectivitySubscription =
         _connectivity.onConnectivityChanged.listen((result) {
+      print('Connectivity changed: $result');
       _verifyConnectionAndShowDialog();
     });
 
-    // Also periodically check every 5 seconds in case connection doesn't change
     _periodicInternetCheck = Timer.periodic(
       const Duration(seconds: 30),
       (_) => _verifyConnectionAndShowDialog(),
@@ -49,32 +50,60 @@ class _InternetCheckWidgetState extends State<InternetCheckWidget> {
   }
 
   Future<bool> _hasRealInternetConnection() async {
-    try {
-      final response = await http
-          .get(Uri.parse('https://www.google.com'))
-          .timeout(const Duration(seconds: 3));
-      return response.statusCode == 200;
-    } catch (e) {
-      return false;
+    // List of endpoints to try
+    final endpoints = [
+      'https://jsonplaceholder.typicode.com/todos/1',
+      'https://api.github.com',
+      'https://www.cloudflare.com/cdn-cgi/trace',
+    ];
+
+    // Use a longer timeout for mobile devices
+    const timeout = Duration(seconds: kIsWeb ? 3 : 5);
+
+    for (final endpoint in endpoints) {
+      try {
+        final response = await http.get(Uri.parse(endpoint)).timeout(timeout);
+        print('Internet check response for $endpoint: ${response.statusCode}');
+        if (response.statusCode == 200) {
+          return true;
+        }
+      } catch (e) {
+        print('Internet check failed for $endpoint: $e');
+      }
     }
+
+    // Fallback: If all endpoints fail, check connectivity result
+    final connectivityResult = await _connectivity.checkConnectivity();
+    final hasNetwork = !connectivityResult.contains(ConnectivityResult.none);
+    print('Fallback connectivity check: $hasNetwork');
+    return hasNetwork && kIsWeb; // Trust navigator.onLine for web, but not mobile
   }
 
   Future<void> _verifyConnectionAndShowDialog() async {
-    final isOnline = await _hasRealInternetConnection();
+    final connectivityResult = await _connectivity.checkConnectivity();
+    print('Current connectivity: $connectivityResult');
 
+    if (connectivityResult.contains(ConnectivityResult.none)) {
+      if (!_dialogShown) {
+        _showNoInternetDialog();
+      }
+      return;
+    }
+
+    final isOnline = await _hasRealInternetConnection();
     if (!isOnline && !_dialogShown) {
       _showNoInternetDialog();
     } else if (isOnline && _dialogShown) {
-      if (mounted) {
-        if (Navigator.canPop(context)) {
-          Navigator.of(context, rootNavigator: true).pop();
-          _dialogShown = false;
-        }
+      if (mounted && Navigator.canPop(context)) {
+        print('Dismissing no internet dialog');
+        Navigator.of(context, rootNavigator: true).pop();
+        _dialogShown = false;
       }
     }
   }
 
   void _showNoInternetDialog() {
+    print('Showing no internet dialog');
     _dialogShown = true;
     showDialog(
       barrierDismissible: false,
@@ -86,14 +115,12 @@ class _InternetCheckWidgetState extends State<InternetCheckWidget> {
         actions: [
           TextButton(
             onPressed: () async {
+              print('Retry button pressed');
               final isOnline = await _hasRealInternetConnection();
-              if (isOnline) {
-                if (mounted) {
-                  if (Navigator.canPop(context)) {
-                    Navigator.of(context, rootNavigator: true).pop();
-                    _dialogShown = false;
-                  }
-                }
+              if (isOnline && mounted && Navigator.canPop(context)) {
+                print('Internet restored, dismissing dialog');
+                Navigator.of(context, rootNavigator: true).pop();
+                _dialogShown = false;
               }
             },
             child: const Text("Retry"),
