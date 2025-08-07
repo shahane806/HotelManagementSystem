@@ -37,7 +37,7 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
   List<MenuItem> _menuItems = [];
   bool _isInitialLoad = true;
   bool _isVegFilter = true;
-  final UserModel _user =  UserModel(
+  final UserModel _user = UserModel(
     userId: '0001',
     fullName: 'John Doe',
     email: 'john.doe@example.com',
@@ -797,46 +797,73 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
               ],
             ),
           ),
-          GestureDetector(
-            onTap: () {
-              setState(() {
-                _isVegFilter = !_isVegFilter;
-                final menusState = context.read<MenusBloc>().state;
-                if (menusState is MenusLoaded) {
-                  _menuItems = _getMenuItemsFromMenus(menusState.menus);
-                }
-              });
-            },
-            child: Container(
-              padding: EdgeInsets.symmetric(
-                  horizontal: isTablet ? 12 : 10, vertical: isTablet ? 6 : 4),
-              decoration: BoxDecoration(
-                color: _isVegFilter ? Colors.green.withOpacity(0.2) : Colors.red.withOpacity(0.2),
-                border: Border.all(
-                  color: _isVegFilter ? Colors.green : Colors.red,
-                  width: 1,
-                ),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    _isVegFilter ? Icons.eco : Icons.dinner_dining,
-                    color: _isVegFilter ? Colors.green : Colors.red,
-                    size: isTablet ? 20 : 18,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    _isVegFilter ? 'Veg' : 'Non-Veg',
-                    style: TextStyle(
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _isVegFilter = !_isVegFilter;
+                    final menusState = context.read<MenusBloc>().state;
+                    if (menusState is MenusLoaded) {
+                      _menuItems = _getMenuItemsFromMenus(menusState.menus);
+                    }
+                  });
+                },
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                      horizontal: isTablet ? 12 : 10, vertical: isTablet ? 6 : 4),
+                  decoration: BoxDecoration(
+                    color: _isVegFilter ? Colors.green.withOpacity(0.2) : Colors.red.withOpacity(0.2),
+                    border: Border.all(
                       color: _isVegFilter ? Colors.green : Colors.red,
-                      fontSize: isTablet ? 12 : 10,
-                      fontWeight: FontWeight.w600,
+                      width: 1,
                     ),
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                ],
+                  child: Row(
+                    children: [
+                      Icon(
+                        _isVegFilter ? Icons.eco : Icons.dinner_dining,
+                        color: _isVegFilter ? Colors.green : Colors.red,
+                        size: isTablet ? 20 : 18,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _isVegFilter ? 'Veg' : 'Non-Veg',
+                        style: TextStyle(
+                          color: _isVegFilter ? Colors.green : Colors.red,
+                          fontSize: isTablet ? 12 : 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SearchMenuScreen(
+                        menuItems: _menuItems,
+                        isVegFilter: _isVegFilter,
+                        selectedOptions: selectedOptions,
+                        animationController: _animationController,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(
+                  Icons.search,
+                  color: Colors.white,
+                  size: 24,
+                ),
+                padding: EdgeInsets.all(isTablet ? 8 : 6),
+                constraints: const BoxConstraints(),
+              ),
+            ],
           ),
         ],
       ),
@@ -1991,5 +2018,372 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
         );
       }
     }
+  }
+}
+
+class SearchMenuScreen extends StatefulWidget {
+  final List<MenuItem> menuItems;
+  final bool isVegFilter;
+  final Map<MenuItem, String> selectedOptions;
+  final AnimationController animationController;
+
+  const SearchMenuScreen({
+    super.key,
+    required this.menuItems,
+    required this.isVegFilter,
+    required this.selectedOptions,
+    required this.animationController,
+  });
+
+  @override
+  State<SearchMenuScreen> createState() => _SearchMenuScreenState();
+}
+
+class _SearchMenuScreenState extends State<SearchMenuScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  List<MenuItem> _filteredItems = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _filteredItems = widget.menuItems;
+    _searchController.addListener(_filterMenuItems);
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_filterMenuItems);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _filterMenuItems() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      _filteredItems = widget.menuItems.where((item) {
+        final matchesFilter = widget.isVegFilter ? item.type == 'Veg' : item.type == 'Non-Veg';
+        final matchesQuery = item.name.toLowerCase().contains(query);
+        return matchesFilter && matchesQuery;
+      }).toList();
+    });
+  }
+
+  Widget _buildMenuItemCard(MenuItem item, bool isTablet) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            context.read<OrdersBloc>().add(AddOrderItem(
+                  OrderItem(
+                    menuItem: item,
+                    customization: widget.selectedOptions[item] ?? 'Medium',
+                  ),
+                ));
+            widget.animationController.forward().then((_) => widget.animationController.reverse());
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: EdgeInsets.all(isTablet ? 12 : 10),
+            child: Row(
+              children: [
+                Container(
+                  width: isTablet ? 50 : 40,
+                  height: isTablet ? 50 : 40,
+                  decoration: BoxDecoration(
+                    color: Colors.indigo.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Center(
+                    child: Text(
+                      item.image,
+                      style: TextStyle(fontSize: isTablet ? 20 : 18),
+                    ),
+                  ),
+                ),
+                SizedBox(width: isTablet ? 12 : 10),
+                Expanded(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            item.name,
+                            style: TextStyle(
+                              fontSize: isTablet ? 15 : 13,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF2D3748),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            item.category,
+                            style: TextStyle(
+                              fontSize: isTablet ? 11 : 10,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            '₹${item.price}',
+                            style: TextStyle(
+                              fontSize: isTablet ? 15 : 13,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: SizedBox(
+                              width: isTablet ? 100 : 80,
+                              child: Container(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  border: Border.all(
+                                      color: Colors.indigo[700]!, width: 1.0),
+                                  borderRadius: BorderRadius.circular(8),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.08),
+                                      blurRadius: 3,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: DropdownButton<String>(
+                                  value: widget.selectedOptions[item] ?? 'Medium',
+                                  items: ['Spicy', 'Less Spicy', 'Medium']
+                                      .map((option) => DropdownMenuItem<String>(
+                                            value: option,
+                                            child: Padding(
+                                              padding: const EdgeInsets.symmetric(
+                                                  horizontal: 8),
+                                              child: Text(
+                                                option,
+                                                style: TextStyle(
+                                                  fontSize: isTablet ? 12 : 10,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Colors.indigo[700],
+                                                ),
+                                              ),
+                                            ),
+                                          ))
+                                      .toList(),
+                                  onChanged: (value) {
+                                    if (value != null) {
+                                      setState(() {
+                                        widget.selectedOptions[item] = value;
+                                      });
+                                    }
+                                  },
+                                  underline: const SizedBox(),
+                                  icon: Icon(Icons.arrow_drop_down,
+                                      color: Colors.indigo[700], size: 18),
+                                  isExpanded: true,
+                                  style: TextStyle(
+                                    fontSize: isTablet ? 12 : 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.indigo[700],
+                                  ),
+                                  dropdownColor: Colors.white,
+                                  alignment: Alignment.center,
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: isTablet ? 12 : 8),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                ScaleTransition(
+                  scale: Tween<double>(begin: 1.0, end: 1.2).animate(widget.animationController),
+                  child: Container(
+                    padding: EdgeInsets.all(isTablet ? 10 : 6),
+                    decoration: BoxDecoration(
+                      color: Colors.indigo,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Icon(
+                      Icons.add,
+                      color: Colors.white,
+                      size: isTablet ? 18 : 14,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isTablet = MediaQuery.of(context).size.width > 600;
+
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: EdgeInsets.all(isTablet ? 24 : 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Search Menu',
+                      style: TextStyle(
+                        fontSize: isTablet ? 20 : 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFF8F9FA),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
+                    ),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.all(isTablet ? 20 : 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextField(
+                          controller: _searchController,
+                          decoration: InputDecoration(
+                            hintText: 'Search menu items...',
+                            prefixIcon: const Icon(Icons.search, color: Colors.indigo),
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          style: TextStyle(
+                            fontSize: isTablet ? 16 : 14,
+                            color: const Color(0xFF2D3748),
+                          ),
+                        ),
+                        SizedBox(height: isTablet ? 16 : 12),
+                        Row(
+                          children: [
+                            Icon(Icons.restaurant_menu,
+                                color: Colors.indigo, size: isTablet ? 22 : 18),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Search Results',
+                              style: TextStyle(
+                                fontSize: isTablet ? 18 : 16,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF2D3748),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: isTablet ? 10 : 6),
+                        Expanded(
+                          child: _filteredItems.isEmpty
+                              ? Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.search_off,
+                                        size: isTablet ? 56 : 40,
+                                        color: Colors.grey[400],
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        'No items found',
+                                        style: TextStyle(
+                                          fontSize: isTablet ? 15 : 13,
+                                          color: Colors.grey[600],
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        'Try a different search term',
+                                        style: TextStyle(
+                                          fontSize: isTablet ? 11 : 10,
+                                          color: Colors.grey[500],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : GridView.builder(
+                                  physics: const BouncingScrollPhysics(),
+                                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: isTablet ? 2 : 1,
+                                    childAspectRatio: isTablet ? 2.4 : 3.4,
+                                    mainAxisSpacing: 10,
+                                    crossAxisSpacing: 10,
+                                  ),
+                                  itemCount: _filteredItems.length,
+                                  itemBuilder: (context, index) {
+                                    final item = _filteredItems[index];
+                                    return _buildMenuItemCard(item, isTablet);
+                                  },
+                                ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
