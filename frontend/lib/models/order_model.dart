@@ -65,6 +65,17 @@ class Order {
         .join(', ');
     return 'Order(id: $id, table: $table, total: $total, status: $status, timestamp: $timestamp, items: [$itemsStr])';
   }
+  
+  Map<String, dynamic> toJson() => {
+        'orderId': id, // ✅ match backend schema
+        'items': items.entries
+            .map((entry) => entry.key.toJson(entry.value))
+            .toList(),
+        'total': total,
+        'status': status,
+        'timestamp': timestamp.toIso8601String(),
+      };
+
 }
 class OrderItem {
   final MenuItem menuItem;
@@ -75,6 +86,12 @@ class OrderItem {
     required this.customization,
   });
 
+  Map<String, dynamic> toJson(int quantity) => {
+        'name': menuItem.name,
+        'customization': customization,
+        'quantity': quantity,
+        'price': menuItem.price,
+      };
   @override
   bool operator ==(Object other) =>
       other is OrderItem &&

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:frontend/services/apiServicesCheckout.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:uuid/uuid.dart';
 import 'dart:developer' as developer;
@@ -13,10 +14,12 @@ import '../bloc/OrderBloc/state.dart';
 import '../bloc/TableUtility/bloc.dart';
 import '../bloc/TableUtility/event.dart';
 import '../bloc/TableUtility/state.dart';
+import '../models/bill_model.dart';
 import '../models/order_model.dart';
 import '../models/table_model.dart';
 import '../models/menu_model.dart';
 import '../models/user_model.dart';
+import '../services/apiServicesTable.dart';
 import '../services/socketService.dart';
 import 'buy_page.dart';
 
@@ -41,7 +44,7 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
     userId: '0001',
     fullName: 'John Doe',
     email: 'john.doe@example.com',
-    mobile: '9876543210',
+    mobile: '9876543210', aadhaarNumber: '',
   );
 
   @override
@@ -128,7 +131,26 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
   }
 
   Future<void> _generateBillPDF(List<Order> orders) async {
+
     if (!mounted) return;
+    // Construct a Bill object from the orders (replace with actual Bill fields)
+    final bill = Bill(
+      billId: const Uuid().v4(),
+      table: orders.isNotEmpty ? orders.first.table : '',
+      totalAmount: orders.fold<double>(0, (sum, order) => sum + order.total.toDouble()),
+      orders: orders,
+      user: _user,
+      isGstApplied: true, 
+    );
+    await Apiservicescheckout.payBill(bill);
+    SocketService().payBill({
+      'billId': bill.billId,
+      'table': bill.table,
+      'totalAmount': bill.totalAmount,
+      'orders': bill.orders.map((o) => o.toJson()).toList(),
+      'user': bill.user.toJson(),
+      'isGstApplied': bill.isGstApplied,
+    });
     await Navigator.push(
       context,
       MaterialPageRoute(
@@ -315,6 +337,7 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
                                                   0,
                                                   (sum, order) =>
                                                       sum + order.total);
+                                              final bool allServed = orders.every((order) => order.status == 'Served');
                                               return Container(
                                                 decoration: BoxDecoration(
                                                   color: Colors.white,
@@ -386,172 +409,216 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
                                                       ),
                                                     ],
                                                   ),
-                                                  children: orders
-                                                      .asMap()
-                                                      .entries
-                                                      .map((entry) {
-                                                    final orderIndex = entry.key;
-                                                    final order = entry.value;
-                                                    return Padding(
-                                                      padding:
-                                                          EdgeInsets.symmetric(
-                                                        vertical:
-                                                            isTablet ? 8 : 6,
-                                                      ),
-                                                      child: Column(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
-                                                        children: [
-                                                          Row(
-                                                            mainAxisAlignment:
-                                                                MainAxisAlignment
-                                                                    .spaceBetween,
-                                                            children: [
-                                                              Text(
-                                                                'Order #${orderIndex + 1}',
-                                                                style: TextStyle(
-                                                                  fontSize:
-                                                                      isTablet
-                                                                          ? 14
-                                                                          : 12,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w600,
-                                                                  color: const Color(
-                                                                      0xFF2D3748),
-                                                                ),
-                                                              ),
-                                                              Container(
-                                                                padding: const EdgeInsets
-                                                                    .symmetric(
-                                                                    horizontal:
-                                                                        8,
-                                                                    vertical: 4),
-                                                                decoration:
-                                                                    BoxDecoration(
-                                                                  color: _getStatusColor(
-                                                                          order
-                                                                              .status)
-                                                                      .withOpacity(
-                                                                          0.1),
-                                                                  borderRadius:
-                                                                      BorderRadius
-                                                                          .circular(
-                                                                              8),
-                                                                ),
-                                                                child: Text(
-                                                                  order.status,
+                                                  children: [
+                                                    ...orders
+                                                        .asMap()
+                                                        .entries
+                                                        .map((entry) {
+                                                      final orderIndex = entry.key;
+                                                      final order = entry.value;
+                                                      return Padding(
+                                                        padding:
+                                                            EdgeInsets.symmetric(
+                                                          vertical:
+                                                              isTablet ? 8 : 6,
+                                                        ),
+                                                        child: Column(
+                                                          crossAxisAlignment:
+                                                              CrossAxisAlignment
+                                                                  .start,
+                                                          children: [
+                                                            Row(
+                                                              mainAxisAlignment:
+                                                                  MainAxisAlignment
+                                                                      .spaceBetween,
+                                                              children: [
+                                                                Text(
+                                                                  'Order #${orderIndex + 1}',
                                                                   style: TextStyle(
                                                                     fontSize:
                                                                         isTablet
-                                                                            ? 12
-                                                                            : 10,
-                                                                    color: _getStatusColor(
-                                                                        order
-                                                                            .status),
+                                                                            ? 14
+                                                                            : 12,
                                                                     fontWeight:
                                                                         FontWeight
                                                                             .w600,
+                                                                    color: const Color(
+                                                                        0xFF2D3748),
                                                                   ),
                                                                 ),
-                                                              ),
-                                                            ],
-                                                          ),
-                                                          const SizedBox(
-                                                              height: 6),
-                                                          ...order.items.entries
-                                                              .map((itemEntry) {
-                                                            return Padding(
-                                                              padding: EdgeInsets
-                                                                  .symmetric(
-                                                                vertical:
-                                                                    isTablet
-                                                                        ? 6
-                                                                        : 4,
-                                                              ),
-                                                              child: Row(
-                                                                children: [
-                                                                  Container(
-                                                                    width: isTablet
-                                                                        ? 36
-                                                                        : 28,
-                                                                    height:
-                                                                        isTablet
-                                                                            ? 36
-                                                                            : 28,
-                                                                    decoration:
-                                                                        BoxDecoration(
-                                                                      color: Colors
-                                                                          .indigo
-                                                                          .withOpacity(
-                                                                              0.1),
-                                                                      borderRadius:
-                                                                          BorderRadius
-                                                                              .circular(6),
+                                                                Container(
+                                                                  padding: const EdgeInsets
+                                                                      .symmetric(
+                                                                      horizontal:
+                                                                          8,
+                                                                      vertical: 4),
+                                                                  decoration:
+                                                                      BoxDecoration(
+                                                                    color: _getStatusColor(
+                                                                            order
+                                                                                .status)
+                                                                        .withOpacity(
+                                                                            0.1),
+                                                                    borderRadius:
+                                                                        BorderRadius
+                                                                            .circular(
+                                                                                8),
+                                                                  ),
+                                                                  child: Text(
+                                                                    order.status,
+                                                                    style: TextStyle(
+                                                                      fontSize:
+                                                                          isTablet
+                                                                              ? 12
+                                                                              : 10,
+                                                                      color: _getStatusColor(
+                                                                          order
+                                                                              .status),
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .w600,
                                                                     ),
-                                                                    child: Center(
-                                                                      child: Text(
-                                                                        itemEntry
-                                                                            .key
-                                                                            .menuItem
-                                                                            .image,
-                                                                        style: TextStyle(
-                                                                            fontSize: isTablet
-                                                                                ? 14
-                                                                                : 12),
+                                                                  ),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                            const SizedBox(
+                                                                height: 6),
+                                                            ...order.items.entries
+                                                                .map((itemEntry) {
+                                                              return Padding(
+                                                                padding: EdgeInsets
+                                                                    .symmetric(
+                                                                  vertical:
+                                                                      isTablet
+                                                                          ? 6
+                                                                          : 4,
+                                                                ),
+                                                                child: Row(
+                                                                  children: [
+                                                                    Container(
+                                                                      width: isTablet
+                                                                          ? 36
+                                                                          : 28,
+                                                                      height:
+                                                                          isTablet
+                                                                              ? 36
+                                                                              : 28,
+                                                                      decoration:
+                                                                          BoxDecoration(
+                                                                        color: Colors
+                                                                            .indigo
+                                                                            .withOpacity(
+                                                                                0.1),
+                                                                        borderRadius:
+                                                                            BorderRadius
+                                                                                .circular(6),
+                                                                      ),
+                                                                      child: Center(
+                                                                        child: Text(
+                                                                          itemEntry
+                                                                              .key
+                                                                              .menuItem
+                                                                              .image,
+                                                                          style: TextStyle(
+                                                                              fontSize: isTablet
+                                                                                  ? 14
+                                                                                  : 12),
+                                                                        ),
                                                                       ),
                                                                     ),
-                                                                  ),
-                                                                  SizedBox(
-                                                                      width: isTablet
-                                                                          ? 10
-                                                                          : 8),
-                                                                  Expanded(
-                                                                    child:
-                                                                        Column(
-                                                                      crossAxisAlignment:
-                                                                          CrossAxisAlignment
-                                                                              .start,
-                                                                      children: [
-                                                                        Text(
-                                                                          '${itemEntry.key.menuItem.name} (${itemEntry.key.customization})',
-                                                                          style:
-                                                                              TextStyle(
-                                                                            fontSize:
-                                                                                isTablet ? 13 : 11,
-                                                                            fontWeight:
-                                                                                FontWeight.w600,
-                                                                            color:
-                                                                                const Color(0xFF2D3748),
+                                                                    SizedBox(
+                                                                        width: isTablet
+                                                                            ? 10
+                                                                            : 8),
+                                                                    Expanded(
+                                                                      child:
+                                                                          Column(
+                                                                        crossAxisAlignment:
+                                                                            CrossAxisAlignment
+                                                                                .start,
+                                                                        children: [
+                                                                          Text(
+                                                                            '${itemEntry.key.menuItem.name} (${itemEntry.key.customization})',
+                                                                            style:
+                                                                                TextStyle(
+                                                                              fontSize:
+                                                                                  isTablet ? 13 : 11,
+                                                                              fontWeight:
+                                                                                  FontWeight.w600,
+                                                                              color:
+                                                                                  const Color(0xFF2D3748),
+                                                                            ),
+                                                                            maxLines:
+                                                                                1,
+                                                                            overflow:
+                                                                                TextOverflow.ellipsis,
                                                                           ),
-                                                                          maxLines:
-                                                                              1,
-                                                                          overflow:
-                                                                              TextOverflow.ellipsis,
-                                                                        ),
-                                                                        Text(
-                                                                          '₹${itemEntry.key.menuItem.price} × ${itemEntry.value}',
-                                                                          style:
-                                                                              TextStyle(
-                                                                            fontSize:
-                                                                                isTablet ? 11 : 10,
-                                                                            color:
-                                                                                Colors.grey[600],
+                                                                          Text(
+                                                                            '₹${itemEntry.key.menuItem.price} × ${itemEntry.value}',
+                                                                            style:
+                                                                                TextStyle(
+                                                                              fontSize:
+                                                                                  isTablet ? 11 : 10,
+                                                                              color:
+                                                                                  Colors.grey[600],
+                                                                            ),
                                                                           ),
-                                                                        ),
-                                                                      ],
+                                                                        ],
+                                                                      ),
                                                                     ),
-                                                                  ),
-                                                                ],
-                                                              ),
-                                                            );
-                                                          }).toList(),
-                                                          const Divider(),
-                                                        ],
+                                                                  ],
+                                                                ),
+                                                              );
+                                                            }).toList(),
+                                                            const Divider(),
+                                                          ],
+                                                        ),
+                                                      );
+                                                    }).toList(),
+                                                    Padding(
+                                                      padding: EdgeInsets.all(
+                                                          isTablet ? 12 : 8),
+                                                      child: SizedBox(
+                                                        width: double.infinity,
+                                                        height: isTablet ? 40 : 36,
+                                                        child: ElevatedButton.icon(
+                                                          onPressed: allServed ? () =>
+                                                              _generateBillPDF(
+                                                                  orders) : null,
+                                                          icon: const Icon(
+                                                              Icons.receipt,
+                                                              color: Colors.white,
+                                                              size: 18),
+                                                          label: Text(
+                                                            'Proceed to Payment',
+                                                            style: TextStyle(
+                                                              fontSize: isTablet
+                                                                  ? 13
+                                                                  : 12,
+                                                              fontWeight:
+                                                                  FontWeight.bold,
+                                                            ),
+                                                          ),
+                                                          style: ElevatedButton
+                                                              .styleFrom(
+                                                            backgroundColor:
+                                                                Colors.green,
+                                                            foregroundColor:
+                                                                Colors.white,
+                                                            shape:
+                                                                RoundedRectangleBorder(
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          8),
+                                                            ),
+                                                            elevation: 1,
+                                                          ),
+                                                        ),
                                                       ),
-                                                    );
-                                                  }).toList(),
+                                                    ),
+                                                  ],
                                                 ),
                                               );
                                             },
@@ -602,13 +669,14 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
                                             width: double.infinity,
                                             height: isTablet ? 48 : 40,
                                             child: ElevatedButton.icon(
-                                              onPressed: () =>
+                                              onPressed: recentOrders.every((order) => order.status == 'Served') ?
+                                                  () =>
                                                   _generateBillPDF(
-                                                      recentOrders),
+                                                      recentOrders) : null,
                                               icon: const Icon(Icons.receipt,
                                                   color: Colors.white, size: 20),
                                               label: Text(
-                                                'Proceed to Payment',
+                                                'Proceed to Payment (All Tables)',
                                                 style: TextStyle(
                                                   fontSize:
                                                       isTablet ? 15 : 13,

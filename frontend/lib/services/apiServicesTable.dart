@@ -1,8 +1,11 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'package:frontend/app/api_constants.dart';
+import 'package:frontend/models/user_model.dart';
 import 'package:http/http.dart' as http;
+import '../models/bill_model.dart';
 import '../models/table_model.dart';
-
+import '../models/order_model.dart';
 class ApiServiceTables {
   final String baseUrl = ApiConstants.url;
 
@@ -34,7 +37,8 @@ class ApiServiceTables {
           return [];
         }
       } else {
-        throw Exception('Failed to load tables: ${response.statusCode} - ${response.body}');
+        throw Exception(
+            'Failed to load tables: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
       print("Error in getTables: $e");
@@ -64,10 +68,12 @@ class ApiServiceTables {
         }),
       );
 
-      print("Add table item response: ${response.statusCode} - ${response.body}");
+      print(
+          "Add table item response: ${response.statusCode} - ${response.body}");
 
       if (response.statusCode != 200) {
-        throw Exception('Failed to add table item: ${response.statusCode} - ${response.body}');
+        throw Exception(
+            'Failed to add table item: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
       print("Error in addTableItem: $e");
@@ -90,14 +96,18 @@ class ApiServiceTables {
         },
       );
 
-      print("Delete table item response: ${response.statusCode} - ${response.body}");
+      print(
+          "Delete table item response: ${response.statusCode} - ${response.body}");
 
       if (response.statusCode != 200) {
-        throw Exception('Failed to delete table item: ${response.statusCode} - ${response.body}');
+        throw Exception(
+            'Failed to delete table item: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
       print("Error in deleteTableItem: $e");
       throw Exception('Failed to delete table item: $e');
     }
   }
+
 }
+

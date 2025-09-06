@@ -1,14 +1,18 @@
+
+// Updated UserModel with Aadhaar card number
 class UserModel {
   final String userId;
   final String fullName;
   final String email;
   final String mobile;
+  final String aadhaarNumber;
 
   UserModel({
     required this.userId,
     required this.fullName,
     required this.email,
     required this.mobile,
+    required this.aadhaarNumber,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -17,6 +21,7 @@ class UserModel {
       fullName: json['fullName'] ?? '',
       email: json['email'] ?? '',
       mobile: json['mobile'] ?? '',
+      aadhaarNumber: json['aadhaarNumber'] ?? '',
     );
   }
 
@@ -26,11 +31,12 @@ class UserModel {
       'fullName': fullName,
       'email': email,
       'mobile': mobile,
+      'aadhaarNumber': aadhaarNumber,
     };
   }
 
   @override
   String toString() {
-    return 'UserModel(userId: $userId, fullName: $fullName, email: $email, mobile: $mobile)';
+    return 'UserModel(userId: $userId, fullName: $fullName, email: $email, mobile: $mobile, aadhaarNumber: $aadhaarNumber)';
   }
 }

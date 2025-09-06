@@ -3,6 +3,8 @@ const { loginController, registerController } = require("../Controllers/authCont
 const { loginMiddlewere, registerMiddlewere, authenticate } = require("../Middlewere/authMiddlewere");
 const { utilityController, utilityItemController, getNamedUtilities, deleteUtilityItemController } = require("../Controllers/utilityController");
 const { addMenuItemController, deleteMenuItemController } = require("../Controllers/utilityController");
+const { createBill, getAllBills, updateBillStatus } = require("../Controllers/billController");
+const { getAllCustomers, createCustomer, deleteCustomer, updateCustomer } = require("../Controllers/customerController");
 const router = express.Router();
 
 router.get("/", (req, res) => {
@@ -27,5 +29,13 @@ router.delete("/utilities/:utilityName/:itemName", authenticate, deleteUtilityIt
 router.post("/utilities/:utilityName/:menuName/items", authenticate, addMenuItemController);
 ///#Delete Item from Menu from Menu Utiltiy
 router.delete("/utilities/:utilityName/:menuName/items/:menuitemname", authenticate, deleteMenuItemController);
+
+router.post('/payTableBill', authenticate, createBill);
+router.get('/getAllBills',authenticate,getAllBills)
+router.post('/updateBillStatus', authenticate, updateBillStatus);
+router.get('/customers/', authenticate,getAllCustomers);
+router.post('/customers/', authenticate,createCustomer);
+router.delete('/customers/:userId',authenticate, deleteCustomer);
+router.put('/customers/:userId',authenticate, updateCustomer);
 
 module.exports = router;

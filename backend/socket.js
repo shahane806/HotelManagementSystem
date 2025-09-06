@@ -91,7 +91,42 @@ io.on('connection', (socket) => {
       socket.emit('error', { message: 'Error updating order status', error: error.message });
     }
   });
+  socket.on('payBill', (bill) => {
+    try {
+      // Validate bill data (add more validation as needed)
+      if (!bill || !bill.billId || !bill.table || !bill.totalAmount || !bill.orders) {
+        socket.emit('error', { message: 'Invalid bill data', bill });
+        console.log('Invalid bill data received:', bill);
+        return;
+      }
 
+      // Process payment (in real app, integrate with payment gateway)
+      // For now, assume success and mark related orders as paid
+      const table = bill.table;
+      orders = orders.map(order => 
+        order.table === table ? { ...order, status: 'Paid' } : order
+      );
+
+      // Remove paid orders or archive them (for simplicity, filter out)
+      orders = orders.filter(order => order.table !== table);
+
+      console.log('Bill paid for table:', table);
+      io.emit('billPaid', { ...bill, success: true });
+    } catch (error) {
+      console.error('Error processing payBill:', error);
+      socket.emit('error', { message: 'Error processing bill payment', error: error.message });
+    }
+  });
+  // Handle fetchBills event
+  socket.on('fetchBills', async () => {
+    try {
+      const bills = await Bill.find({ status: 'Pending' });
+      socket.emit('billsFetched', bills.map(b => b.toObject()));
+    } catch (error) {
+      console.error('Error fetching bills:', error);
+      socket.emit('error', { message: 'Failed to fetch bills', error: error.message });
+    }
+  });
   // Handle disconnect
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);

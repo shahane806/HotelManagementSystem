@@ -9,8 +9,9 @@ class SocketService {
   static final SocketService _instance = SocketService._internal();
   late IO.Socket socket;
   KitchenDashboardBloc? bloc; // Store BLoC instance
-  List<Map<String, dynamic>> _eventQueue = [];
+ List<Map<String, dynamic>> _eventQueue = [];
   List<Map<String, dynamic>> _lastKnownOrders = []; // Cache for last valid orders
+  List<Map<String, dynamic>> _lastKnownBills = []; // Cache for last valid bills// Cache for last valid orders
   bool _isProcessingQueue = false;
   int _reconnectAttempts = 0;
   static const int _maxReconnectAttempts = 5;
@@ -101,6 +102,38 @@ class SocketService {
         _processEventQueue();
       }
     });
+socket.on('billsFetched', (data) {
+      print('📋 Bills fetched: $data');
+      try {
+        final bills = List<Map<String, dynamic>>.from(data);
+        if (bills.every(_isValidBill)) {
+          _lastKnownBills = bills; // Update last known bills
+          _eventQueue.add({'event': 'billsFetched', 'data': bills});
+          _processEventQueue();
+        } else {
+          print('Invalid bills data, skipping: $bills');
+          _eventQueue.add({'event': 'billsFetched', 'data': _lastKnownBills});
+          _processEventQueue();
+        }
+      } catch (e) {
+        print('Error parsing billsFetched: $e');
+        _eventQueue.add({'event': 'billsFetched', 'data': _lastKnownBills});
+        _processEventQueue();
+      }
+    });
+    socket.on('billPaid', (data) {
+      print('💳 Bill paid: $data');
+      try {
+        // final billData = Map<String, dynamic>.from(data);
+        // You can add logic here to handle bill paid event, e.g., notify BLoC
+        if (bloc != null) {
+          // Assuming you have a BLoC event for bill paid
+          // bloc!.add(BillPaidEvent(billData));
+        }
+      } catch (e) {
+        print('Error parsing billPaid: $e');
+      }
+    });
   }
 
   /// Validates order data
@@ -117,6 +150,15 @@ class SocketService {
   /// Validates order update data
   bool _isValidUpdate(Map<String, dynamic> update) {
     return update.containsKey('orderId') && update.containsKey('status');
+  }
+
+  /// Validates bill data
+  bool _isValidBill(Map<String, dynamic> bill) {
+    return bill.containsKey('id') &&
+        bill.containsKey('table') &&
+        bill.containsKey('amount') &&
+        bill.containsKey('status') &&
+        bill.containsKey('time');
   }
 
   /// Processes queued socket events
@@ -243,7 +285,39 @@ class SocketService {
       return _lastKnownOrders; // Return last known orders on timeout
     });
   }
+/// Fetches all bills from the server
+  Future<List<Map<String, dynamic>>> fetchBills() async {
+    if (!socket.connected) {
+      socket.connect();
+    }
 
+    Completer<List<Map<String, dynamic>>> completer = Completer();
+    socket.emit('fetchBills');
+
+    socket.once('billsFetched', (data) {
+      try {
+        final bills = List<Map<String, dynamic>>.from(data);
+        print('Fetched ${bills.length} bills');
+        completer.complete(bills);
+      } catch (e) {
+        print('Error parsing bills: $e');
+        completer.completeError(e);
+      }
+    });
+
+    return await completer.future.timeout(Duration(seconds: 5), onTimeout: () {
+      print('Fetch bills timed out');
+      return [];
+    });
+  }
+void payBill(Map<String, dynamic> bill) {
+    socket.emit('payBill', bill);
+    print('Emitted payBill: $bill');
+  }/// Creates a new bill on the server
+  void createBill(Map<String, dynamic> bill) {
+    socket.emit('createBill', bill);
+    print('Emitted createBill: $bill');
+  }
   /// Disposes the socket service
   void dispose() {
     disconnect();
