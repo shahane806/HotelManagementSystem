@@ -112,10 +112,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       'mobile': mobile,
       'user': bill['user'],
       'isGstApplied': bill['isGstApplied'],
+      'status': 'Paid', // Update bill status to Paid
     };
 
     try {
+      await Apiservicescheckout.updateBillStatus(billId, 'Paid', paymentMethod);
       developer.log('Payment initiated for bill $billId, method $paymentMethod', name: 'CheckoutScreen');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Payment successful for bill $billId via $paymentMethod'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        context.read<BillBloc>().add(UpdateBill(billId, 'Paid', paymentMethod: paymentMethod));
+        context.read<BillBloc>().add(FetchBills());
+      }
     } catch (e) {
       developer.log('Error during payment for bill $billId: $e', name: 'CheckoutScreen');
       if (mounted) {
@@ -240,7 +253,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               double tableTotal = bills.fold(0.0, (sum, bill) {
                 final amount = (bill['totalAmount'] as num?)?.toDouble() ?? 0.0;
                 developer.log('Bill ${bill['billId']} totalAmount: $amount', name: 'CheckoutScreen');
-                return sum + (bill['isGstApplied'] == true ? amount * 1.05 : amount);
+                return sum + amount;
               });
               _tableTotals[table] = tableTotal;
               _grandTotal += tableTotal;
@@ -372,7 +385,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 final isProcessing = _processingBills[billId] ?? false;
                                 final totalAmount = (bill['totalAmount'] as num).toDouble();
                                 final displayTotal = (bill['isGstApplied'] == true)
-                                    ? (totalAmount * 1.05).toStringAsFixed(2)
+                                    ? (totalAmount).toStringAsFixed(2)
                                     : totalAmount.toStringAsFixed(2);
                                 developer.log('Rendering bill $billId', name: 'CheckoutScreen');
                                 return Container(
@@ -469,7 +482,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                               return Column(
                                                 crossAxisAlignment: CrossAxisAlignment.start,
                                                 children: [
-                                                  _buildInfoRow('Order ID', orderId.substring(0, 8) + '...', isTablet),
+                                                  _buildInfoRow('Order ID', orderId, isTablet),
                                                   _buildInfoRow('Total', '₹$orderTotal', isTablet),
                                                   _buildInfoRow('Status', orderStatus, isTablet),
                                                   _buildInfoRow('Timestamp', timestamp, isTablet),
@@ -588,14 +601,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                             const SizedBox(height: 16),
                                             ElevatedButton(
                                               onPressed: isProcessing ? null : () => _verifyPayment(billId),
-                                              child: const Text(
-                                                'Submit Payment',
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.w600,
-                                                  fontSize: 16,
-                                                ),
-                                              ),
                                               style: ElevatedButton.styleFrom(
                                                 backgroundColor: Colors.indigo[700],
                                                 padding: const EdgeInsets.symmetric(vertical: 16),
@@ -604,6 +609,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                                 ),
                                                 elevation: 2,
                                                 minimumSize: const Size(double.infinity, 50),
+                                              ),
+                                              child:  const Text(
+                                                'Submit Payment',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 16,
+                                                ),
                                               ),
                                             ),
                                           ],

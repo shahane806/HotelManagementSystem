@@ -17,7 +17,8 @@ const createBill = async (req, res) => {
       user,
       orders,
       totalAmount,
-      isGstApplied
+      isGstApplied,
+      status: 'Pending'
     });
 
     await newBill.save();

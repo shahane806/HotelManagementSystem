@@ -1,4 +1,3 @@
-
 abstract class BillEvent {}
 
 class FetchBills extends BillEvent {}
@@ -14,4 +13,3 @@ class UpdateBill extends BillEvent {
   final String? paymentMethod;
   UpdateBill(this.billId, this.status, {this.paymentMethod});
 }
-
