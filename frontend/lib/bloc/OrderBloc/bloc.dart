@@ -1,10 +1,7 @@
-import 'dart:convert';
-
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../models/order_model.dart';
 import 'event.dart';
 import 'state.dart';
-import 'package:uuid/uuid.dart';
 import 'dart:developer' as developer; // For logging
 
 // Placeholder for a repository to fetch orders from a server or database
