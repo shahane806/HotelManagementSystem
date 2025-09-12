@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:frontend/services/socketService.dart';
 import 'dart:developer' as developer;
 import '../bloc/BillBloc/bloc.dart';
 import '../bloc/BillBloc/event.dart';
@@ -22,16 +23,28 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Map<String, bool> _processingBills = {};
   Map<String, TextEditingController> _mobileControllers = {};
   Map<String, String?> _selectedPaymentMethods = {};
+  late SocketService socketService;
 
   @override
   void initState() {
     super.initState();
+    socketService = SocketService();
+    socketService.connect();
+    socketService.socket.on('newBill', _onNewBill);
+    socketService.socket.on('billPaid', _onBillPaid);
+    socketService.socket.on('orderUpdated', _onOrderUpdated);
+    socketService.socket.on('error', _onError);
     context.read<BillBloc>().add(FetchBills());
     developer.log('CheckoutScreen initialized, fetching bills', name: 'CheckoutScreen');
   }
 
   @override
   void dispose() {
+    socketService.socket.off('newBill', _onNewBill);
+    socketService.socket.off('billPaid', _onBillPaid);
+    socketService.socket.off('orderUpdated', _onOrderUpdated);
+    socketService.socket.off('error', _onError);
+    socketService.disconnect();
     _mobileControllers.forEach((_, controller) => controller.dispose());
     developer.log('CheckoutScreen disposed', name: 'CheckoutScreen');
     super.dispose();
@@ -59,6 +72,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           behavior: SnackBarBehavior.floating,
         ),
       );
+      setState(() {
+        _processingBills[billId] = false;
+      });
       context.read<BillBloc>().add(FetchBills());
     }
   }
@@ -66,6 +82,26 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   void _onOrderUpdated(dynamic data) {
     developer.log('Order updated: $data', name: 'CheckoutScreen');
     context.read<BillBloc>().add(FetchBills());
+  }
+
+  void _onError(dynamic data) {
+    developer.log('Socket error received: $data', name: 'CheckoutScreen');
+    final message = data['message'] as String? ?? 'Unknown error';
+    final billId = data['billId'] as String?;
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      if (billId != null) {
+        setState(() {
+          _processingBills[billId] = false;
+        });
+      }
+    }
   }
 
   void _handlePayment(String billId, String paymentMethod) async {
@@ -112,11 +148,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       'mobile': mobile,
       'user': bill['user'],
       'isGstApplied': bill['isGstApplied'],
-      'status': 'Paid', // Update bill status to Paid
+      'status': 'Paid',
     };
 
     try {
       await Apiservicescheckout.updateBillStatus(billId, 'Paid', paymentMethod);
+      socketService.payBill(billData);
       developer.log('Payment initiated for bill $billId, method $paymentMethod', name: 'CheckoutScreen');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -184,30 +221,56 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
 
     setState(() {
-      _processingBills[billId] = false;
+      _processingBills[billId] = true;
     });
+
+    final bill = _groupedBills.values
+        .expand((bills) => bills)
+        .firstWhere((b) => b['billId'] == billId);
+    final table = bill['table'] as String;
+    final totalAmount = (bill['totalAmount'] as num).toDouble();
+
+    final billData = {
+      'billId': billId,
+      'table': table,
+      'totalAmount': totalAmount,
+      'orders': bill['orders'] as List,
+      'paymentMethod': paymentMethod,
+      'mobile': mobile,
+      'user': bill['user'],
+      'isGstApplied': bill['isGstApplied'],
+      'status': 'Paid',
+    };
 
     try {
       await Apiservicescheckout.updateBillStatus(billId, 'Paid', paymentMethod);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Payment verified for bill $billId via $paymentMethod'),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      context.read<BillBloc>().add(UpdateBill(billId, 'Paid', paymentMethod: paymentMethod));
-      context.read<BillBloc>().add(FetchBills());
-      developer.log('Payment verified for bill $billId, method $paymentMethod', name: 'CheckoutScreen');
+      socketService.payBill(billData);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Payment verified for bill $billId via $paymentMethod'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        context.read<BillBloc>().add(UpdateBill(billId, 'Paid', paymentMethod: paymentMethod));
+        context.read<BillBloc>().add(FetchBills());
+        developer.log('Payment verified for bill $billId, method $paymentMethod', name: 'CheckoutScreen');
+      }
     } catch (e) {
       developer.log('Error verifying payment for bill $billId: $e', name: 'CheckoutScreen');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to verify payment for bill $billId. Please try again.'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      if (mounted) {
+        setState(() {
+          _processingBills[billId] = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to verify payment for bill $billId. Please try again.'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -610,7 +673,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                                 elevation: 2,
                                                 minimumSize: const Size(double.infinity, 50),
                                               ),
-                                              child:  const Text(
+                                              child: const Text(
                                                 'Submit Payment',
                                                 style: TextStyle(
                                                   color: Colors.white,
