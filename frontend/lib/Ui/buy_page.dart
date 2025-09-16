@@ -30,7 +30,8 @@ class AppConstants {
   static const cardElevation = 2.0;
   static const borderRadius = 12.0; // Increased for smoother corners
   static const paddingSmall = 16.0;
-  static const paddingLarge = 24.0; // Increased for better spacing on larger screens
+  static const paddingLarge =
+      24.0; // Increased for better spacing on larger screens
   static const animationDuration = Duration(milliseconds: 800);
   static const inputBorder = OutlineInputBorder(
     borderRadius: BorderRadius.all(Radius.circular(borderRadius)),
@@ -414,8 +415,8 @@ class _BuyPageState extends State<BuyPage>
   }
 
   Widget _buildOrderSummary(bool isMobile) {
-    final double totalPrice = widget.orders.fold(
-        0.0, (sum, order) => sum + order.total.toDouble());
+    final double totalPrice =
+        widget.orders.fold(0.0, (sum, order) => sum + order.total.toDouble());
     final double gstAmount =
         widget.isGstApplied ? totalPrice * AppConstants.gstRate : 0.0;
     final double total = totalPrice + gstAmount;
@@ -496,7 +497,8 @@ class _BuyPageState extends State<BuyPage>
                     height: imageSize,
                     width: imageSize,
                     color: Colors.grey[300],
-                    child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                    child: const Icon(Icons.image_not_supported,
+                        color: Colors.grey),
                   ),
                 ),
               ),
@@ -527,7 +529,8 @@ class _BuyPageState extends State<BuyPage>
                     ),
                     const SizedBox(height: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: AppConstants.secondaryColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
@@ -695,10 +698,13 @@ class _BuyPageState extends State<BuyPage>
                 border: AppConstants.inputBorder,
                 enabledBorder: AppConstants.inputBorder,
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppConstants.borderRadius),
-                  borderSide: BorderSide(color: AppConstants.primaryColor, width: 2),
+                  borderRadius:
+                      BorderRadius.circular(AppConstants.borderRadius),
+                  borderSide:
+                      BorderSide(color: AppConstants.primaryColor, width: 2),
                 ),
-                prefixIcon: Icon(Icons.discount, color: AppConstants.primaryColor),
+                prefixIcon:
+                    Icon(Icons.discount, color: AppConstants.primaryColor),
               ),
               style: GoogleFonts.poppins(fontSize: fontSizeBase),
             ),
@@ -843,8 +849,8 @@ class _BuyPageState extends State<BuyPage>
       final random = Random().nextInt(9000) + 1000;
       String orderId =
           "U${widget.user.userId}D${DateTime.now().millisecondsSinceEpoch}R$random";
-      final double totalPrice = widget.orders.fold(
-          0.0, (sum, order) => sum + order.total.toDouble());
+      final double totalPrice =
+          widget.orders.fold(0.0, (sum, order) => sum + order.total.toDouble());
       final double gstAmount =
           widget.isGstApplied ? totalPrice * AppConstants.gstRate : 0.0;
       final String amount = (totalPrice + gstAmount).toStringAsFixed(2);
@@ -1057,29 +1063,33 @@ class _BuyPageState extends State<BuyPage>
                     ),
                   ],
                 ),
-                ...widget.orders.expand((order) => order.items.entries.map((entry) {
-                      final int price = entry.key.menuItem.price * entry.value;
-                      final customization = entry.key.customization.isNotEmpty
-                          ? ' [${entry.key.customization}]'
-                          : '';
-                      return pw.TableRow(
-                        children: [
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.all(8),
-                            child: pw.Text(
-                                _sanitizeText(
-                                    '${entry.key.menuItem.name}$customization x${entry.value}'),
-                                style: pw.TextStyle(font: ttf)),
-                          ),
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.all(8),
-                            child: pw.Text(
-                                '${AppConstants.rupeeSymbol}${price.toStringAsFixed(0)}',
-                                style: pw.TextStyle(font: ttf)),
-                          ),
-                        ],
-                      );
-                    })).toList(),
+                ...widget.orders
+                    .expand((order) => order.items.entries.map((entry) {
+                          final int price =
+                              entry.key.menuItem.price * entry.value;
+                          final customization =
+                              entry.key.customization.isNotEmpty
+                                  ? ' [${entry.key.customization}]'
+                                  : '';
+                          return pw.TableRow(
+                            children: [
+                              pw.Padding(
+                                padding: const pw.EdgeInsets.all(8),
+                                child: pw.Text(
+                                    _sanitizeText(
+                                        '${entry.key.menuItem.name}$customization x${entry.value}'),
+                                    style: pw.TextStyle(font: ttf)),
+                              ),
+                              pw.Padding(
+                                padding: const pw.EdgeInsets.all(8),
+                                child: pw.Text(
+                                    '${AppConstants.rupeeSymbol}${price.toStringAsFixed(0)}',
+                                    style: pw.TextStyle(font: ttf)),
+                              ),
+                            ],
+                          );
+                        }))
+                    .toList(),
                 pw.TableRow(
                   decoration: pw.BoxDecoration(color: PdfColors.teal100),
                   children: [
@@ -1240,13 +1250,15 @@ class _BuyPageState extends State<BuyPage>
         if (storageStatus.isPermanentlyDenied) {
           _logger.warning('Storage permission permanently denied');
           _showPermissionSettingsDialog();
-          return await _generateReceiptContent(response, showDialogOnFailure: true);
+          return await _generateReceiptContent(response,
+              showDialogOnFailure: true);
         } else if (!storageStatus.isGranted) {
           final result = await Permission.storage.request();
           _logger.info('Storage permission request result: $result');
           if (result.isPermanentlyDenied) {
             _showPermissionSettingsDialog();
-            return await _generateReceiptContent(response, showDialogOnFailure: true);
+            return await _generateReceiptContent(response,
+                showDialogOnFailure: true);
           }
           permissionGranted = result.isGranted;
         }
@@ -1257,7 +1269,8 @@ class _BuyPageState extends State<BuyPage>
       if (!permissionGranted) {
         _logger.warning('Storage permission denied');
         _showSnackBar('Storage permission denied', AppConstants.errorColor);
-        return await _generateReceiptContent(response, showDialogOnFailure: true);
+        return await _generateReceiptContent(response,
+            showDialogOnFailure: true);
       }
 
       final pdfPath = await _generateReceiptPdf(response);
@@ -1265,7 +1278,8 @@ class _BuyPageState extends State<BuyPage>
       final openResult = await OpenFilex.open(pdfPath);
       _logger.info('OpenFilex result: $openResult');
       if (openResult.type != ResultType.done) {
-        _showSnackBar('Receipt saved at $pdfPath but could not be opened', AppConstants.errorColor);
+        _showSnackBar('Receipt saved at $pdfPath but could not be opened',
+            AppConstants.errorColor);
       }
       return pdfPath;
     } catch (e, stackTrace) {
@@ -1279,11 +1293,13 @@ class _BuyPageState extends State<BuyPage>
       {bool showDialogOnFailure = false}) async {
     try {
       _logger.info('Generating plain text receipt content');
-      _logger.info('User data: fullName=${widget.user.fullName}, mobile=${widget.user.mobile}');
-      _logger.info('Orders: ${widget.orders.map((o) => jsonEncode(o)).toList()}');
+      _logger.info(
+          'User data: fullName=${widget.user.fullName}, mobile=${widget.user.mobile}');
+      _logger
+          .info('Orders: ${widget.orders.map((o) => jsonEncode(o)).toList()}');
 
-      final double totalPrice = widget.orders.fold(
-          0.0, (sum, order) => sum + order.total.toDouble());
+      final double totalPrice =
+          widget.orders.fold(0.0, (sum, order) => sum + order.total.toDouble());
       final double gstAmount =
           widget.isGstApplied ? totalPrice * AppConstants.gstRate : 0.0;
       final double total = totalPrice + gstAmount;
@@ -1367,11 +1383,11 @@ Mobile: ${_sanitizeText(widget.user.mobile ?? 'N/A')}
 
 Order Summary
 ${widget.orders.map((order) => order.items.entries.map((entry) {
-        final customization = entry.key.customization.isNotEmpty
-            ? ' [${entry.key.customization}]'
-            : '';
-        return "${_sanitizeText(entry.key.menuItem.name ?? 'Unknown Item')}$customization x${entry.value}: ${AppConstants.rupeeSymbol}${(entry.key.menuItem.price * entry.value).toStringAsFixed(0)}";
-      }).join('\n')).join('\n')}
+                final customization = entry.key.customization.isNotEmpty
+                    ? ' [${entry.key.customization}]'
+                    : '';
+                return "${_sanitizeText(entry.key.menuItem.name ?? 'Unknown Item')}$customization x${entry.value}: ${AppConstants.rupeeSymbol}${(entry.key.menuItem.price * entry.value).toStringAsFixed(0)}";
+              }).join('\n')).join('\n')}
 Subtotal: ${AppConstants.rupeeSymbol}${totalPrice.toStringAsFixed(0)}
 ${widget.isGstApplied ? 'GST (${(AppConstants.gstRate * 100).toStringAsFixed(0)}%): ${AppConstants.rupeeSymbol}${gstAmount.toStringAsFixed(0)}' : ''}
 Total Amount: ${AppConstants.rupeeSymbol}${total.toStringAsFixed(0)}
@@ -1391,8 +1407,10 @@ Come visit us again at ${_sanitizeText(AppConstants.companyName)}
       }
       return receiptContent;
     } catch (e, stackTrace) {
-      _logger.severe('Error generating receipt content: $e, StackTrace: $stackTrace');
-      _showSnackBar('Failed to generate receipt content: $e', AppConstants.errorColor);
+      _logger.severe(
+          'Error generating receipt content: $e, StackTrace: $stackTrace');
+      _showSnackBar(
+          'Failed to generate receipt content: $e', AppConstants.errorColor);
       return '';
     }
   }
@@ -1548,7 +1566,8 @@ class PayUParams {
 
 class HashService {
   static const merchantSalt = "BzfHFbtbaJMkYUBeVMAIJexf0Uf2mD2t";
-  static const merchantSecretKey = "5fcd4c398830074cac484dce7a9f511d4417c49c4e65c81c364e8abb33793358";
+  static const merchantSecretKey =
+      "5fcd4c398830074cac484dce7a9f511d4417c49c4e65c81c364e8abb33793358";
 
   static Map generateHash(Map response) {
     var hashName = response[PayUHashConstantsKeys.hashName];
