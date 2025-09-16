@@ -19,10 +19,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Map<String, double> _tableTotals = {};
   double _grandTotal = 0.0;
   bool _isLoading = true;
-  bool _isGstApplied = true;
-  Map<String, bool> _processingBills = {};
-  Map<String, TextEditingController> _mobileControllers = {};
-  Map<String, String?> _selectedPaymentMethods = {};
+  final bool _isGstApplied = true;
+  final Map<String, bool> _processingBills = {};
+  final Map<String, TextEditingController> _mobileControllers = {};
+  final Map<String, String?> _selectedPaymentMethods = {};
   late SocketService socketService;
 
   @override
@@ -580,11 +580,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                                         ],
                                                       ),
                                                     );
-                                                  }).toList(),
+                                                  }),
                                                   const SizedBox(height: 8),
                                                 ],
                                               );
-                                            }).toList(),
+                                            }),
                                             const Divider(height: 20),
                                             TextField(
                                               controller: _mobileControllers[billId],
