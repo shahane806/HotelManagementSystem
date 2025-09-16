@@ -278,7 +278,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         'PAYPAL': 'PayPal',
         'PLUXEE': 'Pluxee (Sodexo Meal Card)',
         'WALLET': 'Wallet',
-        'CASH': 'Cash'
+        'CASH': 'Cash',
+        'Cash': 'Cash',
+        'Online': 'Online'
       };
 
       final payuResponse = response is Map && response.containsKey('payuResponse')
@@ -424,23 +426,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     ],
                   ),
                   ...safeOrders.expand((order) {
-                    final items = order is Map && order['items'] is Map ? order['items'] as Map : {};
-                    return items.entries.map((entry) {
-                      final menuItem = entry.key is Map ? entry.key as Map : {};
-                      final String itemName = menuItem['menuItem'] != null && menuItem['menuItem']['name'] != null
-                          ? _sanitizeText(menuItem['menuItem']['name'])
+                    final items = order is Map && order['items'] is List ? order['items'] as List : [];
+                    return items.map((item) {
+                      final menuItem = item is Map ? item : {};
+                      final String itemName = menuItem['name'] != null
+                          ? _sanitizeText(menuItem['name'])
                           : 'Unknown Item';
-                      final int quantity = entry.value is num ? entry.value as int : 1;
-                      final num price = (menuItem['menuItem'] != null && menuItem['menuItem']['price'] is num
-                              ? menuItem['menuItem']['price'] as num
-                              : 0) *
-                          quantity;
+                      final int quantity = (menuItem['quantity'] is num) ? (menuItem['quantity'] as num).toInt() : 1;
+                      final num pricePerUnit = (menuItem['price'] is num) ? menuItem['price'] as num : 0;
+                      final num price = pricePerUnit * quantity;
+                      final String customization = menuItem['customization'] != null ? _sanitizeText(menuItem['customization']) : '';
+                      final String displayName = customization.isNotEmpty ? '$itemName [$customization]' : itemName;
                       return pw.TableRow(
                         children: [
                           pw.Padding(
                             padding: const pw.EdgeInsets.all(8),
                             child: pw.Text(
-                              '$itemName x$quantity',
+                              '$displayName x$quantity',
                               style: pw.TextStyle(font: ttf),
                             ),
                           ),
@@ -785,7 +787,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         'PAYPAL': 'PayPal',
         'PLUXEE': 'Pluxee (Sodexo Meal Card)',
         'WALLET': 'Wallet',
-        'CASH': 'Cash'
+        'CASH': 'Cash',
+        'Cash': 'Cash',
+        'Online': 'Online'
       };
 
       final payuResponse = response is Map && response.containsKey('payuResponse')
@@ -833,18 +837,16 @@ Mobile: $userMobile
 
 Order Summary
 ${safeOrders.expand((order) {
-        final items = order is Map && order['items'] is Map ? order['items'] as Map : {};
-        return items.entries.map((entry) {
-          final menuItem = entry.key is Map ? entry.key as Map : {};
-          final String itemName = menuItem['menuItem'] != null && menuItem['menuItem']['name'] != null
-              ? _sanitizeText(menuItem['menuItem']['name'])
-              : 'Unknown Item';
-          final int quantity = entry.value is num ? entry.value as int : 1;
-          final num price = (menuItem['menuItem'] != null && menuItem['menuItem']['price'] is num
-                  ? menuItem['menuItem']['price'] as num
-                  : 0) *
-              quantity;
-          return '$itemName x$quantity: ${AppConstants.rupeeSymbol ?? '₹'}${price.toStringAsFixed(0)}';
+        final items = order is Map && order['items'] is List ? order['items'] as List : [];
+        return items.map((item) {
+          final menuItem = item is Map ? item : {};
+          final String itemName = menuItem['name'] != null ? _sanitizeText(menuItem['name']) : 'Unknown Item';
+          final int quantity = (menuItem['quantity'] is num) ? (menuItem['quantity'] as num).toInt() : 1;
+          final num pricePerUnit = (menuItem['price'] is num) ? menuItem['price'] as num : 0;
+          final num price = pricePerUnit * quantity;
+          final String customization = menuItem['customization'] != null ? _sanitizeText(menuItem['customization']) : '';
+          final String displayName = customization.isNotEmpty ? '$itemName [$customization]' : itemName;
+          return '$displayName x$quantity: ${AppConstants.rupeeSymbol ?? '₹'}${price.toStringAsFixed(0)}';
         });
       }).join('\n')}
 Subtotal: ${AppConstants.rupeeSymbol ?? '₹'}${totalPrice.toStringAsFixed(0)}
