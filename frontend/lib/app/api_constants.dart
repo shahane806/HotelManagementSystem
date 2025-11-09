@@ -1,6 +1,6 @@
 class ApiConstants {
-  static String url = "http://192.168.56.1:3001";
-  static String socketUrl = "http://192.168.56.1:3000";
+  static String url = "http://192.168.1.67:3001";
+  static String socketUrl = "http://192.168.1.67:3000";
 
   // static String url = "https://hotelmanagementsystem-ysx7.onrender.com";
   // static String socketUrl = "wss://hotelmanagementsystem-socket.onrender.com";

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:frontend/Ui/rooms_screen.dart';
 import 'package:frontend/ui/checkout_screen.dart';
 import 'package:frontend/ui/customers_screen.dart';
 import 'package:frontend/ui/kitchen_screen.dart';
@@ -349,6 +350,16 @@ class _DashboardScreenState extends State<DashboardScreen>
     }else if(item.title == "Checkout"){
        Navigator.push(context,PageRouteBuilder(
           pageBuilder: (context, animation, secondaryAnimation) => const InternetCheckWidget(child:  CheckoutScreen()),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return SlideTransition(
+              position: animation.drive(Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)),
+              child: child,
+            );
+          },
+        ),);
+    } else if(item.title == "Rooms"){
+       Navigator.push(context,PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => const InternetCheckWidget(child:  RoomsScreen()),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return SlideTransition(
               position: animation.drive(Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)),

@@ -1,7 +1,19 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:math';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:frontend/services/socketService.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:permission_handler/permission_handler.dart';
 import 'dart:developer' as developer;
+import '../app/constants.dart';
 import '../bloc/BillBloc/bloc.dart';
 import '../bloc/BillBloc/event.dart';
 import '../bloc/BillBloc/state.dart';
@@ -19,10 +31,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Map<String, double> _tableTotals = {};
   double _grandTotal = 0.0;
   bool _isLoading = true;
-  bool _isGstApplied = true;
-  Map<String, bool> _processingBills = {};
-  Map<String, TextEditingController> _mobileControllers = {};
-  Map<String, String?> _selectedPaymentMethods = {};
+  final bool _isGstApplied = true;
+  final Map<String, bool> _processingBills = {};
+  final Map<String, TextEditingController> _mobileControllers = {};
+  final Map<String, String?> _selectedPaymentMethods = {};
   late SocketService socketService;
 
   @override
@@ -140,15 +152,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final totalAmount = (bill['totalAmount'] as num).toDouble();
 
     final billData = {
-      'billId': billId,
-      'table': table,
-      'totalAmount': totalAmount,
-      'orders': bill['orders'] as List,
-      'paymentMethod': paymentMethod,
-      'mobile': mobile,
-      'user': bill['user'],
-      'isGstApplied': bill['isGstApplied'],
-      'status': 'Paid',
+      'billId': billId ?? 'Unknown',
+      'table': table ?? 'Unknown',
+      'totalAmount': totalAmount ?? 0.0,
+      'orders': bill['orders'] as List <dynamic>? ?? [],
+      'paymentMethod': paymentMethod ?? 'Unknown',
+      'mobile': mobile ?? 'N/A',
+      'user': bill['user'] ?? {},
+      'isGstApplied': bill['isGstApplied']  as bool? ?? false,
+      'status': 'Paid'  ,
     };
 
     try {
@@ -164,6 +176,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ),
         );
         context.read<BillBloc>().add(UpdateBill(billId, 'Paid', paymentMethod: paymentMethod));
+        // Generate the pdf of the bill here
+        final response = {
+          'payuResponse': {
+            'mode': paymentMethod ?? 'Unknown',
+            'txnid': billId ?? 'TXN${Random().nextInt(1000000).toString().padLeft(6, '0')}',
+            'status': 'success'
+          }
+        };
+        await generateReceiptPdf(response, bill['orders'] as List<dynamic>, bill['user'], bill['isGstApplied'] as bool);
         context.read<BillBloc>().add(FetchBills());
       }
     } catch (e) {
@@ -180,6 +201,675 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ),
         );
       }
+    }
+  }
+
+  // Sanitize text for plain text output
+  String _sanitizeText(dynamic input) {
+    final String inputString = input?.toString() ?? '';
+    return inputString
+        .replaceAll('&', 'and')
+        .replaceAll('%', 'percent')
+        .replaceAll('\$', 'INR')
+        .replaceAll('#', 'No.')
+        .replaceAll('_', ' ')
+        .replaceAll('{', '')
+        .replaceAll('}', '')
+        .replaceAll('~', '')
+        .replaceAll('^', '')
+        .replaceAll('\\', '');
+  }
+
+  Future<String> _generateReceiptPdf(dynamic response, List<dynamic> orders, dynamic user, bool isGstApplied) async {
+    print("In Generate Receipt PDF : $response, $orders, $user, $isGstApplied");
+    try {
+      final pdf = pw.Document();
+
+      // Load NotoSans font
+      final fontData = await rootBundle.load("assets/fonts/NotoSans-Regular.ttf");
+      if (fontData == null) {
+        throw Exception('Failed to load font from assets/fonts/NotoSans-Regular.ttf');
+      }
+      final ttf = pw.Font.ttf(fontData);
+      developer.log('Font loaded successfully', name: 'CheckoutScreen');
+
+      // Handle null orders
+      final safeOrders = orders.where((order) => order != null).toList();
+      developer.log('Safe orders: $safeOrders', name: 'CheckoutScreen');
+
+      // Calculate total price
+      final double totalPrice = safeOrders.fold(
+        0.0,
+        (sum, order) => sum + ((order is Map && order['total'] is num) ? order['total'].toDouble() : 0.0),
+      );
+      final double gstAmount = isGstApplied ? totalPrice * (AppConstants.gstRate ?? 0.0) : 0.0;
+      final double total = totalPrice + gstAmount;
+      developer.log('Total price: $totalPrice, GST: $gstAmount, Total: $total', name: 'CheckoutScreen');
+
+      final Map<String, String> paymentMethodMap = {
+        'UPI': 'UPI',
+        'DYNAMIC_QR': 'Dynamic QR',
+        'CHALLAN': 'Challan',
+        'ENACH': 'eNACH',
+        'EFTNET': 'NEFT/RTGS',
+        'PAYTM': 'Paytm',
+        'PHONEPE': 'PhonePe',
+        'AMAZONPAY': 'Amazon Pay',
+        'FREECHARGE': 'FreeCharge',
+        'JIOMONEY': 'JioMoney',
+        'OLAMONEY': 'Ola Money',
+        'AIRTELMONEY': 'Airtel Money',
+        'PAYZAPP': 'PayZapp',
+        'CC': 'Credit Card',
+        'DC': 'Debit Card',
+        'MASTERCARD': 'MasterCard',
+        'VISA': 'Visa',
+        'VISA_ELECTRON': 'Visa Electron',
+        'RUPAY': 'RuPay',
+        'AMEX': 'American Express',
+        'DINERS': 'Diners Club',
+        'MAESTRO': 'Maestro',
+        'NB': 'Net Banking',
+        'EMI': 'EMI',
+        'EMI_DC': 'Debit Card EMI',
+        'EMI_CARDLESS': 'Cardless EMI',
+        'LAZYPAY': 'LazyPay',
+        'OLA_POSTPAID': 'Ola Postpaid',
+        'PAYPAL': 'PayPal',
+        'PLUXEE': 'Pluxee (Sodexo Meal Card)',
+        'WALLET': 'Wallet',
+        'CASH': 'Cash',
+        'Cash': 'Cash',
+        'Online': 'Online'
+      };
+
+      final payuResponse = response is Map && response.containsKey('payuResponse')
+          ? response['payuResponse']
+          : "Unknown";
+      String paymentMethod = 'Unknown';
+      if (payuResponse != null) {
+        if (payuResponse is String) {
+          try {
+            final decoded = jsonDecode(payuResponse) as Map;
+            paymentMethod = paymentMethodMap[decoded['mode']?.toString()] ?? 'Unknown';
+          } catch (e) {
+            developer.log('Error decoding payuResponse string: $e', name: 'CheckoutScreen');
+          }
+        } else if (payuResponse is Map) {
+          paymentMethod = paymentMethodMap[payuResponse['mode']?.toString()] ?? 'Unknown';
+        }
+      }
+      developer.log('Payment method: $paymentMethod', name: 'CheckoutScreen');
+
+      final String transactionId = payuResponse is Map && payuResponse['txnid'] is String
+          ? payuResponse['txnid']
+          : 'TXN${Random().nextInt(1000000).toString().padLeft(6, '0')}';
+      final String paymentStatus = payuResponse is Map && payuResponse['status'] is String
+          ? payuResponse['status'].toUpperCase()
+          : 'SUCCESS';
+      final String date = DateTime.now().toString().split(' ').first;
+      developer.log('Transaction ID: $transactionId, Status: $paymentStatus, Date: $date', name: 'CheckoutScreen');
+
+      // Handle null user properties
+      final String userName = user is Map && user['fullName'] != null ? _sanitizeText(user['fullName']) : 'Unknown User';
+      final String userMobile = user is Map && user['mobile'] != null ? _sanitizeText(user['mobile']) : 'N/A';
+      developer.log('User: $userName, Mobile: $userMobile', name: 'CheckoutScreen');
+
+      pdf.addPage(
+        pw.Page(
+          build: (pw.Context context) => pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Center(
+                child: pw.Column(
+                  children: [
+                    pw.Text(
+                      AppConstants.companyName ?? 'Unknown Company',
+                      style: pw.TextStyle(
+                        fontSize: 24,
+                        fontWeight: pw.FontWeight.bold,
+                        font: ttf,
+                      ),
+                    ),
+                    pw.SizedBox(height: 8),
+                    pw.Text(
+                      AppConstants.companyAddress ?? 'Unknown Address',
+                      style: pw.TextStyle(fontSize: 12, font: ttf),
+                    ),
+                    if (isGstApplied)
+                      pw.Text(
+                        'GSTIN: ${AppConstants.merchantGstNumber ?? 'N/A'}',
+                        style: pw.TextStyle(fontSize: 12, font: ttf),
+                      ),
+                    pw.Text(
+                      'Merchant: $userName',
+                      style: pw.TextStyle(fontSize: 12, font: ttf),
+                    ),
+                    pw.Text(
+                      'Mobile: $userMobile',
+                      style: pw.TextStyle(fontSize: 12, font: ttf),
+                    ),
+                  ],
+                ),
+              ),
+              pw.SizedBox(height: 20),
+              pw.Center(
+                child: pw.Column(
+                  children: [
+                    pw.Text(
+                      'Payment Receipt',
+                      style: pw.TextStyle(
+                        fontSize: 20,
+                        fontWeight: pw.FontWeight.bold,
+                        font: ttf,
+                      ),
+                    ),
+                    pw.Text(
+                      'Date: $date',
+                      style: pw.TextStyle(fontSize: 12, font: ttf),
+                    ),
+                  ],
+                ),
+              ),
+              pw.SizedBox(height: 20),
+              pw.Text(
+                'Customer Details',
+                style: pw.TextStyle(
+                  fontSize: 16,
+                  fontWeight: pw.FontWeight.bold,
+                  font: ttf,
+                ),
+              ),
+              pw.Text(
+                'Name: $userName',
+                style: pw.TextStyle(font: ttf),
+              ),
+              pw.Text(
+                'Mobile: $userMobile',
+                style: pw.TextStyle(font: ttf),
+              ),
+              pw.SizedBox(height: 20),
+              pw.Text(
+                'Order Summary',
+                style: pw.TextStyle(
+                  fontSize: 16,
+                  fontWeight: pw.FontWeight.bold,
+                  font: ttf,
+                ),
+              ),
+              pw.Table(
+                border: pw.TableBorder.all(),
+                children: [
+                  pw.TableRow(
+                    decoration: pw.BoxDecoration(color: PdfColors.blue100),
+                    children: [
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(
+                          'Item',
+                          style: pw.TextStyle(
+                            fontWeight: pw.FontWeight.bold,
+                            font: ttf,
+                          ),
+                        ),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(
+                          'Price',
+                          style: pw.TextStyle(
+                            fontWeight: pw.FontWeight.bold,
+                            font: ttf,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  ...safeOrders.expand((order) {
+                    final items = order is Map && order['items'] is List ? order['items'] as List : [];
+                    return items.map((item) {
+                      final menuItem = item is Map ? item : {};
+                      final String itemName = menuItem['name'] != null
+                          ? _sanitizeText(menuItem['name'])
+                          : 'Unknown Item';
+                      final int quantity = (menuItem['quantity'] is num) ? (menuItem['quantity'] as num).toInt() : 1;
+                      final num pricePerUnit = (menuItem['price'] is num) ? menuItem['price'] as num : 0;
+                      final num price = pricePerUnit * quantity;
+                      final String customization = menuItem['customization'] != null ? _sanitizeText(menuItem['customization']) : '';
+                      final String displayName = customization.isNotEmpty ? '$itemName [$customization]' : itemName;
+                      return pw.TableRow(
+                        children: [
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(8),
+                            child: pw.Text(
+                              '$displayName x$quantity',
+                              style: pw.TextStyle(font: ttf),
+                            ),
+                          ),
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(8),
+                            child: pw.Text(
+                              '${AppConstants.rupeeSymbol ?? '₹'}${price.toStringAsFixed(0)}',
+                              style: pw.TextStyle(font: ttf),
+                            ),
+                          ),
+                        ],
+                      );
+                    });
+                  }).toList(),
+                  pw.TableRow(
+                    decoration: pw.BoxDecoration(color: PdfColors.teal100),
+                    children: [
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(
+                          'Subtotal',
+                          style: pw.TextStyle(font: ttf),
+                        ),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(
+                          '${AppConstants.rupeeSymbol ?? '₹'}${totalPrice.toStringAsFixed(0)}',
+                          style: pw.TextStyle(font: ttf),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (isGstApplied)
+                    pw.TableRow(
+                      children: [
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(8),
+                          child: pw.Text(
+                            'GST (${((AppConstants.gstRate ?? 0.0) * 100).toStringAsFixed(0)}%)',
+                            style: pw.TextStyle(font: ttf),
+                          ),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(8),
+                          child: pw.Text(
+                            '${AppConstants.rupeeSymbol ?? '₹'}${gstAmount.toStringAsFixed(0)}',
+                            style: pw.TextStyle(font: ttf),
+                          ),
+                        ),
+                      ],
+                    ),
+                  pw.TableRow(
+                    decoration: pw.BoxDecoration(color: PdfColors.blue100),
+                    children: [
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(
+                          'Total Amount',
+                          style: pw.TextStyle(
+                            fontWeight: pw.FontWeight.bold,
+                            font: ttf,
+                          ),
+                        ),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(
+                          '${AppConstants.rupeeSymbol ?? '₹'}${total.toStringAsFixed(0)}',
+                          style: pw.TextStyle(
+                            fontWeight: pw.FontWeight.bold,
+                            font: ttf,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 20),
+              pw.Text(
+                'Payment Details',
+                style: pw.TextStyle(
+                  fontSize: 16,
+                  fontWeight: pw.FontWeight.bold,
+                  font: ttf,
+                ),
+              ),
+              pw.Table(
+                border: pw.TableBorder.all(),
+                children: [
+                  pw.TableRow(
+                    decoration: pw.BoxDecoration(color: PdfColors.blue100),
+                    children: [
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(
+                          'Field',
+                          style: pw.TextStyle(
+                            fontWeight: pw.FontWeight.bold,
+                            font: ttf,
+                          ),
+                        ),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(
+                          'Details',
+                          style: pw.TextStyle(
+                            fontWeight: pw.FontWeight.bold,
+                            font: ttf,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  pw.TableRow(
+                    children: [
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(
+                          'Payment Method',
+                          style: pw.TextStyle(font: ttf),
+                        ),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(
+                          paymentMethod,
+                          style: pw.TextStyle(font: ttf),
+                        ),
+                      ),
+                    ],
+                  ),
+                  pw.TableRow(
+                    children: [
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(
+                          'Transaction ID',
+                          style: pw.TextStyle(font: ttf),
+                        ),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(
+                          transactionId,
+                          style: pw.TextStyle(font: ttf),
+                        ),
+                      ),
+                    ],
+                  ),
+                  pw.TableRow(
+                    children: [
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(
+                          'Payment Status',
+                          style: pw.TextStyle(font: ttf),
+                        ),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(
+                          paymentStatus,
+                          style: pw.TextStyle(font: ttf),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 20),
+              pw.Center(
+                child: pw.Column(
+                  children: [
+                    pw.Text(
+                      'Thank you for your purchase!',
+                      style: pw.TextStyle(
+                        fontSize: 14,
+                        fontWeight: pw.FontWeight.bold,
+                        font: ttf,
+                      ),
+                    ),
+                    pw.Text(
+                      'Come visit us again at ${AppConstants.companyName ?? 'Unknown Company'}',
+                      style: pw.TextStyle(
+                        fontSize: 12,
+                        fontStyle: pw.FontStyle.italic,
+                        font: ttf,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      // Try application documents directory first
+      Directory? directory;
+      try {
+        directory = await getApplicationDocumentsDirectory();
+        developer.log('Using application documents directory: ${directory.path}', name: 'CheckoutScreen');
+      } catch (e) {
+        developer.log('Failed to get application documents directory: $e', name: 'CheckoutScreen');
+        // Fallback to temporary directory
+        directory = await getTemporaryDirectory();
+        developer.log('Falling back to temporary directory: ${directory.path}', name: 'CheckoutScreen');
+      }
+
+      // Ensure directory exists
+      if (!await directory.exists()) {
+        await directory.create(recursive: true);
+        developer.log('Created directory: ${directory.path}', name: 'CheckoutScreen');
+      }
+
+      final file = File('${directory.path}/receipt_$transactionId.pdf');
+      try {
+        await file.writeAsBytes(await pdf.save());
+        developer.log('PDF written to: ${file.path}', name: 'CheckoutScreen');
+      } catch (e) {
+        developer.log('Failed to write PDF to ${file.path}: $e', name: 'CheckoutScreen');
+        throw Exception('Failed to write PDF: $e');
+      }
+     print("Receipt PDF generated at: ${file.path}");
+      return file.path;
+    } catch (e, stackTrace) {
+      developer.log('Error in _generateReceiptPdf: $e, StackTrace: $stackTrace', name: 'CheckoutScreen');
+      throw e; // Re-throw to handle in generateReceiptPdf
+    }
+  }
+
+  // Check if storage permission is needed based on Android version
+  Future<bool> _isStoragePermissionNeeded() async {
+    final deviceInfo = DeviceInfoPlugin();
+    final androidInfo = await deviceInfo.androidInfo;
+    final sdkInt = androidInfo.version.sdkInt;
+    // Storage permission is only needed for Android 9 (API 28) or lower
+    developer.log('Android SDK version: $sdkInt', name: 'CheckoutScreen');
+    return sdkInt <= 28;
+  }
+
+  Future<String> generateReceiptPdf(dynamic response, List<dynamic> orders, dynamic user, bool isGstApplied) async {
+    try {
+      // bool permissionGranted = true;
+      // print("Om shahane : Generating Receipt PDF $response, $orders, $user, $isGstApplied");
+      // if (await _isStoragePermissionNeeded()) {
+      //   final storageStatus = await Permission.storage.status;
+      //   developer.log('Storage permission status: $storageStatus', name: 'CheckoutScreen');
+      //   if (storageStatus.isPermanentlyDenied) {
+      //     developer.log('Storage permission permanently denied', name: 'CheckoutScreen');
+      //     _showPermissionSettingsDialog();
+      //     throw Exception('Storage permission permanently denied');
+      //   } else if (!storageStatus.isGranted) {
+      //     final result = await Permission.storage.request();
+      //     developer.log('Storage permission request result: $result', name: 'CheckoutScreen');
+      //     if (result.isPermanentlyDenied) {
+      //       _showPermissionSettingsDialog();
+      //       throw Exception('Storage permission permanently denied after request');
+      //     }
+      //     permissionGranted = result.isGranted;
+      //   }
+      // }
+
+      // if (!permissionGranted) {
+      //   developer.log('Storage permission not granted', name: 'CheckoutScreen');
+      //   _showSnackBar('Storage permission denied', AppConstants.errorColor);
+      //   throw Exception('Storage permission not granted');
+      // }
+      print("Om Shahane : Permission Granted $response, $orders, $user, $isGstApplied"); 
+      final pdfPath = await _generateReceiptPdf(response, orders, user, isGstApplied);
+      developer.log('PDF generated at: $pdfPath', name: 'CheckoutScreen');
+      try {
+        final openResult = await OpenFilex.open(pdfPath);
+        developer.log('OpenFilex result: ${openResult.type}, message: ${openResult.message}', name: 'CheckoutScreen');
+        if (openResult.type != ResultType.done) {
+          print("Receipt saved at $pdfPath but could not be opened: ${openResult.message}");
+          _showSnackBar('Receipt saved at $pdfPath but could not be opened: ${openResult.message}', AppConstants.errorColor);
+        } else {
+          _showSnackBar('Receipt generated and opened successfully', Colors.green);
+        }
+      } catch (e) {
+        developer.log('Error opening PDF: $e', name: 'CheckoutScreen');
+          print("Receipt saved at $pdfPath but could not be opened: $e");
+        _showSnackBar('Receipt saved at $pdfPath but could not be opened', AppConstants.errorColor);
+      }
+
+      return pdfPath;
+    } catch (e, stackTrace) {
+      developer.log('Error generating receipt: $e, StackTrace: $stackTrace', name: 'CheckoutScreen');
+      _showSnackBar('Failed to generate receipt: $e', AppConstants.errorColor);
+      final receiptContent = await _generateReceiptContent(response, orders, user, isGstApplied, showDialogOnFailure: true);
+      return receiptContent;
+    }
+  }
+
+  Future<String> _generateReceiptContent(dynamic response, List<dynamic> orders, dynamic user, bool isGstApplied,
+      {bool showDialogOnFailure = false}) async {
+    try {
+      // Handle null orders
+      final safeOrders = orders.where((order) => order != null).toList();
+
+      // Calculate total price
+      final double totalPrice = safeOrders.fold(
+        0.0,
+        (sum, order) => sum + ((order is Map && order['total'] is num) ? order['total'].toDouble() : 0.0),
+      );
+      final double gstAmount = isGstApplied ? totalPrice * (AppConstants.gstRate ?? 0.0) : 0.0;
+      final double total = totalPrice + gstAmount;
+
+      final Map<String, String> paymentMethodMap = {
+        'UPI': 'UPI',
+        'DYNAMIC_QR': 'Dynamic QR',
+        'CHALLAN': 'Challan',
+        'ENACH': 'eNACH',
+        'EFTNET': 'NEFT/RTGS',
+        'PAYTM': 'Paytm',
+        'PHONEPE': 'PhonePe',
+        'AMAZONPAY': 'Amazon Pay',
+        'FREECHARGE': 'FreeCharge',
+        'JIOMONEY': 'JioMoney',
+        'OLAMONEY': 'Ola Money',
+        'AIRTELMONEY': 'Airtel Money',
+        'PAYZAPP': 'PayZapp',
+        'CC': 'Credit Card',
+        'DC': 'Debit Card',
+        'MASTERCARD': 'MasterCard',
+        'VISA': 'Visa',
+        'VISA_ELECTRON': 'Visa Electron',
+        'RUPAY': 'RuPay',
+        'AMEX': 'American Express',
+        'DINERS': 'Diners Club',
+        'MAESTRO': 'Maestro',
+        'NB': 'Net Banking',
+        'EMI': 'EMI',
+        'EMI_DC': 'Debit Card EMI',
+        'EMI_CARDLESS': 'Cardless EMI',
+        'LAZYPAY': 'LazyPay',
+        'OLA_POSTPAID': 'Ola Postpaid',
+        'PAYPAL': 'PayPal',
+        'PLUXEE': 'Pluxee (Sodexo Meal Card)',
+        'WALLET': 'Wallet',
+        'CASH': 'Cash',
+        'Cash': 'Cash',
+        'Online': 'Online'
+      };
+
+      final payuResponse = response is Map && response.containsKey('payuResponse')
+          ? response['payuResponse']
+          : null;
+      String paymentMethod = 'Unknown';
+      if (payuResponse != null) {
+        if (payuResponse is String) {
+          try {
+            final decoded = jsonDecode(payuResponse) as Map;
+            paymentMethod = paymentMethodMap[decoded['mode']?.toString()] ?? 'Unknown';
+          } catch (e) {
+            developer.log('Error decoding payuResponse string: $e', name: 'CheckoutScreen');
+          }
+        } else if (payuResponse is Map) {
+          paymentMethod = paymentMethodMap[payuResponse['mode']?.toString()] ?? 'Unknown';
+        }
+      }
+
+      final String transactionId = payuResponse is Map && payuResponse['txnid'] is String
+          ? payuResponse['txnid']
+          : 'TXN${Random().nextInt(1000000).toString().padLeft(6, '0')}';
+      final String paymentStatus = payuResponse is Map && payuResponse['status'] is String
+          ? payuResponse['status'].toUpperCase()
+          : 'SUCCESS';
+      final String date = DateTime.now().toString().split(' ').first;
+
+      // Handle null user properties
+      final String userName = user is Map && user['fullName'] != null ? _sanitizeText(user['fullName']) : 'Unknown User';
+      final String userMobile = user is Map && user['mobile'] != null ? _sanitizeText(user['mobile']) : 'N/A';
+
+      String receiptContent = '''
+${_sanitizeText(AppConstants.companyName ?? 'Unknown Company')}
+${_sanitizeText(AppConstants.companyAddress ?? 'Unknown Address')}
+${isGstApplied ? 'GSTIN: ${_sanitizeText(AppConstants.merchantGstNumber ?? 'N/A')}' : ''}
+Merchant: $userName
+Mobile: $userMobile
+
+Payment Receipt
+Date: $date
+
+Customer Details
+Name: $userName
+Mobile: $userMobile
+
+Order Summary
+${safeOrders.expand((order) {
+        final items = order is Map && order['items'] is List ? order['items'] as List : [];
+        return items.map((item) {
+          final menuItem = item is Map ? item : {};
+          final String itemName = menuItem['name'] != null ? _sanitizeText(menuItem['name']) : 'Unknown Item';
+          final int quantity = (menuItem['quantity'] is num) ? (menuItem['quantity'] as num).toInt() : 1;
+          final num pricePerUnit = (menuItem['price'] is num) ? menuItem['price'] as num : 0;
+          final num price = pricePerUnit * quantity;
+          final String customization = menuItem['customization'] != null ? _sanitizeText(menuItem['customization']) : '';
+          final String displayName = customization.isNotEmpty ? '$itemName [$customization]' : itemName;
+          return '$displayName x$quantity: ${AppConstants.rupeeSymbol ?? '₹'}${price.toStringAsFixed(0)}';
+        });
+      }).join('\n')}
+Subtotal: ${AppConstants.rupeeSymbol ?? '₹'}${totalPrice.toStringAsFixed(0)}
+${isGstApplied ? 'GST (${((AppConstants.gstRate ?? 0.0) * 100).toStringAsFixed(0)}%): ${AppConstants.rupeeSymbol ?? '₹'}${gstAmount.toStringAsFixed(0)}' : ''}
+Total Amount: ${AppConstants.rupeeSymbol ?? '₹'}${total.toStringAsFixed(0)}
+
+Payment Details
+Payment Method: $paymentMethod
+Transaction ID: $transactionId
+Payment Status: $paymentStatus
+
+Thank you for your purchase!
+Come visit us again at ${_sanitizeText(AppConstants.companyName ?? 'Unknown Company')}
+''';
+
+      if (showDialogOnFailure && mounted) {
+        _showReceiptDialog(receiptContent);
+      }
+      return receiptContent;
+    } catch (e, stackTrace) {
+      developer.log('Error generating receipt content: $e, StackTrace: $stackTrace', name: 'CheckoutScreen');
+      _showSnackBar('Failed to generate receipt content: $e', AppConstants.errorColor);
+      return '';
     }
   }
 
@@ -244,7 +934,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     try {
       await Apiservicescheckout.updateBillStatus(billId, 'Paid', paymentMethod);
+
       socketService.payBill(billData);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -254,6 +946,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ),
         );
         context.read<BillBloc>().add(UpdateBill(billId, 'Paid', paymentMethod: paymentMethod));
+
+        // Generate the pdf of the bill here
+        final response = {
+          'payuResponse': {
+            'mode': paymentMethod,
+            'txnid': billId,
+            'status': 'success'
+          }
+        };
+        await generateReceiptPdf(response, bill['orders'] as List<dynamic>, bill['user'], bill['isGstApplied'] as bool);
+
         context.read<BillBloc>().add(FetchBills());
         developer.log('Payment verified for bill $billId, method $paymentMethod', name: 'CheckoutScreen');
       }
@@ -276,6 +979,143 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   bool _isValidMobile(String mobile) {
     return RegExp(r'^\d{10}$').hasMatch(mobile);
+  }
+
+  void _showSnackBar(String message, Color color) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: GoogleFonts.poppins(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Colors.white,
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
+        margin: const EdgeInsets.all(AppConstants.paddingSmall),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  void _showReceiptDialog(String receiptContent) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Receipt Details',
+          style: GoogleFonts.poppins(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: SingleChildScrollView(
+          child: Text(
+            receiptContent,
+            style: GoogleFonts.poppins(fontSize: 14),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              'Close',
+              style: GoogleFonts.poppins(
+                color: AppConstants.primaryColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showConnectionLeakDialog(String errorMessage) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Connection Issue',
+          style: GoogleFonts.poppins(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: Text(
+          'A connection issue was detected with the payment service. Error: $errorMessage\n\n'
+          'Please try again or contact support. For debugging, enable OkHttp logging:\n'
+          'Logger.getLogger("okhttp.OkHttpClient").setLevel(Level.FINE);',
+          style: GoogleFonts.poppins(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              'Retry',
+              style: GoogleFonts.poppins(
+                color: AppConstants.primaryColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPermissionSettingsDialog() {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Storage Permission Required',
+          style: GoogleFonts.poppins(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: Text(
+          'Storage permission is required to save the receipt. Please enable it in the app settings.',
+          style: GoogleFonts.poppins(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.poppins(
+                color: AppConstants.errorColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await openAppSettings();
+            },
+            child: Text(
+              'Open Settings',
+              style: GoogleFonts.poppins(
+                color: AppConstants.primaryColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -307,10 +1147,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             _tableTotals = {};
             _grandTotal = 0.0;
             for (var bill in pendingBills) {
-              final table = bill['table'] as String;
+              final table = bill['table'] as String? ?? 'Unknown';
               _groupedBills.putIfAbsent(table, () => []).add(bill);
-              final billId = bill['billId'] as String;
-              _mobileControllers.putIfAbsent(billId, () => TextEditingController(text: bill['user']['mobile'] ?? ''));
+              final billId = bill['billId'] as String? ?? '';
+              _mobileControllers.putIfAbsent(billId, () => TextEditingController(text: bill['user']?['mobile'] ?? ''));
             }
             _groupedBills.forEach((table, bills) {
               double tableTotal = bills.fold(0.0, (sum, bill) {
@@ -444,9 +1284,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               iconColor: Colors.indigo[700],
                               collapsedIconColor: Colors.indigo[400],
                               children: bills.map((bill) {
-                                final billId = bill['billId'] as String;
+                                final billId = bill['billId'] as String? ?? '';
                                 final isProcessing = _processingBills[billId] ?? false;
-                                final totalAmount = (bill['totalAmount'] as num).toDouble();
+                                final totalAmount = (bill['totalAmount'] as num?)?.toDouble() ?? 0.0;
                                 final displayTotal = (bill['isGstApplied'] == true)
                                     ? (totalAmount).toStringAsFixed(2)
                                     : totalAmount.toStringAsFixed(2);
@@ -463,7 +1303,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          'Bill ID: ${billId.substring(0, 8)}...',
+                                          'Bill ID: ${billId.length > 8 ? billId.substring(0, 8) + '...' : billId}',
                                           style: TextStyle(
                                             fontSize: isTablet ? 16 : 14,
                                             fontWeight: FontWeight.w600,
@@ -471,7 +1311,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                           ),
                                         ),
                                         Text(
-                                          'Table: ${bill['table']}',
+                                          'Table: ${bill['table'] ?? 'Unknown'}',
                                           style: TextStyle(
                                             fontSize: isTablet ? 15 : 13,
                                             fontWeight: FontWeight.w400,
@@ -479,7 +1319,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                           ),
                                         ),
                                         Text(
-                                          'User: ${bill['user']['fullName']}',
+                                          'User: ${bill['user']?['fullName'] ?? 'Unknown User'}',
                                           style: TextStyle(
                                             fontSize: isTablet ? 15 : 13,
                                             fontWeight: FontWeight.w400,
@@ -521,9 +1361,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
                                             _buildInfoRow('Bill ID', billId, isTablet),
-                                            _buildInfoRow('Table', bill['table'], isTablet),
-                                            _buildInfoRow('User', bill['user']['fullName'], isTablet),
-                                            _buildInfoRow('Email', bill['user']['email'], isTablet),
+                                            _buildInfoRow('Table', bill['table'] ?? 'Unknown', isTablet),
+                                            _buildInfoRow('User', bill['user']?['fullName'] ?? 'Unknown User', isTablet),
+                                            _buildInfoRow('Email', bill['user']?['email'] ?? 'N/A', isTablet),
                                             _buildInfoRow('Total', '₹$displayTotal', isTablet, color: Colors.green[700]),
                                             _buildInfoRow('Status', bill['status'] ?? 'Pending', isTablet),
                                             _buildInfoRow('Payment Method', bill['paymentMethod'] ?? 'Not Set', isTablet),
@@ -539,7 +1379,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                             const SizedBox(height: 8),
                                             ...((bill['orders'] as List?) ?? []).map((order) {
                                               final orderId = order['orderId'] ?? '';
-                                              final orderTotal = order['total'] ?? 0;
+                                              final orderTotal = order['total']?.toString() ?? '0';
                                               final orderStatus = order['status'] ?? 'Pending';
                                               final timestamp = order['timestamp'] ?? '';
                                               return Column(
@@ -559,8 +1399,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                                   ),
                                                   ...((order['items'] as List?) ?? []).map((item) {
                                                     final name = item['name'] ?? 'Unnamed';
-                                                    final qty = item['quantity'] ?? 1;
-                                                    final price = item['price'] ?? 0;
+                                                    final qty = item['quantity']?.toString() ?? '1';
+                                                    final price = item['price']?.toString() ?? '0';
                                                     final customization = item['customization'] ?? '';
                                                     return Padding(
                                                       padding: const EdgeInsets.symmetric(vertical: 4.0),
@@ -580,11 +1420,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                                         ],
                                                       ),
                                                     );
-                                                  }).toList(),
+                                                  }),
                                                   const SizedBox(height: 8),
                                                 ],
                                               );
-                                            }).toList(),
+                                            }),
                                             const Divider(height: 20),
                                             TextField(
                                               controller: _mobileControllers[billId],
