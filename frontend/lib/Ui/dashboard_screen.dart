@@ -6,6 +6,7 @@ import 'package:frontend/ui/customers_screen.dart';
 import 'package:frontend/ui/kitchen_screen.dart';
 import 'package:frontend/ui/tables_screen.dart';
 import 'package:frontend/widgets/internet_check.dart';
+import 'settings.dart';
 import 'utilities_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -370,7 +371,21 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
      else if (item.title == "Logout") {
       _showLogoutDialog(context);
-    } else {
+    } else if (item.title == "Settings"){
+      Navigator.push(
+    context,
+    PageRouteBuilder(
+      pageBuilder: (context, animation, secondaryAnimation) => const InternetCheckWidget(child: Settings()),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        return SlideTransition(
+          position: animation.drive(Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)),
+          child: child,
+        );
+      },
+    ),
+  );
+    }
+    else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(

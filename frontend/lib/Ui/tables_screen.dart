@@ -156,9 +156,21 @@ Future<void> _generateBillPDF(List<Order> orders) async {
     'user': bill.user.toJson(),
     'isGstApplied': bill.isGstApplied,
   });
-
-  // Remove all items from Bloc state
+    // 5. **REMOVE PAID ORDERS FROM RECENT LIST**
   final bloc = context.read<OrdersBloc>();
+  for (final order in orders) {
+    bloc.add(RemoveRecentOrder(order.id));
+  }
+
+  // 6. (Optional) clear current-order items that belong to the same table
+  final currentOrder = context.read<OrdersBloc>().state.currentOrder;
+  for (final entry in currentOrder.entries) {
+    final orderItem = entry.key;
+    final qty = entry.value;
+    for (int i = 0; i < qty; i++) {
+      bloc.add(RemoveOrderItem(orderItem));
+    }
+  }
   for (final order in orders) {
     for (final entry in order.items.entries) {
       final orderItem = entry.key;

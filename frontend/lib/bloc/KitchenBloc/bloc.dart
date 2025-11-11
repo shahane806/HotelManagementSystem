@@ -77,7 +77,7 @@ class KitchenDashboardBloc extends Bloc<KitchenDashboardEvent, KitchenDashboardS
         }
         return order;
       }).toList();
-      _orderCache = updatedOrders.where((order) => order['status'] != 'Served').toList(); // Update cache, exclude Served
+      _orderCache = updatedOrders.where((order) => order['status'] == 'Served').toList(); // Update cache, include Served
       print('Updated _orderCache with ${_orderCache.length} orders: $_orderCache');
       socketService.updateOrderStatus(event.orderId, event.status);
       emit(state.copyWith(

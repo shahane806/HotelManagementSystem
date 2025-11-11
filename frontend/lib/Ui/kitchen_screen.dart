@@ -230,7 +230,7 @@ class KitchenDashboardView extends StatelessWidget {
 
   Widget _buildFilterRow(BuildContext context, double screenWidth, bool isTablet) {
     final state = context.read<KitchenDashboardBloc>().state;
-    const statusFilters = ['All', 'Pending', 'Preparing', 'Ready', 'Served'];
+    const statusFilters = ['All', 'Pending', 'Preparing', 'Ready'];
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -559,9 +559,11 @@ class KitchenDashboardView extends StatelessWidget {
                     ),
                   if (status != 'Served')
                     ElevatedButton(
-                      onPressed: () => context.read<KitchenDashboardBloc>().add(
+                      onPressed: () {context.read<KitchenDashboardBloc>().add(
                             UpdateOrderStatusEvent(orderId, 'Served'),
-                          ),
+                          );
+                          context.read<KitchenDashboardBloc>().add(RefreshDashboard());
+                          },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue[50],
                         foregroundColor: Colors.blue,

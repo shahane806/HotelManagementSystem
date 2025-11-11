@@ -52,3 +52,10 @@ class UpdateOrderStatus extends OrdersEvent {
   @override
   List<Object?> get props => [orderId, status];
 }
+
+class RemoveRecentOrder extends OrdersEvent {
+  final String orderId;
+  const RemoveRecentOrder(this.orderId);
+  @override
+  List<Object> get props => [orderId];
+}

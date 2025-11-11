@@ -1721,35 +1721,36 @@ Come visit us again at ${_sanitizeText(AppConstants.companyName ?? 'Unknown Comp
                                                 ),
                                               ],
                                             ),
-                                            const SizedBox(height: 16),
-                                            ElevatedButton(
-                                              onPressed: isProcessing
-                                                  ? null
-                                                  : () =>
-                                                      _verifyPayment(billId),
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor:
-                                                    Colors.indigo[700],
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                        vertical: 16),
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(12),
-                                                ),
-                                                elevation: 2,
-                                                minimumSize: const Size(
-                                                    double.infinity, 50),
-                                              ),
-                                              child: const Text(
-                                                'Submit Payment',
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.w600,
-                                                  fontSize: 16,
-                                                ),
-                                              ),
-                                            ),
+                                            // const SizedBox(height: 16),
+                                            // ElevatedButton(
+                                            //   onPressed: isProcessing
+                                            //       ? null
+                                            //       : () =>
+                                            //           _verifyPayment(billId),
+                                            //   style: ElevatedButton.styleFrom(
+                                            //     backgroundColor:
+                                            //         Colors.indigo[700],
+                                            //     padding:
+                                            //         const EdgeInsets.symmetric(
+                                            //             vertical: 16),
+                                            //     shape: RoundedRectangleBorder(
+                                            //       borderRadius:
+                                            //           BorderRadius.circular(12),
+                                            //     ),
+                                            //     elevation: 2,
+                                            //     minimumSize: const Size(
+                                            //         double.infinity, 50),
+                                            //   ),
+                                            //   child: const Text(
+                                            //     'Submit Payment',
+                                            //     style: TextStyle(
+                                            //       color: Colors.white,
+                                            //       fontWeight: FontWeight.w600,
+                                            //       fontSize: 16,
+                                            //     ),
+                                            //   ),
+                                            // ),
+                                          
                                           ],
                                         ),
                                       ),

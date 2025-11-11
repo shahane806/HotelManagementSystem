@@ -15,7 +15,8 @@ class ApiConstants {
       // Use special host for emulator, your PC's IP for physical device
       return isEmulator
           ? "http://10.0.2.2:3001"
-          : "http://192.168.1.9:3001"; // 👈 your PC Wi-Fi IP
+          : "http://192.168.1.11:3001"; // 👈 your PC Wi-Fi IP
+          // :"https://hotelmanagementsystem-ysx7.onrender.com";
     } else {
       // iOS simulator or Mac
       return "http://localhost:3001";
@@ -27,9 +28,11 @@ class ApiConstants {
     if (Platform.isAndroid) {
       return isEmulator
           ? "http://10.0.2.2:3000"
-          : "http://192.168.1.9:3000"; // 👈 your PC Wi-Fi IP
+          : "http://192.168.1.11:3000"; // 👈 your PC Wi-Fi IP
+          // :"https://hotelmanagementsystem-socket.onrender.com";
     } else {
       return "http://localhost:3000";
     }
   }
 }
+

@@ -20,6 +20,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
     on<PlaceOrder>(_onPlaceOrder);
     on<FetchRecentOrders>(_onFetchRecentOrders);
     on<UpdateOrderStatus>(_onUpdateOrderStatus);
+    on<RemoveRecentOrder>(_onRemoveRecentOrder);
   }
 
   /// Handles adding an item to the current order
@@ -139,5 +140,10 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
     print('⚠️ Warning: No order matched the ID: ${event.orderId}');
   }
 }
-
+void _onRemoveRecentOrder(RemoveRecentOrder event, Emitter<OrdersState> emit) {
+    final updated = state.recentOrders
+        .where((o) => o.id != event.orderId)
+        .toList();
+    emit(state.copyWith(recentOrders: updated));
+  }
 }
