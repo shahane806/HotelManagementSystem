@@ -1,13 +1,21 @@
 const { v4: uuidv4 } = require('uuid');
 const bill = require('../Models/billModel');
 const createBill = async (req, res) => {
-  console.log("hei")
+  console.log("hei");
   const { table, user, orders, totalAmount, isGstApplied } = req.body;
-  console.log(req.body)
+  console.log(req.body);
+
   try {
     if (!table || !user || !orders || !totalAmount || isGstApplied === undefined) {
-        console.log("Missing required fielsds");
+      console.log("Missing required fielsds");
       return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    // Apply GST if isGstApplied is true
+    let finalAmount = totalAmount;
+    if (isGstApplied) {
+      const gst = (18 / 100) * totalAmount;
+      finalAmount += gst;
     }
 
     const billId = uuidv4();
@@ -16,13 +24,13 @@ const createBill = async (req, res) => {
       table,
       user,
       orders,
-      totalAmount,
+      totalAmount: finalAmount, // Save updated amount with GST
       isGstApplied,
       status: 'Pending'
     });
 
     await newBill.save();
-    res.status(201).json({ message: 'Bill stored successfully', billId });
+    res.status(201).json({ message: 'Bill stored successfully', billId, totalAmount: finalAmount });
   } catch (error) {
     console.error('Error storing bill:', error);
     res.status(500).json({ message: 'Failed to store bill', error: error.message });
@@ -45,7 +53,6 @@ const getAllBills = async (req, res) => {
     });
   }
 };
-
 const updateBillStatus = async (req, res) => {
   console.log("Updating bill status");
   const { billId, status, paymentMethod } = req.body;

@@ -14,6 +14,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
   final OrderRepository repository; // Inject repository for data operations
 
   OrdersBloc({required this.repository}) : super(const OrdersState()) {
+  
     on<AddOrderItem>(_onAddOrderItem);
     on<RemoveOrderItem>(_onRemoveOrderItem);
     on<PlaceOrder>(_onPlaceOrder);
@@ -100,7 +101,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
   }
 
 
-void _onUpdateOrderStatus(UpdateOrderStatus event, Emitter<OrdersState> emit) {
+ void _onUpdateOrderStatus(UpdateOrderStatus event, Emitter<OrdersState> emit) {
   final currentOrders = state.recentOrders;
 
   if (currentOrders == null || currentOrders.isEmpty) {

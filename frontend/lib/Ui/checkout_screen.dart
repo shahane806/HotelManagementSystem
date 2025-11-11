@@ -47,7 +47,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     socketService.socket.on('orderUpdated', _onOrderUpdated);
     socketService.socket.on('error', _onError);
     context.read<BillBloc>().add(FetchBills());
-    developer.log('CheckoutScreen initialized, fetching bills', name: 'CheckoutScreen');
+    developer.log('CheckoutScreen initialized, fetching bills',
+        name: 'CheckoutScreen');
   }
 
   @override
@@ -73,10 +74,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final billId = data['billId'] as String?;
     if (billId != null && mounted) {
       context.read<BillBloc>().add(UpdateBill(
-        billId,
-        data['status'] ?? 'Paid',
-        paymentMethod: data['paymentMethod'],
-      ));
+            billId,
+            data['status'] ?? 'Paid',
+            paymentMethod: data['paymentMethod'],
+          ));
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Payment successful for bill $billId!'),
@@ -117,7 +118,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   void _handlePayment(String billId, String paymentMethod) async {
-    if (_mobileControllers[billId] == null || _mobileControllers[billId]!.text.isEmpty) {
+    if (_mobileControllers[billId] == null ||
+        _mobileControllers[billId]!.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Please enter a mobile number for bill $billId'),
@@ -155,40 +157,47 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       'billId': billId ?? 'Unknown',
       'table': table ?? 'Unknown',
       'totalAmount': totalAmount ?? 0.0,
-      'orders': bill['orders'] as List <dynamic>? ?? [],
+      'orders': bill['orders'] as List<dynamic>? ?? [],
       'paymentMethod': paymentMethod ?? 'Unknown',
       'mobile': mobile ?? 'N/A',
       'user': bill['user'] ?? {},
-      'isGstApplied': bill['isGstApplied']  as bool? ?? false,
-      'status': 'Paid'  ,
+      'isGstApplied': bill['isGstApplied'] as bool? ?? false,
+      'status': 'Paid',
     };
 
     try {
       await Apiservicescheckout.updateBillStatus(billId, 'Paid', paymentMethod);
       socketService.payBill(billData);
-      developer.log('Payment initiated for bill $billId, method $paymentMethod', name: 'CheckoutScreen');
+      developer.log('Payment initiated for bill $billId, method $paymentMethod',
+          name: 'CheckoutScreen');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Payment successful for bill $billId via $paymentMethod'),
+            content:
+                Text('Payment successful for bill $billId via $paymentMethod'),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
           ),
         );
-        context.read<BillBloc>().add(UpdateBill(billId, 'Paid', paymentMethod: paymentMethod));
+        context
+            .read<BillBloc>()
+            .add(UpdateBill(billId, 'Paid', paymentMethod: paymentMethod));
         // Generate the pdf of the bill here
         final response = {
           'payuResponse': {
             'mode': paymentMethod ?? 'Unknown',
-            'txnid': billId ?? 'TXN${Random().nextInt(1000000).toString().padLeft(6, '0')}',
+            'txnid': billId ??
+                'TXN${Random().nextInt(1000000).toString().padLeft(6, '0')}',
             'status': 'success'
           }
         };
-        await generateReceiptPdf(response, bill['orders'] as List<dynamic>, bill['user'], bill['isGstApplied'] as bool);
+        await generateReceiptPdf(response, bill['orders'] as List<dynamic>,
+            bill['user'], bill['isGstApplied'] as bool);
         context.read<BillBloc>().add(FetchBills());
       }
     } catch (e) {
-      developer.log('Error during payment for bill $billId: $e', name: 'CheckoutScreen');
+      developer.log('Error during payment for bill $billId: $e',
+          name: 'CheckoutScreen');
       if (mounted) {
         setState(() {
           _processingBills[billId] = false;
@@ -220,15 +229,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         .replaceAll('\\', '');
   }
 
-  Future<String> _generateReceiptPdf(dynamic response, List<dynamic> orders, dynamic user, bool isGstApplied) async {
+  Future<String> _generateReceiptPdf(dynamic response, List<dynamic> orders,
+      dynamic user, bool isGstApplied) async {
     print("In Generate Receipt PDF : $response, $orders, $user, $isGstApplied");
     try {
       final pdf = pw.Document();
 
       // Load NotoSans font
-      final fontData = await rootBundle.load("assets/fonts/NotoSans-Regular.ttf");
+      final fontData =
+          await rootBundle.load("assets/fonts/NotoSans-Regular.ttf");
       if (fontData == null) {
-        throw Exception('Failed to load font from assets/fonts/NotoSans-Regular.ttf');
+        throw Exception(
+            'Failed to load font from assets/fonts/NotoSans-Regular.ttf');
       }
       final ttf = pw.Font.ttf(fontData);
       developer.log('Font loaded successfully', name: 'CheckoutScreen');
@@ -240,11 +252,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       // Calculate total price
       final double totalPrice = safeOrders.fold(
         0.0,
-        (sum, order) => sum + ((order is Map && order['total'] is num) ? order['total'].toDouble() : 0.0),
+        (sum, order) =>
+            sum +
+            ((order is Map && order['total'] is num)
+                ? order['total'].toDouble()
+                : 0.0),
       );
-      final double gstAmount = isGstApplied ? totalPrice * (AppConstants.gstRate ?? 0.0) : 0.0;
+      final double gstAmount =
+          isGstApplied ? totalPrice * (AppConstants.gstRate ?? 0.0) : 0.0;
       final double total = totalPrice + gstAmount;
-      developer.log('Total price: $totalPrice, GST: $gstAmount, Total: $total', name: 'CheckoutScreen');
+      developer.log('Total price: $totalPrice, GST: $gstAmount, Total: $total',
+          name: 'CheckoutScreen');
 
       final Map<String, String> paymentMethodMap = {
         'UPI': 'UPI',
@@ -283,37 +301,50 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         'Online': 'Online'
       };
 
-      final payuResponse = response is Map && response.containsKey('payuResponse')
-          ? response['payuResponse']
-          : "Unknown";
+      final payuResponse =
+          response is Map && response.containsKey('payuResponse')
+              ? response['payuResponse']
+              : "Unknown";
       String paymentMethod = 'Unknown';
       if (payuResponse != null) {
         if (payuResponse is String) {
           try {
             final decoded = jsonDecode(payuResponse) as Map;
-            paymentMethod = paymentMethodMap[decoded['mode']?.toString()] ?? 'Unknown';
+            paymentMethod =
+                paymentMethodMap[decoded['mode']?.toString()] ?? 'Unknown';
           } catch (e) {
-            developer.log('Error decoding payuResponse string: $e', name: 'CheckoutScreen');
+            developer.log('Error decoding payuResponse string: $e',
+                name: 'CheckoutScreen');
           }
         } else if (payuResponse is Map) {
-          paymentMethod = paymentMethodMap[payuResponse['mode']?.toString()] ?? 'Unknown';
+          paymentMethod =
+              paymentMethodMap[payuResponse['mode']?.toString()] ?? 'Unknown';
         }
       }
       developer.log('Payment method: $paymentMethod', name: 'CheckoutScreen');
 
-      final String transactionId = payuResponse is Map && payuResponse['txnid'] is String
-          ? payuResponse['txnid']
-          : 'TXN${Random().nextInt(1000000).toString().padLeft(6, '0')}';
-      final String paymentStatus = payuResponse is Map && payuResponse['status'] is String
-          ? payuResponse['status'].toUpperCase()
-          : 'SUCCESS';
+      final String transactionId =
+          payuResponse is Map && payuResponse['txnid'] is String
+              ? payuResponse['txnid']
+              : 'TXN${Random().nextInt(1000000).toString().padLeft(6, '0')}';
+      final String paymentStatus =
+          payuResponse is Map && payuResponse['status'] is String
+              ? payuResponse['status'].toUpperCase()
+              : 'SUCCESS';
       final String date = DateTime.now().toString().split(' ').first;
-      developer.log('Transaction ID: $transactionId, Status: $paymentStatus, Date: $date', name: 'CheckoutScreen');
+      developer.log(
+          'Transaction ID: $transactionId, Status: $paymentStatus, Date: $date',
+          name: 'CheckoutScreen');
 
       // Handle null user properties
-      final String userName = user is Map && user['fullName'] != null ? _sanitizeText(user['fullName']) : 'Unknown User';
-      final String userMobile = user is Map && user['mobile'] != null ? _sanitizeText(user['mobile']) : 'N/A';
-      developer.log('User: $userName, Mobile: $userMobile', name: 'CheckoutScreen');
+      final String userName = user is Map && user['fullName'] != null
+          ? _sanitizeText(user['fullName'])
+          : 'Unknown User';
+      final String userMobile = user is Map && user['mobile'] != null
+          ? _sanitizeText(user['mobile'])
+          : 'N/A';
+      developer.log('User: $userName, Mobile: $userMobile',
+          name: 'CheckoutScreen');
 
       pdf.addPage(
         pw.Page(
@@ -426,17 +457,28 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     ],
                   ),
                   ...safeOrders.expand((order) {
-                    final items = order is Map && order['items'] is List ? order['items'] as List : [];
+                    final items = order is Map && order['items'] is List
+                        ? order['items'] as List
+                        : [];
                     return items.map((item) {
                       final menuItem = item is Map ? item : {};
                       final String itemName = menuItem['name'] != null
                           ? _sanitizeText(menuItem['name'])
                           : 'Unknown Item';
-                      final int quantity = (menuItem['quantity'] is num) ? (menuItem['quantity'] as num).toInt() : 1;
-                      final num pricePerUnit = (menuItem['price'] is num) ? menuItem['price'] as num : 0;
+                      final int quantity = (menuItem['quantity'] is num)
+                          ? (menuItem['quantity'] as num).toInt()
+                          : 1;
+                      final num pricePerUnit = (menuItem['price'] is num)
+                          ? menuItem['price'] as num
+                          : 0;
                       final num price = pricePerUnit * quantity;
-                      final String customization = menuItem['customization'] != null ? _sanitizeText(menuItem['customization']) : '';
-                      final String displayName = customization.isNotEmpty ? '$itemName [$customization]' : itemName;
+                      final String customization =
+                          menuItem['customization'] != null
+                              ? _sanitizeText(menuItem['customization'])
+                              : '';
+                      final String displayName = customization.isNotEmpty
+                          ? '$itemName [$customization]'
+                          : itemName;
                       return pw.TableRow(
                         children: [
                           pw.Padding(
@@ -449,7 +491,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           pw.Padding(
                             padding: const pw.EdgeInsets.all(8),
                             child: pw.Text(
-                              '${AppConstants.rupeeSymbol ?? '₹'}${price.toStringAsFixed(0)}',
+                              '${AppConstants.rupeeSymbol ?? '₹'}${price.toString()}',
                               style: pw.TextStyle(font: ttf),
                             ),
                           ),
@@ -470,7 +512,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       pw.Padding(
                         padding: const pw.EdgeInsets.all(8),
                         child: pw.Text(
-                          '${AppConstants.rupeeSymbol ?? '₹'}${totalPrice.toStringAsFixed(0)}',
+                          '${AppConstants.rupeeSymbol ?? '₹'}${totalPrice.toString()}',
                           style: pw.TextStyle(font: ttf),
                         ),
                       ),
@@ -482,14 +524,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(8),
                           child: pw.Text(
-                            'GST (${((AppConstants.gstRate ?? 0.0) * 100).toStringAsFixed(0)}%)',
+                            'GST (${((AppConstants.gstRate ?? 0.0) * 100).toString()}%)',
                             style: pw.TextStyle(font: ttf),
                           ),
                         ),
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(8),
                           child: pw.Text(
-                            '${AppConstants.rupeeSymbol ?? '₹'}${gstAmount.toStringAsFixed(0)}',
+                            '${AppConstants.rupeeSymbol ?? '₹'}${gstAmount.toString()}',
                             style: pw.TextStyle(font: ttf),
                           ),
                         ),
@@ -511,7 +553,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       pw.Padding(
                         padding: const pw.EdgeInsets.all(8),
                         child: pw.Text(
-                          '${AppConstants.rupeeSymbol ?? '₹'}${total.toStringAsFixed(0)}',
+                          '${AppConstants.rupeeSymbol ?? '₹'}${total.toString()}',
                           style: pw.TextStyle(
                             fontWeight: pw.FontWeight.bold,
                             font: ttf,
@@ -647,18 +689,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       Directory? directory;
       try {
         directory = await getApplicationDocumentsDirectory();
-        developer.log('Using application documents directory: ${directory.path}', name: 'CheckoutScreen');
+        developer.log(
+            'Using application documents directory: ${directory.path}',
+            name: 'CheckoutScreen');
       } catch (e) {
-        developer.log('Failed to get application documents directory: $e', name: 'CheckoutScreen');
+        developer.log('Failed to get application documents directory: $e',
+            name: 'CheckoutScreen');
         // Fallback to temporary directory
         directory = await getTemporaryDirectory();
-        developer.log('Falling back to temporary directory: ${directory.path}', name: 'CheckoutScreen');
+        developer.log('Falling back to temporary directory: ${directory.path}',
+            name: 'CheckoutScreen');
       }
 
       // Ensure directory exists
       if (!await directory.exists()) {
         await directory.create(recursive: true);
-        developer.log('Created directory: ${directory.path}', name: 'CheckoutScreen');
+        developer.log('Created directory: ${directory.path}',
+            name: 'CheckoutScreen');
       }
 
       final file = File('${directory.path}/receipt_$transactionId.pdf');
@@ -666,13 +713,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         await file.writeAsBytes(await pdf.save());
         developer.log('PDF written to: ${file.path}', name: 'CheckoutScreen');
       } catch (e) {
-        developer.log('Failed to write PDF to ${file.path}: $e', name: 'CheckoutScreen');
+        developer.log('Failed to write PDF to ${file.path}: $e',
+            name: 'CheckoutScreen');
         throw Exception('Failed to write PDF: $e');
       }
-     print("Receipt PDF generated at: ${file.path}");
+      print("Receipt PDF generated at: ${file.path}");
       return file.path;
     } catch (e, stackTrace) {
-      developer.log('Error in _generateReceiptPdf: $e, StackTrace: $stackTrace', name: 'CheckoutScreen');
+      developer.log('Error in _generateReceiptPdf: $e, StackTrace: $stackTrace',
+          name: 'CheckoutScreen');
       throw e; // Re-throw to handle in generateReceiptPdf
     }
   }
@@ -687,7 +736,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return sdkInt <= 28;
   }
 
-  Future<String> generateReceiptPdf(dynamic response, List<dynamic> orders, dynamic user, bool isGstApplied) async {
+  Future<String> generateReceiptPdf(dynamic response, List<dynamic> orders,
+      dynamic user, bool isGstApplied) async {
     try {
       // bool permissionGranted = true;
       // print("Om shahane : Generating Receipt PDF $response, $orders, $user, $isGstApplied");
@@ -714,34 +764,47 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       //   _showSnackBar('Storage permission denied', AppConstants.errorColor);
       //   throw Exception('Storage permission not granted');
       // }
-      print("Om Shahane : Permission Granted $response, $orders, $user, $isGstApplied"); 
-      final pdfPath = await _generateReceiptPdf(response, orders, user, isGstApplied);
+      print(
+          "Om Shahane : Permission Granted $response, $orders, $user, $isGstApplied");
+      final pdfPath =
+          await _generateReceiptPdf(response, orders, user, isGstApplied);
       developer.log('PDF generated at: $pdfPath', name: 'CheckoutScreen');
       try {
         final openResult = await OpenFilex.open(pdfPath);
-        developer.log('OpenFilex result: ${openResult.type}, message: ${openResult.message}', name: 'CheckoutScreen');
+        developer.log(
+            'OpenFilex result: ${openResult.type}, message: ${openResult.message}',
+            name: 'CheckoutScreen');
         if (openResult.type != ResultType.done) {
-          print("Receipt saved at $pdfPath but could not be opened: ${openResult.message}");
-          _showSnackBar('Receipt saved at $pdfPath but could not be opened: ${openResult.message}', AppConstants.errorColor);
+          print(
+              "Receipt saved at $pdfPath but could not be opened: ${openResult.message}");
+          _showSnackBar(
+              'Receipt saved at $pdfPath but could not be opened: ${openResult.message}',
+              AppConstants.errorColor);
         } else {
-          _showSnackBar('Receipt generated and opened successfully', Colors.green);
+          _showSnackBar(
+              'Receipt generated and opened successfully', Colors.green);
         }
       } catch (e) {
         developer.log('Error opening PDF: $e', name: 'CheckoutScreen');
-          print("Receipt saved at $pdfPath but could not be opened: $e");
-        _showSnackBar('Receipt saved at $pdfPath but could not be opened', AppConstants.errorColor);
+        print("Receipt saved at $pdfPath but could not be opened: $e");
+        _showSnackBar('Receipt saved at $pdfPath but could not be opened',
+            AppConstants.errorColor);
       }
 
       return pdfPath;
     } catch (e, stackTrace) {
-      developer.log('Error generating receipt: $e, StackTrace: $stackTrace', name: 'CheckoutScreen');
+      developer.log('Error generating receipt: $e, StackTrace: $stackTrace',
+          name: 'CheckoutScreen');
       _showSnackBar('Failed to generate receipt: $e', AppConstants.errorColor);
-      final receiptContent = await _generateReceiptContent(response, orders, user, isGstApplied, showDialogOnFailure: true);
+      final receiptContent = await _generateReceiptContent(
+          response, orders, user, isGstApplied,
+          showDialogOnFailure: true);
       return receiptContent;
     }
   }
 
-  Future<String> _generateReceiptContent(dynamic response, List<dynamic> orders, dynamic user, bool isGstApplied,
+  Future<String> _generateReceiptContent(
+      dynamic response, List<dynamic> orders, dynamic user, bool isGstApplied,
       {bool showDialogOnFailure = false}) async {
     try {
       // Handle null orders
@@ -750,9 +813,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       // Calculate total price
       final double totalPrice = safeOrders.fold(
         0.0,
-        (sum, order) => sum + ((order is Map && order['total'] is num) ? order['total'].toDouble() : 0.0),
+        (sum, order) =>
+            sum +
+            ((order is Map && order['total'] is num)
+                ? order['total'].toDouble()
+                : 0.0),
       );
-      final double gstAmount = isGstApplied ? totalPrice * (AppConstants.gstRate ?? 0.0) : 0.0;
+      final double gstAmount =
+          isGstApplied ? totalPrice * (AppConstants.gstRate ?? 0.0) : 0.0;
       final double total = totalPrice + gstAmount;
 
       final Map<String, String> paymentMethodMap = {
@@ -792,34 +860,44 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         'Online': 'Online'
       };
 
-      final payuResponse = response is Map && response.containsKey('payuResponse')
-          ? response['payuResponse']
-          : null;
+      final payuResponse =
+          response is Map && response.containsKey('payuResponse')
+              ? response['payuResponse']
+              : null;
       String paymentMethod = 'Unknown';
       if (payuResponse != null) {
         if (payuResponse is String) {
           try {
             final decoded = jsonDecode(payuResponse) as Map;
-            paymentMethod = paymentMethodMap[decoded['mode']?.toString()] ?? 'Unknown';
+            paymentMethod =
+                paymentMethodMap[decoded['mode']?.toString()] ?? 'Unknown';
           } catch (e) {
-            developer.log('Error decoding payuResponse string: $e', name: 'CheckoutScreen');
+            developer.log('Error decoding payuResponse string: $e',
+                name: 'CheckoutScreen');
           }
         } else if (payuResponse is Map) {
-          paymentMethod = paymentMethodMap[payuResponse['mode']?.toString()] ?? 'Unknown';
+          paymentMethod =
+              paymentMethodMap[payuResponse['mode']?.toString()] ?? 'Unknown';
         }
       }
 
-      final String transactionId = payuResponse is Map && payuResponse['txnid'] is String
-          ? payuResponse['txnid']
-          : 'TXN${Random().nextInt(1000000).toString().padLeft(6, '0')}';
-      final String paymentStatus = payuResponse is Map && payuResponse['status'] is String
-          ? payuResponse['status'].toUpperCase()
-          : 'SUCCESS';
+      final String transactionId =
+          payuResponse is Map && payuResponse['txnid'] is String
+              ? payuResponse['txnid']
+              : 'TXN${Random().nextInt(1000000).toString().padLeft(6, '0')}';
+      final String paymentStatus =
+          payuResponse is Map && payuResponse['status'] is String
+              ? payuResponse['status'].toUpperCase()
+              : 'SUCCESS';
       final String date = DateTime.now().toString().split(' ').first;
 
       // Handle null user properties
-      final String userName = user is Map && user['fullName'] != null ? _sanitizeText(user['fullName']) : 'Unknown User';
-      final String userMobile = user is Map && user['mobile'] != null ? _sanitizeText(user['mobile']) : 'N/A';
+      final String userName = user is Map && user['fullName'] != null
+          ? _sanitizeText(user['fullName'])
+          : 'Unknown User';
+      final String userMobile = user is Map && user['mobile'] != null
+          ? _sanitizeText(user['mobile'])
+          : 'N/A';
 
       String receiptContent = '''
 ${_sanitizeText(AppConstants.companyName ?? 'Unknown Company')}
@@ -837,21 +915,32 @@ Mobile: $userMobile
 
 Order Summary
 ${safeOrders.expand((order) {
-        final items = order is Map && order['items'] is List ? order['items'] as List : [];
+        final items = order is Map && order['items'] is List
+            ? order['items'] as List
+            : [];
         return items.map((item) {
           final menuItem = item is Map ? item : {};
-          final String itemName = menuItem['name'] != null ? _sanitizeText(menuItem['name']) : 'Unknown Item';
-          final int quantity = (menuItem['quantity'] is num) ? (menuItem['quantity'] as num).toInt() : 1;
-          final num pricePerUnit = (menuItem['price'] is num) ? menuItem['price'] as num : 0;
+          final String itemName = menuItem['name'] != null
+              ? _sanitizeText(menuItem['name'])
+              : 'Unknown Item';
+          final int quantity = (menuItem['quantity'] is num)
+              ? (menuItem['quantity'] as num).toInt()
+              : 1;
+          final num pricePerUnit =
+              (menuItem['price'] is num) ? menuItem['price'] as num : 0;
           final num price = pricePerUnit * quantity;
-          final String customization = menuItem['customization'] != null ? _sanitizeText(menuItem['customization']) : '';
-          final String displayName = customization.isNotEmpty ? '$itemName [$customization]' : itemName;
-          return '$displayName x$quantity: ${AppConstants.rupeeSymbol ?? '₹'}${price.toStringAsFixed(0)}';
+          final String customization = menuItem['customization'] != null
+              ? _sanitizeText(menuItem['customization'])
+              : '';
+          final String displayName = customization.isNotEmpty
+              ? '$itemName [$customization]'
+              : itemName;
+          return '$displayName x$quantity: ${AppConstants.rupeeSymbol ?? '₹'}${price.toString()}';
         });
       }).join('\n')}
-Subtotal: ${AppConstants.rupeeSymbol ?? '₹'}${totalPrice.toStringAsFixed(0)}
-${isGstApplied ? 'GST (${((AppConstants.gstRate ?? 0.0) * 100).toStringAsFixed(0)}%): ${AppConstants.rupeeSymbol ?? '₹'}${gstAmount.toStringAsFixed(0)}' : ''}
-Total Amount: ${AppConstants.rupeeSymbol ?? '₹'}${total.toStringAsFixed(0)}
+Subtotal: ${AppConstants.rupeeSymbol ?? '₹'}${totalPrice.toString()}
+${isGstApplied ? 'GST (${((AppConstants.gstRate ?? 0.0) * 100).toString()}%): ${AppConstants.rupeeSymbol ?? '₹'}${gstAmount.toString()}' : ''}
+Total Amount: ${AppConstants.rupeeSymbol ?? '₹'}${total.toString()}
 
 Payment Details
 Payment Method: $paymentMethod
@@ -867,8 +956,11 @@ Come visit us again at ${_sanitizeText(AppConstants.companyName ?? 'Unknown Comp
       }
       return receiptContent;
     } catch (e, stackTrace) {
-      developer.log('Error generating receipt content: $e, StackTrace: $stackTrace', name: 'CheckoutScreen');
-      _showSnackBar('Failed to generate receipt content: $e', AppConstants.errorColor);
+      developer.log(
+          'Error generating receipt content: $e, StackTrace: $stackTrace',
+          name: 'CheckoutScreen');
+      _showSnackBar(
+          'Failed to generate receipt content: $e', AppConstants.errorColor);
       return '';
     }
   }
@@ -940,12 +1032,15 @@ Come visit us again at ${_sanitizeText(AppConstants.companyName ?? 'Unknown Comp
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Payment verified for bill $billId via $paymentMethod'),
+            content:
+                Text('Payment verified for bill $billId via $paymentMethod'),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
           ),
         );
-        context.read<BillBloc>().add(UpdateBill(billId, 'Paid', paymentMethod: paymentMethod));
+        context
+            .read<BillBloc>()
+            .add(UpdateBill(billId, 'Paid', paymentMethod: paymentMethod));
 
         // Generate the pdf of the bill here
         final response = {
@@ -955,20 +1050,25 @@ Come visit us again at ${_sanitizeText(AppConstants.companyName ?? 'Unknown Comp
             'status': 'success'
           }
         };
-        await generateReceiptPdf(response, bill['orders'] as List<dynamic>, bill['user'], bill['isGstApplied'] as bool);
+        await generateReceiptPdf(response, bill['orders'] as List<dynamic>,
+            bill['user'], bill['isGstApplied'] as bool);
 
         context.read<BillBloc>().add(FetchBills());
-        developer.log('Payment verified for bill $billId, method $paymentMethod', name: 'CheckoutScreen');
+        developer.log(
+            'Payment verified for bill $billId, method $paymentMethod',
+            name: 'CheckoutScreen');
       }
     } catch (e) {
-      developer.log('Error verifying payment for bill $billId: $e', name: 'CheckoutScreen');
+      developer.log('Error verifying payment for bill $billId: $e',
+          name: 'CheckoutScreen');
       if (mounted) {
         setState(() {
           _processingBills[billId] = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to verify payment for bill $billId. Please try again.'),
+            content: Text(
+                'Failed to verify payment for bill $billId. Please try again.'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
           ),
@@ -1132,17 +1232,20 @@ Come visit us again at ${_sanitizeText(AppConstants.companyName ?? 'Unknown Comp
               behavior: SnackBarBehavior.floating,
             ),
           );
-          developer.log('BillBloc error: ${state.error}', name: 'CheckoutScreen');
+          developer.log('BillBloc error: ${state.error}',
+              name: 'CheckoutScreen');
         }
         setState(() {
           _isLoading = state.isLoading;
           if (!state.isLoading) {
-            developer.log('Processing bills: ${state.bills}', name: 'CheckoutScreen');
+            developer.log('Processing bills: ${state.bills}',
+                name: 'CheckoutScreen');
             final pendingBills = state.bills.where((bill) {
               final status = bill['status'] ?? 'Pending';
               return status == 'Pending';
             }).toList();
-            developer.log('Pending bills: $pendingBills', name: 'CheckoutScreen');
+            developer.log('Pending bills: $pendingBills',
+                name: 'CheckoutScreen');
             _groupedBills = {};
             _tableTotals = {};
             _grandTotal = 0.0;
@@ -1150,19 +1253,25 @@ Come visit us again at ${_sanitizeText(AppConstants.companyName ?? 'Unknown Comp
               final table = bill['table'] as String? ?? 'Unknown';
               _groupedBills.putIfAbsent(table, () => []).add(bill);
               final billId = bill['billId'] as String? ?? '';
-              _mobileControllers.putIfAbsent(billId, () => TextEditingController(text: bill['user']?['mobile'] ?? ''));
+              _mobileControllers.putIfAbsent(
+                  billId,
+                  () => TextEditingController(
+                      text: bill['user']?['mobile'] ?? ''));
             }
             _groupedBills.forEach((table, bills) {
               double tableTotal = bills.fold(0.0, (sum, bill) {
                 final amount = (bill['totalAmount'] as num?)?.toDouble() ?? 0.0;
-                developer.log('Bill ${bill['billId']} totalAmount: $amount', name: 'CheckoutScreen');
+                developer.log('Bill ${bill['billId']} totalAmount: $amount',
+                    name: 'CheckoutScreen');
                 return sum + amount;
               });
               _tableTotals[table] = tableTotal;
               _grandTotal += tableTotal;
             });
-            developer.log('Grouped bills: $_groupedBills', name: 'CheckoutScreen');
-            developer.log('Table totals: $_tableTotals', name: 'CheckoutScreen');
+            developer.log('Grouped bills: $_groupedBills',
+                name: 'CheckoutScreen');
+            developer.log('Table totals: $_tableTotals',
+                name: 'CheckoutScreen');
             developer.log('Grand total: $_grandTotal', name: 'CheckoutScreen');
           }
         });
@@ -1211,20 +1320,24 @@ Come visit us again at ${_sanitizeText(AppConstants.companyName ?? 'Unknown Comp
                   child: BlocBuilder<BillBloc, BillState>(
                     builder: (context, state) {
                       if (_isLoading) {
-                        developer.log('Showing loading indicator', name: 'CheckoutScreen');
+                        developer.log('Showing loading indicator',
+                            name: 'CheckoutScreen');
                         return const Center(
                           child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.indigo),
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.indigo),
                           ),
                         );
                       }
                       if (_groupedBills.isEmpty) {
-                        developer.log('No pending bills to display', name: 'CheckoutScreen');
+                        developer.log('No pending bills to display',
+                            name: 'CheckoutScreen');
                         return Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.receipt_long, size: 80, color: Colors.grey[400]),
+                              Icon(Icons.receipt_long,
+                                  size: 80, color: Colors.grey[400]),
                               const SizedBox(height: 16),
                               Text(
                                 'No pending bills for payment',
@@ -1238,7 +1351,8 @@ Come visit us again at ${_sanitizeText(AppConstants.companyName ?? 'Unknown Comp
                           ),
                         );
                       }
-                      developer.log('Rendering ${_groupedBills.length} tables', name: 'CheckoutScreen');
+                      developer.log('Rendering ${_groupedBills.length} tables',
+                          name: 'CheckoutScreen');
                       return ListView.builder(
                         itemCount: _groupedBills.length,
                         itemBuilder: (context, index) {
@@ -1261,7 +1375,8 @@ Come visit us again at ${_sanitizeText(AppConstants.companyName ?? 'Unknown Comp
                             ),
                             child: ExpansionTile(
                               title: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     'Table: $table',
@@ -1285,22 +1400,30 @@ Come visit us again at ${_sanitizeText(AppConstants.companyName ?? 'Unknown Comp
                               collapsedIconColor: Colors.indigo[400],
                               children: bills.map((bill) {
                                 final billId = bill['billId'] as String? ?? '';
-                                final isProcessing = _processingBills[billId] ?? false;
-                                final totalAmount = (bill['totalAmount'] as num?)?.toDouble() ?? 0.0;
-                                final displayTotal = (bill['isGstApplied'] == true)
-                                    ? (totalAmount).toStringAsFixed(2)
-                                    : totalAmount.toStringAsFixed(2);
-                                developer.log('Rendering bill $billId', name: 'CheckoutScreen');
+                                final isProcessing =
+                                    _processingBills[billId] ?? false;
+                                final totalAmount =
+                                    (bill['totalAmount'] as num?)?.toDouble() ??
+                                        0.0;
+                                final displayTotal =
+                                    (bill['isGstApplied'] == true)
+                                        ? (totalAmount).toStringAsFixed(2)
+                                        : totalAmount.toStringAsFixed(2);
+                                developer.log('Rendering bill $billId',
+                                    name: 'CheckoutScreen');
                                 return Container(
-                                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  margin: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 8),
                                   decoration: BoxDecoration(
                                     color: Colors.grey[50],
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: Colors.grey[200]!),
+                                    border:
+                                        Border.all(color: Colors.grey[200]!),
                                   ),
                                   child: ExpansionTile(
                                     title: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           'Bill ID: ${billId.length > 8 ? billId.substring(0, 8) + '...' : billId}',
@@ -1356,17 +1479,39 @@ Come visit us again at ${_sanitizeText(AppConstants.companyName ?? 'Unknown Comp
                                     collapsedIconColor: Colors.indigo[400],
                                     children: [
                                       Padding(
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 16, vertical: 12),
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
-                                            _buildInfoRow('Bill ID', billId, isTablet),
-                                            _buildInfoRow('Table', bill['table'] ?? 'Unknown', isTablet),
-                                            _buildInfoRow('User', bill['user']?['fullName'] ?? 'Unknown User', isTablet),
-                                            _buildInfoRow('Email', bill['user']?['email'] ?? 'N/A', isTablet),
-                                            _buildInfoRow('Total', '₹$displayTotal', isTablet, color: Colors.green[700]),
-                                            _buildInfoRow('Status', bill['status'] ?? 'Pending', isTablet),
-                                            _buildInfoRow('Payment Method', bill['paymentMethod'] ?? 'Not Set', isTablet),
+                                            _buildInfoRow(
+                                                'Bill ID', billId, isTablet),
+                                            _buildInfoRow(
+                                                'Table',
+                                                bill['table'] ?? 'Unknown',
+                                                isTablet),
+                                            _buildInfoRow(
+                                                'User',
+                                                bill['user']?['fullName'] ??
+                                                    'Unknown User',
+                                                isTablet),
+                                            _buildInfoRow(
+                                                'Email',
+                                                bill['user']?['email'] ?? 'N/A',
+                                                isTablet),
+                                            _buildInfoRow('Total',
+                                                '₹$displayTotal', isTablet,
+                                                color: Colors.green[700]),
+                                            _buildInfoRow(
+                                                'Status',
+                                                bill['status'] ?? 'Pending',
+                                                isTablet),
+                                            _buildInfoRow(
+                                                'Payment Method',
+                                                bill['paymentMethod'] ??
+                                                    'Not Set',
+                                                isTablet),
                                             const Divider(height: 20),
                                             Text(
                                               'Orders:',
@@ -1377,43 +1522,76 @@ Come visit us again at ${_sanitizeText(AppConstants.companyName ?? 'Unknown Comp
                                               ),
                                             ),
                                             const SizedBox(height: 8),
-                                            ...((bill['orders'] as List?) ?? []).map((order) {
-                                              final orderId = order['orderId'] ?? '';
-                                              final orderTotal = order['total']?.toString() ?? '0';
-                                              final orderStatus = order['status'] ?? 'Pending';
-                                              final timestamp = order['timestamp'] ?? '';
+                                            ...((bill['orders'] as List?) ?? [])
+                                                .map((order) {
+                                              final orderId =
+                                                  order['orderId'] ?? '';
+                                              final orderTotal =
+                                                  order['total']?.toString() ??
+                                                      '0';
+                                              final orderStatus =
+                                                  order['status'] ?? 'Pending';
+                                              final timestamp =
+                                                  order['timestamp'] ?? '';
                                               return Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
                                                 children: [
-                                                  _buildInfoRow('Order ID', orderId, isTablet),
-                                                  _buildInfoRow('Total', '₹$orderTotal', isTablet),
-                                                  _buildInfoRow('Status', orderStatus, isTablet),
-                                                  _buildInfoRow('Timestamp', timestamp, isTablet),
+                                                  _buildInfoRow('Order ID',
+                                                      orderId, isTablet),
+                                                  _buildInfoRow('Total',
+                                                      '₹$orderTotal', isTablet),
+                                                  _buildInfoRow('Status',
+                                                      orderStatus, isTablet),
+                                                  _buildInfoRow('Timestamp',
+                                                      timestamp, isTablet),
                                                   Text(
                                                     'Items:',
                                                     style: TextStyle(
-                                                      fontWeight: FontWeight.bold,
-                                                      fontSize: isTablet ? 15 : 13,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize:
+                                                          isTablet ? 15 : 13,
                                                       color: Colors.indigo[900],
                                                     ),
                                                   ),
-                                                  ...((order['items'] as List?) ?? []).map((item) {
-                                                    final name = item['name'] ?? 'Unnamed';
-                                                    final qty = item['quantity']?.toString() ?? '1';
-                                                    final price = item['price']?.toString() ?? '0';
-                                                    final customization = item['customization'] ?? '';
+                                                  ...((order['items']
+                                                              as List?) ??
+                                                          [])
+                                                      .map((item) {
+                                                    final name = item['name'] ??
+                                                        'Unnamed';
+                                                    final qty = item['quantity']
+                                                            ?.toString() ??
+                                                        '1';
+                                                    final price = item['price']
+                                                            ?.toString() ??
+                                                        '0';
+                                                    final customization =
+                                                        item['customization'] ??
+                                                            '';
                                                     return Padding(
-                                                      padding: const EdgeInsets.symmetric(vertical: 4.0),
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          vertical: 4.0),
                                                       child: Row(
                                                         children: [
-                                                          Icon(Icons.fastfood, size: 16, color: Colors.indigo[400]),
-                                                          const SizedBox(width: 8),
+                                                          Icon(Icons.fastfood,
+                                                              size: 16,
+                                                              color: Colors
+                                                                  .indigo[400]),
+                                                          const SizedBox(
+                                                              width: 8),
                                                           Expanded(
                                                             child: Text(
                                                               '$name (x$qty) ₹$price ${customization.isNotEmpty ? '[$customization]' : ''}',
                                                               style: TextStyle(
-                                                                fontSize: isTablet ? 14 : 12,
-                                                                color: Colors.grey[800],
+                                                                fontSize:
+                                                                    isTablet
+                                                                        ? 14
+                                                                        : 12,
+                                                                color: Colors
+                                                                    .grey[800],
                                                               ),
                                                             ),
                                                           ),
@@ -1427,27 +1605,43 @@ Come visit us again at ${_sanitizeText(AppConstants.companyName ?? 'Unknown Comp
                                             }),
                                             const Divider(height: 20),
                                             TextField(
-                                              controller: _mobileControllers[billId],
+                                              controller:
+                                                  _mobileControllers[billId],
                                               decoration: InputDecoration(
                                                 labelText: 'Mobile Number',
-                                                labelStyle: TextStyle(color: Colors.indigo[700]),
+                                                labelStyle: TextStyle(
+                                                    color: Colors.indigo[700]),
                                                 border: OutlineInputBorder(
-                                                  borderRadius: BorderRadius.circular(12),
-                                                  borderSide: BorderSide(color: Colors.indigo[200]!),
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                  borderSide: BorderSide(
+                                                      color:
+                                                          Colors.indigo[200]!),
                                                 ),
-                                                enabledBorder: OutlineInputBorder(
-                                                  borderRadius: BorderRadius.circular(12),
-                                                  borderSide: BorderSide(color: Colors.indigo[200]!),
+                                                enabledBorder:
+                                                    OutlineInputBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                  borderSide: BorderSide(
+                                                      color:
+                                                          Colors.indigo[200]!),
                                                 ),
-                                                focusedBorder: OutlineInputBorder(
-                                                  borderRadius: BorderRadius.circular(12),
-                                                  borderSide: BorderSide(color: Colors.indigo[700]!, width: 2),
+                                                focusedBorder:
+                                                    OutlineInputBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                  borderSide: BorderSide(
+                                                      color:
+                                                          Colors.indigo[700]!,
+                                                      width: 2),
                                                 ),
-                                                prefixIcon: Icon(Icons.phone, color: Colors.indigo[400]),
+                                                prefixIcon: Icon(Icons.phone,
+                                                    color: Colors.indigo[400]),
                                               ),
                                               keyboardType: TextInputType.phone,
                                               enabled: !isProcessing,
-                                              style: TextStyle(fontSize: isTablet ? 16 : 14),
+                                              style: TextStyle(
+                                                  fontSize: isTablet ? 16 : 14),
                                             ),
                                             const SizedBox(height: 16),
                                             Row(
@@ -1456,20 +1650,33 @@ Come visit us again at ${_sanitizeText(AppConstants.companyName ?? 'Unknown Comp
                                                   child: ElevatedButton.icon(
                                                     onPressed: isProcessing
                                                         ? null
-                                                        : () => _handlePayment(billId, 'Cash'),
-                                                    icon: const Icon(Icons.money, color: Colors.white),
+                                                        : () => _handlePayment(
+                                                            billId, 'Cash'),
+                                                    icon: const Icon(
+                                                        Icons.money,
+                                                        color: Colors.white),
                                                     label: Text(
-                                                      isProcessing ? 'Processing...' : 'Pay by Cash',
+                                                      isProcessing
+                                                          ? 'Processing...'
+                                                          : 'Pay by Cash',
                                                       style: const TextStyle(
                                                         color: Colors.white,
-                                                        fontWeight: FontWeight.w600,
+                                                        fontWeight:
+                                                            FontWeight.w600,
                                                       ),
                                                     ),
-                                                    style: ElevatedButton.styleFrom(
-                                                      backgroundColor: Colors.blue[600],
-                                                      padding: const EdgeInsets.symmetric(vertical: 16),
-                                                      shape: RoundedRectangleBorder(
-                                                        borderRadius: BorderRadius.circular(12),
+                                                    style: ElevatedButton
+                                                        .styleFrom(
+                                                      backgroundColor:
+                                                          Colors.blue[600],
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          vertical: 16),
+                                                      shape:
+                                                          RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(12),
                                                       ),
                                                       elevation: 2,
                                                     ),
@@ -1480,20 +1687,33 @@ Come visit us again at ${_sanitizeText(AppConstants.companyName ?? 'Unknown Comp
                                                   child: ElevatedButton.icon(
                                                     onPressed: isProcessing
                                                         ? null
-                                                        : () => _handlePayment(billId, 'Online'),
-                                                    icon: const Icon(Icons.credit_card, color: Colors.white),
+                                                        : () => _handlePayment(
+                                                            billId, 'Online'),
+                                                    icon: const Icon(
+                                                        Icons.credit_card,
+                                                        color: Colors.white),
                                                     label: Text(
-                                                      isProcessing ? 'Processing...' : 'Pay by Online',
+                                                      isProcessing
+                                                          ? 'Processing...'
+                                                          : 'Pay by Online',
                                                       style: const TextStyle(
                                                         color: Colors.white,
-                                                        fontWeight: FontWeight.w600,
+                                                        fontWeight:
+                                                            FontWeight.w600,
                                                       ),
                                                     ),
-                                                    style: ElevatedButton.styleFrom(
-                                                      backgroundColor: Colors.green[600],
-                                                      padding: const EdgeInsets.symmetric(vertical: 16),
-                                                      shape: RoundedRectangleBorder(
-                                                        borderRadius: BorderRadius.circular(12),
+                                                    style: ElevatedButton
+                                                        .styleFrom(
+                                                      backgroundColor:
+                                                          Colors.green[600],
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          vertical: 16),
+                                                      shape:
+                                                          RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(12),
                                                       ),
                                                       elevation: 2,
                                                     ),
@@ -1503,15 +1723,23 @@ Come visit us again at ${_sanitizeText(AppConstants.companyName ?? 'Unknown Comp
                                             ),
                                             const SizedBox(height: 16),
                                             ElevatedButton(
-                                              onPressed: isProcessing ? null : () => _verifyPayment(billId),
+                                              onPressed: isProcessing
+                                                  ? null
+                                                  : () =>
+                                                      _verifyPayment(billId),
                                               style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.indigo[700],
-                                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                                backgroundColor:
+                                                    Colors.indigo[700],
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        vertical: 16),
                                                 shape: RoundedRectangleBorder(
-                                                  borderRadius: BorderRadius.circular(12),
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
                                                 ),
                                                 elevation: 2,
-                                                minimumSize: const Size(double.infinity, 50),
+                                                minimumSize: const Size(
+                                                    double.infinity, 50),
                                               ),
                                               child: const Text(
                                                 'Submit Payment',
@@ -1582,7 +1810,8 @@ Come visit us again at ${_sanitizeText(AppConstants.companyName ?? 'Unknown Comp
     );
   }
 
-  Widget _buildInfoRow(String label, String value, bool isTablet, {Color? color}) {
+  Widget _buildInfoRow(String label, String value, bool isTablet,
+      {Color? color}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(

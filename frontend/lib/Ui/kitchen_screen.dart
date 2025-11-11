@@ -103,7 +103,12 @@ class KitchenDashboardView extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    _buildOrdersList(context, filteredOrders, screenWidth, isTablet, isDesktop),
+                                        newOrders.isEmpty ? const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                      Center(child: Text("No Orders Yet"),),
+                    ],) : _buildOrdersList(context, filteredOrders, screenWidth, isTablet, isDesktop)
                   ],
                 ),
               ),
@@ -354,6 +359,7 @@ class KitchenDashboardView extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                const SizedBox(width: 20,),
                 if (screenWidth > 400)
                   _buildStatusChip(status, statusColor, screenWidth),
               ],

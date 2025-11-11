@@ -128,39 +128,59 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
       _showOrderBottomSheet(context);
     }
   }
+Future<void> _generateBillPDF(List<Order> orders) async {
+  if (!mounted || orders.isEmpty) return;
 
-  Future<void> _generateBillPDF(List<Order> orders) async {
+  // Construct the Bill object
+  final bill = Bill(
+    billId: const Uuid().v4(),
+    table: orders.first.table,
+    totalAmount: orders.fold<double>(
+      0,
+      (sum, order) => sum + order.total.toDouble(),
+    ),
+    orders: orders,
+    user: _user,
+    isGstApplied: true,
+  );
 
-    if (!mounted) return;
-    // Construct a Bill object from the orders (replace with actual Bill fields)
-    final bill = Bill(
-      billId: const Uuid().v4(),
-      table: orders.isNotEmpty ? orders.first.table : '',
-      totalAmount: orders.fold<double>(0, (sum, order) => sum + order.total.toDouble()),
-      orders: orders,
-      user: _user,
-      isGstApplied: true, 
-    );
-    await Apiservicescheckout.payBill(bill);
-    SocketService().payBill({
-      'billId': bill.billId,
-      'table': bill.table,
-      'totalAmount': bill.totalAmount,
-      'orders': bill.orders.map((o) => o.toJson()).toList(),
-      'user': bill.user.toJson(),
-      'isGstApplied': bill.isGstApplied,
-    });
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => BuyPage(
-          orders: orders,
-          user: _user,
-          isGstApplied: true,
-        ),
-      ),
-    );
+  // Call API to pay bill
+  await Apiservicescheckout.payBill(bill);
+
+  // Emit via socket
+  SocketService().payBill({
+    'billId': bill.billId,
+    'table': bill.table,
+    'totalAmount': bill.totalAmount,
+    'orders': bill.orders.map((o) => o.toJson()).toList(),
+    'user': bill.user.toJson(),
+    'isGstApplied': bill.isGstApplied,
+  });
+
+  // Remove all items from Bloc state
+  final bloc = context.read<OrdersBloc>();
+  for (final order in orders) {
+    for (final entry in order.items.entries) {
+      final orderItem = entry.key;
+      final quantity = entry.value;
+      for (int i = 0; i < quantity; i++) {
+        bloc.add(RemoveOrderItem(orderItem));
+      }
+    }
   }
+
+  // Navigate to BuyPage
+  await Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => BuyPage(
+        orders: orders,
+        user: _user,
+        isGstApplied: true,
+      ),
+    ),
+  );
+}
 
   Color _getStatusColor(String status) {
     switch (status) {

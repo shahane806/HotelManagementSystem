@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:frontend/ui/tables_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:payu_checkoutpro_flutter/PayUConstantKeys.dart';
 import 'package:payu_checkoutpro_flutter/payu_checkoutpro_flutter.dart';
@@ -39,7 +40,7 @@ class AppConstants {
   );
   static const double gstRate = 0.18; // 18% GST rate
   static const String merchantGstNumber = '27ABCDE1234F1ZG'; // Dummy GST number
-  static const String companyName = 'E-Learning Solutions Pvt. Ltd.';
+  static const String companyName = 'ABC Solutions Pvt. Ltd.';
   static const String companyAddress =
       '123 Tech Park, Mumbai, Maharashtra, India - 400001';
   static const String companyLogoUrl =
@@ -546,7 +547,7 @@ class _BuyPageState extends State<BuyPage>
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '${AppConstants.rupeeSymbol}${order.total.toStringAsFixed(0)}',
+                      '${AppConstants.rupeeSymbol}${order.total.toString()}',
                       style: GoogleFonts.poppins(
                         fontSize: fontSizeBase + 2,
                         fontWeight: FontWeight.w700,
@@ -591,7 +592,7 @@ class _BuyPageState extends State<BuyPage>
                       ),
                     ),
                     Text(
-                      '${AppConstants.rupeeSymbol}${(entry.key.menuItem.price * entry.value).toStringAsFixed(0)}',
+                      '${AppConstants.rupeeSymbol}${(entry.key.menuItem.price * entry.value).toString()}',
                       style: GoogleFonts.poppins(
                         fontSize: fontSizeBase - 2,
                         fontWeight: FontWeight.w600,
@@ -620,17 +621,17 @@ class _BuyPageState extends State<BuyPage>
         children: [
           _buildSummaryRow(
               'Subtotal',
-              '${AppConstants.rupeeSymbol}${price.toStringAsFixed(0)}',
+              '${AppConstants.rupeeSymbol}${price.toString()}',
               fontSizeBase),
           if (widget.isGstApplied)
             _buildSummaryRow(
-                'GST (${(AppConstants.gstRate * 100).toStringAsFixed(0)}%)',
-                '${AppConstants.rupeeSymbol}${gstAmount.toStringAsFixed(0)}',
+                'GST (${(AppConstants.gstRate * 100).toString()}%)',
+                '${AppConstants.rupeeSymbol}${gstAmount.toString()}',
                 fontSizeBase),
           const Divider(height: 24, thickness: 1),
           _buildSummaryRow(
             'Total Amount',
-            '${AppConstants.rupeeSymbol}${total.toStringAsFixed(0)}',
+            '${AppConstants.rupeeSymbol}${total.toString()}',
             fontSizeBase,
             isTotal: true,
           ),
@@ -853,7 +854,7 @@ class _BuyPageState extends State<BuyPage>
           widget.orders.fold(0.0, (sum, order) => sum + order.total.toDouble());
       final double gstAmount =
           widget.isGstApplied ? totalPrice * AppConstants.gstRate : 0.0;
-      final String amount = (totalPrice + gstAmount).toStringAsFixed(2);
+      final String amount = (totalPrice + gstAmount).toString();
 
       if (widget.user.mobile.isEmpty || widget.user.email.isEmpty) {
         setState(() => _isLoading = false);
@@ -1083,7 +1084,7 @@ class _BuyPageState extends State<BuyPage>
                               pw.Padding(
                                 padding: const pw.EdgeInsets.all(8),
                                 child: pw.Text(
-                                    '${AppConstants.rupeeSymbol}${price.toStringAsFixed(0)}',
+                                    '${AppConstants.rupeeSymbol}${price.toString()}',
                                     style: pw.TextStyle(font: ttf)),
                               ),
                             ],
@@ -1101,7 +1102,7 @@ class _BuyPageState extends State<BuyPage>
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(8),
                       child: pw.Text(
-                          '${AppConstants.rupeeSymbol}${totalPrice.toStringAsFixed(0)}',
+                          '${AppConstants.rupeeSymbol}${totalPrice.toString()}',
                           style: pw.TextStyle(font: ttf)),
                     ),
                   ],
@@ -1112,13 +1113,13 @@ class _BuyPageState extends State<BuyPage>
                       pw.Padding(
                         padding: const pw.EdgeInsets.all(8),
                         child: pw.Text(
-                            'GST (${(AppConstants.gstRate * 100).toStringAsFixed(0)}%)',
+                            'GST (${(AppConstants.gstRate * 100).toString()}%)',
                             style: pw.TextStyle(font: ttf)),
                       ),
                       pw.Padding(
                         padding: const pw.EdgeInsets.all(8),
                         child: pw.Text(
-                            '${AppConstants.rupeeSymbol}${gstAmount.toStringAsFixed(0)}',
+                            '${AppConstants.rupeeSymbol}${gstAmount.toString()}',
                             style: pw.TextStyle(font: ttf)),
                       ),
                     ],
@@ -1135,7 +1136,7 @@ class _BuyPageState extends State<BuyPage>
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(8),
                       child: pw.Text(
-                          '${AppConstants.rupeeSymbol}${total.toStringAsFixed(0)}',
+                          '${AppConstants.rupeeSymbol}${total.toString()}',
                           style: pw.TextStyle(
                               fontWeight: pw.FontWeight.bold, font: ttf)),
                     ),
@@ -1386,11 +1387,11 @@ ${widget.orders.map((order) => order.items.entries.map((entry) {
                 final customization = entry.key.customization.isNotEmpty
                     ? ' [${entry.key.customization}]'
                     : '';
-                return "${_sanitizeText(entry.key.menuItem.name ?? 'Unknown Item')}$customization x${entry.value}: ${AppConstants.rupeeSymbol}${(entry.key.menuItem.price * entry.value).toStringAsFixed(0)}";
+                return "${_sanitizeText(entry.key.menuItem.name ?? 'Unknown Item')}$customization x${entry.value}: ${AppConstants.rupeeSymbol}${(entry.key.menuItem.price * entry.value).toString()}";
               }).join('\n')).join('\n')}
-Subtotal: ${AppConstants.rupeeSymbol}${totalPrice.toStringAsFixed(0)}
-${widget.isGstApplied ? 'GST (${(AppConstants.gstRate * 100).toStringAsFixed(0)}%): ${AppConstants.rupeeSymbol}${gstAmount.toStringAsFixed(0)}' : ''}
-Total Amount: ${AppConstants.rupeeSymbol}${total.toStringAsFixed(0)}
+Subtotal: ${AppConstants.rupeeSymbol}${totalPrice.toString()}
+${widget.isGstApplied ? 'GST (${(AppConstants.gstRate * 100).toString()}%): ${AppConstants.rupeeSymbol}${gstAmount.toString()}' : ''}
+Total Amount: ${AppConstants.rupeeSymbol}${total.toString()}
 
 Payment Details
 Payment Method: $paymentMethod
@@ -1467,13 +1468,7 @@ Come visit us again at ${_sanitizeText(AppConstants.companyName)}
     if (mounted) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (context) => BuyPage(
-            orders: widget.orders,
-            user: widget.user,
-            isGstApplied: widget.isGstApplied,
-          ),
-        ),
-      );
+          builder: (context) => const TableDashboardScreen()));
     }
   }
 }
