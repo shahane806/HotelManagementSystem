@@ -9,9 +9,11 @@ class SocketService {
   static final SocketService _instance = SocketService._internal();
   late IO.Socket socket;
   KitchenDashboardBloc? bloc; // Store BLoC instance
- List<Map<String, dynamic>> _eventQueue = [];
-  List<Map<String, dynamic>> _lastKnownOrders = []; // Cache for last valid orders
-  List<Map<String, dynamic>> _lastKnownBills = []; // Cache for last valid bills// Cache for last valid orders
+  List<Map<String, dynamic>> _eventQueue = [];
+  List<Map<String, dynamic>> _lastKnownOrders =
+      []; // Cache for last valid orders
+  List<Map<String, dynamic>> _lastKnownBills =
+      []; // Cache for last valid bills// Cache for last valid orders
   bool _isProcessingQueue = false;
   int _reconnectAttempts = 0;
   static const int _maxReconnectAttempts = 5;
@@ -33,7 +35,8 @@ class SocketService {
 
     socket.onConnect((_) {
       print('✅ Connected to socket server with ID: ${socket.id}');
-      _reconnectAttempts = 0; // Reset reconnect attempts on successful connection
+      _reconnectAttempts =
+          0; // Reset reconnect attempts on successful connection
       _processEventQueue();
       // Emit event to fetch initial orders
       socket.emit('fetchOrders');
@@ -102,7 +105,7 @@ class SocketService {
         _processEventQueue();
       }
     });
-socket.on('billsFetched', (data) {
+    socket.on('billsFetched', (data) {
       print('📋 Bills fetched: $data');
       try {
         final bills = List<Map<String, dynamic>>.from(data);
@@ -164,7 +167,8 @@ socket.on('billsFetched', (data) {
   /// Processes queued socket events
   void _processEventQueue() async {
     if (_isProcessingQueue || !socket.connected || bloc == null) {
-      print('Skipping queue processing: isProcessing=$_isProcessingQueue, connected=${socket.connected}, bloc=${bloc != null}');
+      print(
+          'Skipping queue processing: isProcessing=$_isProcessingQueue, connected=${socket.connected}, bloc=${bloc != null}');
       return;
     }
     _isProcessingQueue = true;
@@ -183,7 +187,8 @@ socket.on('billsFetched', (data) {
           orElse: () => <String, dynamic>{},
         );
         if (currentOrder.isNotEmpty && currentOrder['status'] == status) {
-          print('Skipping redundant orderUpdated for order $orderId, status already $status');
+          print(
+              'Skipping redundant orderUpdated for order $orderId, status already $status');
           continue;
         }
       }
@@ -192,7 +197,8 @@ socket.on('billsFetched', (data) {
       if (eventType == 'newOrder') {
         bloc!.add(AddNewOrder(data));
       } else if (eventType == 'orderUpdated') {
-        bloc!.add(UpdateOrderStatusEvent(data['orderId'].toString(), data['status']));
+        bloc!.add(
+            UpdateOrderStatusEvent(data['orderId'].toString(), data['status']));
       } else if (eventType == 'ordersFetched') {
         bloc!.add(RefreshDashboard());
       }
@@ -206,12 +212,14 @@ socket.on('billsFetched', (data) {
   /// Attempts to reconnect with exponential backoff
   void _attemptReconnect() async {
     if (_reconnectAttempts >= _maxReconnectAttempts) {
-      print('Max reconnect attempts reached. Please check server availability.');
+      print(
+          'Max reconnect attempts reached. Please check server availability.');
       return;
     }
 
     final delay = _initialReconnectDelay * pow(2, _reconnectAttempts);
-    print('Attempting to reconnect in ${delay.inSeconds} seconds... (Attempt ${_reconnectAttempts + 1}/$_maxReconnectAttempts)');
+    print(
+        'Attempting to reconnect in ${delay.inSeconds} seconds... (Attempt ${_reconnectAttempts + 1}/$_maxReconnectAttempts)');
     await Future.delayed(delay);
     _reconnectAttempts++;
     connect();
@@ -250,13 +258,14 @@ socket.on('billsFetched', (data) {
       'status': status,
       'sourceSocketId': socket.id,
     });
-    print('Emitted updateOrderStatus: orderId=$orderId, status=$status, sourceSocketId=${socket.id}');
+    print(
+        'Emitted updateOrderStatus: orderId=$orderId, status=$status, sourceSocketId=${socket.id}');
   }
 
   /// Fetches all orders from the server
   Future<List<Map<String, dynamic>>> fetchOrders() async {
     if (!socket.connected) {
-       socket.connect();
+      socket.connect();
     }
 
     Completer<List<Map<String, dynamic>>> completer = Completer();
@@ -270,22 +279,26 @@ socket.on('billsFetched', (data) {
           print('Fetched ${orders.length} valid orders');
           completer.complete(orders);
         } else {
-          print('Invalid orders data received, returning last known orders: ${_lastKnownOrders.length}');
+          print(
+              'Invalid orders data received, returning last known orders: ${_lastKnownOrders.length}');
           completer.complete(_lastKnownOrders);
         }
       } catch (e) {
         print('Error parsing orders: $e');
-        completer.complete(_lastKnownOrders); // Return last known orders on error
+        completer
+            .complete(_lastKnownOrders); // Return last known orders on error
       }
     });
 
     // Timeout after 5 seconds
     return await completer.future.timeout(Duration(seconds: 5), onTimeout: () {
-      print('Fetch orders timed out, returning last known orders: ${_lastKnownOrders.length}');
+      print(
+          'Fetch orders timed out, returning last known orders: ${_lastKnownOrders.length}');
       return _lastKnownOrders; // Return last known orders on timeout
     });
   }
-/// Fetches all bills from the server
+
+  /// Fetches all bills from the server
   Future<List<Map<String, dynamic>>> fetchBills() async {
     if (!socket.connected) {
       socket.connect();
@@ -310,14 +323,18 @@ socket.on('billsFetched', (data) {
       return [];
     });
   }
-void payBill(Map<String, dynamic> bill) {
+
+  void payBill(Map<String, dynamic> bill) {
     socket.emit('payBill', bill);
     print('Emitted payBill: $bill');
-  }/// Creates a new bill on the server
+  }
+
+  /// Creates a new bill on the server
   void createBill(Map<String, dynamic> bill) {
     socket.emit('createBill', bill);
     print('Emitted createBill: $bill');
   }
+
   /// Disposes the socket service
   void dispose() {
     disconnect();

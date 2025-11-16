@@ -8,7 +8,10 @@ class AppConstants {
   static const Color textColor = Color(0xFF212529);
   static const Color errorColor = Color(0xFFDC3545);
   static const Color cardColor = Colors.white;
-
+  static const inputBorder = OutlineInputBorder(
+    borderRadius: BorderRadius.all(Radius.circular(borderRadius)),
+    borderSide: BorderSide(color: Colors.grey),
+  );
   // Dimensions
   static const double paddingSmall = 8.0;
   static const double paddingLarge = 16.0;

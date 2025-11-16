@@ -20,7 +20,22 @@ class CustomerApiService {
       throw Exception('Error fetching customers: $e');
     }
   }
-
+  // Get Single Customer using ID
+  Future<UserModel> getCustomerById(String customerID) async{
+    try{
+      final response = await http.post(Uri.parse(_baseUrl),body: jsonEncode({
+        "CustomerId" : customerID,
+      }));
+      if(response.statusCode == 200){
+        final UserModel user = jsonDecode(response.body);
+        return user;
+      }else{
+        throw Exception('Failed to load customer : ${response.statusCode}');
+      }
+    }catch(e){
+      throw Exception('Error fetching customer : $e');
+    }
+  }
   // Create a new customer
   Future<UserModel> createCustomer(UserModel customer) async {
     try {

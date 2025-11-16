@@ -7,7 +7,6 @@ class OrdersState {
   final List<Order> recentOrders;
   final OrdersStatus status;
   final String? errorMessage;
-
   const OrdersState({
     this.currentOrder = const {},
     this.recentOrders = const [],

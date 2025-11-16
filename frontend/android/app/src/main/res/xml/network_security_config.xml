@@ -2,7 +2,7 @@
 <network-security-config>
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">10.0.2.2</domain>
-        <domain includeSubdomains="true">192.168.1.9</domain>
+        <domain includeSubdomains="true">192.168.209.59</domain>
         <!-- <domain includeSubdomains="true">hotelmanagementsystem-ysx7.onrender.com</domain> -->
         <!-- <domain includeSubdomains="true">hotelmanagementsystem-socket.onrender.com</domain> -->
     </domain-config>

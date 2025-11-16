@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../models/order_model.dart';
 import 'event.dart';
@@ -11,16 +13,19 @@ abstract class OrderRepository {
 }
 
 class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
-  final OrderRepository repository; // Inject repository for data operations
-
+  final OrderRepository repository;
   OrdersBloc({required this.repository}) : super(const OrdersState()) {
-  
     on<AddOrderItem>(_onAddOrderItem);
     on<RemoveOrderItem>(_onRemoveOrderItem);
     on<PlaceOrder>(_onPlaceOrder);
     on<FetchRecentOrders>(_onFetchRecentOrders);
     on<UpdateOrderStatus>(_onUpdateOrderStatus);
     on<RemoveRecentOrder>(_onRemoveRecentOrder);
+  }
+
+  @override
+  Future<void> close() {
+    return super.close();
   }
 
   /// Handles adding an item to the current order
@@ -35,7 +40,8 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
   void _onRemoveOrderItem(RemoveOrderItem event, Emitter<OrdersState> emit) {
     developer.log('Removing order item: ${event.orderItem.menuItem.name}');
     final updatedOrder = Map<OrderItem, int>.from(state.currentOrder);
-    if (updatedOrder[event.orderItem] != null && updatedOrder[event.orderItem]! > 0) {
+    if (updatedOrder[event.orderItem] != null &&
+        updatedOrder[event.orderItem]! > 0) {
       updatedOrder[event.orderItem] = updatedOrder[event.orderItem]! - 1;
       if (updatedOrder[event.orderItem]! <= 0) {
         updatedOrder.remove(event.orderItem);
@@ -69,7 +75,8 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
       await repository.saveOrder(newOrder);
       developer.log('Order placed: ${newOrder.id} for table ${newOrder.table}');
 
-      final updatedRecentOrders = List<Order>.from(state.recentOrders)..add(newOrder);
+      final updatedRecentOrders = List<Order>.from(state.recentOrders)
+        ..add(newOrder);
 
       emit(state.copyWith(
         currentOrder: {}, // Clear current order
@@ -78,18 +85,23 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
       ));
     } catch (e) {
       developer.log('Error placing order: $e', error: e);
-      emit(state.copyWith(status: OrdersStatus.error, errorMessage: 'Failed to place order'));
+      emit(state.copyWith(
+          status: OrdersStatus.error, errorMessage: 'Failed to place order'));
     }
   }
 
   /// Handles fetching recent orders from the repository
-  Future<void> _onFetchRecentOrders(FetchRecentOrders event, Emitter<OrdersState> emit) async {
+  Future<void> _onFetchRecentOrders(
+      FetchRecentOrders event, Emitter<OrdersState> emit) async {
     try {
       emit(state.copyWith(status: OrdersStatus.loading));
       final recentOrders = await repository.fetchRecentOrders();
+      final filteredOrders = recentOrders.where((order) {
+        return order.status != 'Paid' && order.status != 'Completed';
+      }).toList();
       developer.log('Fetched ${recentOrders.length} recent orders');
       emit(state.copyWith(
-        recentOrders: recentOrders,
+        recentOrders: filteredOrders,
         status: OrdersStatus.success,
       ));
     } catch (e) {
@@ -100,50 +112,33 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
       ));
     }
   }
+void _onUpdateOrderStatus(UpdateOrderStatus event, Emitter<OrdersState> emit) {
+  final current = state.recentOrders;
+  if (current.isEmpty) return;
 
+  const terminal = {'Paid', 'Completed', 'Cancelled'};
+  final newStatus = event.status;
+  final id        = event.orderId;
 
- void _onUpdateOrderStatus(UpdateOrderStatus event, Emitter<OrdersState> emit) {
-  final currentOrders = state.recentOrders;
-
-  if (currentOrders == null || currentOrders.isEmpty) {
-    print('❌ No recent orders to update.');
+  if (terminal.contains(newStatus)) {
+    emit(state.copyWith(recentOrders: current.where((o) => o.id != id).toList()));
     return;
   }
 
-  // Log pre-update state
-  print('🔍 Current Orders BEFORE Update:');
-  for (var order in currentOrders) {
-    print('[BEFORE] Order ID: ${order.id}, Status: ${order.status}');
-  }
+  final idx = current.indexWhere((o) => o.id == id);
+  if (idx == -1) return;
 
-  // Update the target order's status
-  final updatedOrders = currentOrders.map((order) {
-    print('[MATCH DEBUG] Comparing: ${order.id} == ${event.orderId}');
-    if (order.id == event.orderId) {
-      print('✅ MATCH FOUND: Updating Order ID ${order.id} → Status: ${event.status}');
-      return order.copyWith(status: event.status);
-    }
-    return order;
-  }).toList();
-
-  // Emit new state
-  emit(state.copyWith(recentOrders: updatedOrders));
-
-  // Log post-update state
-  print('✅ Orders AFTER Update:');
-  for (var order in updatedOrders) {
-    print('[AFTER] Order ID: ${order.id}, Status: ${order.status}');
-  }
-
-  // Check if update didn't match any ID
-  if (!updatedOrders.any((order) => order.id == event.orderId)) {
-    print('⚠️ Warning: No order matched the ID: ${event.orderId}');
-  }
+  final updated = List<Order>.from(current);
+  updated[idx] = current[idx].copyWith(status: newStatus);
+  emit(state.copyWith(recentOrders: updated));
 }
-void _onRemoveRecentOrder(RemoveRecentOrder event, Emitter<OrdersState> emit) {
-    final updated = state.recentOrders
-        .where((o) => o.id != event.orderId)
-        .toList();
+  void _onRemoveRecentOrder(
+      RemoveRecentOrder event, Emitter<OrdersState> emit) {
+    final updated =
+        state.recentOrders.where((o) => o.id != event.orderId).toList();
     emit(state.copyWith(recentOrders: updated));
   }
+
+
+
 }

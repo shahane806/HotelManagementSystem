@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:frontend/ui/dashboard_screen.dart';
 import 'package:frontend/widgets/internet_check.dart';

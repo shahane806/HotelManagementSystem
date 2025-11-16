@@ -59,3 +59,4 @@ class RemoveRecentOrder extends OrdersEvent {
   @override
   List<Object> get props => [orderId];
 }
+

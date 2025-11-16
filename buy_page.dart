@@ -464,14 +464,9 @@ class _BuyPageState extends State<BuyPage>
   }
 
   Widget _buildOrderCard(bool isMobile, Order order) {
-    final imagePath = order.items.isNotEmpty &&
-            order.items.keys.first.menuItem.image != null &&
-            order.items.keys.first.menuItem.image!.isNotEmpty
-        ? order.items.keys.first.menuItem.image!
-        : 'assets/images/placeholder.png';
+   
 
     final fontSizeBase = isMobile ? 14.0 : 16.0;
-    final imageSize = isMobile ? 60.0 : 80.0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -487,23 +482,7 @@ class _BuyPageState extends State<BuyPage>
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.asset(
-                  imagePath,
-                  height: imageSize,
-                  width: imageSize,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    height: imageSize,
-                    width: imageSize,
-                    color: Colors.grey[300],
-                    child: const Icon(Icons.image_not_supported,
-                        color: Colors.grey),
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppConstants.paddingSmall),
+             
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1486,13 +1465,13 @@ class PayUTestCredentials {
   static const merchantSalt =
       "BzfHFbtbaJMkYUBeVMAIJexf0Uf2mD2t"; // Replace with your PayU salt
   static const iosSurl =
-      "http://hmtcampus360v2.net/API/AdminPanel/PayU_Url/payment-success.php"; // Your success URL
+      "https://cbjs.payu.in/sdk/success"; // Your success URL
   static const iosFurl =
-      "http://hmtcampus360v2.net/API/AdminPanel/PayU_Url/payment-failure.php"; // Your failure URL
+      "https://cbjs.payu.in/sdk/failure"; // Your failure URL
   static const androidSurl =
-      "http://hmtcampus360v2.net/API/AdminPanel/PayU_Url/payment-success.php"; // Your success URL
+      "https://cbjs.payu.in/sdk/success"; // Your success URL
   static const androidFurl =
-      "http://hmtcampus360v2.net/API/AdminPanel/PayU_Url/payment-failure.php"; // Your failure URL
+      "https://cbjs.payu.in/sdk/failure"; // Your failure URL
   static const merchantAccessKey = "";
   static const sodexoSourceId = "";
 }

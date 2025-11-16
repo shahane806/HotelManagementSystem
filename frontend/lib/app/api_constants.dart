@@ -1,38 +1,45 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
+// Only import dart:io on non-web platforms
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:io' show Platform;
 
 class ApiConstants {
-  // 🔹 Detect environment via Flutter build flag
-  //    You can pass this flag when running your app:
-  //    flutter run --dart-define=IS_EMULATOR=true
-  //
-  //    When building for phone, just run normally (default = false)
   static const bool isEmulator =
       bool.fromEnvironment('IS_EMULATOR', defaultValue: false);
 
-  // 🔹 API URL
   static String get url {
+    if (kIsWeb) {
+      // 🌐 Running in browser
+      return "http://localhost:3001";
+      // or your hosted API endpoint:
+      // return "https://hotelmanagementsystem-ysx7.onrender.com";
+    }
+
+    // 📱 Native (mobile/desktop)
     if (Platform.isAndroid) {
-      // Use special host for emulator, your PC's IP for physical device
       return isEmulator
           ? "http://10.0.2.2:3001"
-          : "http://192.168.1.11:3001"; // 👈 your PC Wi-Fi IP
-          // :"https://hotelmanagementsystem-ysx7.onrender.com";
+          : "http://192.168.209.59:3001"; // your PC Wi-Fi IP
     } else {
-      // iOS simulator or Mac
-      return "http://localhost:3001";
+      return "http://10.0.2.2:3001";
     }
   }
 
-  // 🔹 Socket URL
   static String get socketUrl {
+    if (kIsWeb) {
+      // 🌐 WebSocket URL for browser
+      return "ws://localhost:3000";
+      // Or hosted socket endpoint:
+      // return "wss://hotelmanagementsystem-socket.onrender.com";
+    }
+
+    // 📱 Native
     if (Platform.isAndroid) {
       return isEmulator
           ? "http://10.0.2.2:3000"
-          : "http://192.168.1.11:3000"; // 👈 your PC Wi-Fi IP
-          // :"https://hotelmanagementsystem-socket.onrender.com";
+          : "http://192.168.209.59:3000";
     } else {
-      return "http://localhost:3000";
+      return "http://10.0.2.2:3000";
     }
   }
 }
-

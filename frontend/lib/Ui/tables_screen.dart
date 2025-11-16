@@ -20,7 +20,7 @@ import '../models/table_model.dart';
 import '../models/menu_model.dart';
 import '../models/user_model.dart';
 import '../services/socketService.dart';
-import 'buy_page.dart';
+import '../widgets/table_widgets.dart';
 
 class TableDashboardScreen extends StatefulWidget {
   const TableDashboardScreen({super.key});
@@ -43,7 +43,8 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
     userId: '0001',
     fullName: 'John Doe',
     email: 'john.doe@example.com',
-    mobile: '9876543210', aadhaarNumber: '',
+    mobile: '9876543210',
+    aadhaarNumber: '',
   );
 
   @override
@@ -53,23 +54,26 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-
     SocketService().connect();
     SocketService().socket.on('orderUpdated', (data) {
-      final update = Map<String, dynamic>.from(data);
-      final orderId = update['orderId'] as String?;
-      final status = update['status'] as String?;
-      if (orderId != null && status != null) {
-        context.read<OrdersBloc>().add(UpdateOrderStatus(orderId, status));
-      } else {
-        developer.log('Invalid order update data: $data', name: 'TableDashboardScreen');
+      final map = Map<String, dynamic>.from(data);
+      final orderId = map['orderId'] as String?;
+      final status = map['status'] as String?;
+
+      if (orderId == null || status == null) return;
+
+      // Drop any terminal update – the BLoC will handle removal
+      if ({'Paid', 'Completed', 'Cancelled'}.contains(status)) {
+        context.read<OrdersBloc>().add(RemoveRecentOrder(orderId));
+        return;
       }
+
+      context.read<OrdersBloc>().add(UpdateOrderStatus(orderId, status));
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<TablesBloc>().add(FetchTables());
       context.read<MenusBloc>().add(FetchMenus());
-      context.read<OrdersBloc>().add(const FetchRecentOrders());
     });
   }
 
@@ -78,44 +82,6 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
     _animationController.dispose();
     SocketService().disconnect();
     super.dispose();
-  }
-
-  int getTotalPrice(Map<OrderItem, int> order) {
-    return order.entries.fold(
-        0, (sum, entry) => sum + (entry.key.menuItem.price * entry.value));
-  }
-
-  List<MenuItem> _getMenuItemsFromMenus(List<MenuModel> menus) {
-    const categoryEmojis = {
-      'Main Course': '🍛',
-      'South Indian': '🥞',
-      'Beverages': '☕',
-      'Desserts': '🍦',
-      'Italian': '🍕',
-      'Fast Food': '🍔',
-      'Juice': '🍹',
-      'Starter': '🥗',
-      'Chicken 🍗': '🍗',
-    };
-    final items = menus.expand((menu) {
-      developer.log('Filtering menu: ${menu.name}, type: ${menu.type}, items: ${menu.items.length}', name: 'TableDashboardScreen');
-      return menu.items.where((item) {
-        final matchesFilter = _isVegFilter ? item.type == 'Veg' : item.type == 'Non-Veg';
-        developer.log('Item: ${item.menuitemname}, type: ${item.type}, matchesFilter: $matchesFilter', name: 'TableDashboardScreen');
-        return matchesFilter;
-      }).map((entry) {
-        final price = int.tryParse(entry.price) ?? 0;
-        return MenuItem(
-          name: entry.menuitemname,
-          price: price,
-          category: menu.name,
-          image: categoryEmojis[menu.name] ?? '🍽️',
-          type: entry.type,
-        );
-      });
-    }).toList();
-    developer.log('Filtered items: ${items.length}, filter: ${_isVegFilter ? 'Veg' : 'Non-Veg'}', name: 'TableDashboardScreen');
-    return items;
   }
 
   void _onNavBarTapped(int index) {
@@ -128,85 +94,76 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
       _showOrderBottomSheet(context);
     }
   }
-Future<void> _generateBillPDF(List<Order> orders) async {
-  if (!mounted || orders.isEmpty) return;
 
-  // Construct the Bill object
-  final bill = Bill(
-    billId: const Uuid().v4(),
-    table: orders.first.table,
-    totalAmount: orders.fold<double>(
-      0,
-      (sum, order) => sum + order.total.toDouble(),
-    ),
-    orders: orders,
-    user: _user,
-    isGstApplied: true,
-  );
+  Future<void> _generateBillPDF(List<Order> orders) async {
+    if (!mounted || orders.isEmpty) return;
 
-  // Call API to pay bill
-  await Apiservicescheckout.payBill(bill);
+    // Construct the Bill object
+    final bill = Bill(
+      billId: const Uuid().v4(),
+      table: orders.first.table,
+      totalAmount: orders.fold<double>(
+        0,
+        (sum, order) => sum + order.total.toDouble(),
+      ),
+      orders: orders,
+      user: _user,
+      isGstApplied: true,
+    );
 
-  // Emit via socket
-  SocketService().payBill({
-    'billId': bill.billId,
-    'table': bill.table,
-    'totalAmount': bill.totalAmount,
-    'orders': bill.orders.map((o) => o.toJson()).toList(),
-    'user': bill.user.toJson(),
-    'isGstApplied': bill.isGstApplied,
-  });
+    // Call API to pay bill
+    await Apiservicescheckout.payBill(bill);
+
+    // Emit via socket
+    SocketService().payBill({
+      'billId': bill.billId,
+      'table': bill.table,
+      'totalAmount': bill.totalAmount,
+      'orders': bill.orders.map((o) => o.toJson()).toList(),
+      'user': bill.user.toJson(),
+      'isGstApplied': bill.isGstApplied,
+    });
     // 5. **REMOVE PAID ORDERS FROM RECENT LIST**
-  final bloc = context.read<OrdersBloc>();
-  for (final order in orders) {
-    bloc.add(RemoveRecentOrder(order.id));
-  }
-
-  // 6. (Optional) clear current-order items that belong to the same table
-  final currentOrder = context.read<OrdersBloc>().state.currentOrder;
-  for (final entry in currentOrder.entries) {
-    final orderItem = entry.key;
-    final qty = entry.value;
-    for (int i = 0; i < qty; i++) {
-      bloc.add(RemoveOrderItem(orderItem));
+    final bloc = context.read<OrdersBloc>();
+    for (final order in orders) {
+      bloc.add(RemoveRecentOrder(order.id));
     }
-  }
-  for (final order in orders) {
-    for (final entry in order.items.entries) {
+
+    // 6. (Optional) clear current-order items that belong to the same table
+    final currentOrder = context.read<OrdersBloc>().state.currentOrder;
+    for (final entry in currentOrder.entries) {
       final orderItem = entry.key;
-      final quantity = entry.value;
-      for (int i = 0; i < quantity; i++) {
+      final qty = entry.value;
+      for (int i = 0; i < qty; i++) {
         bloc.add(RemoveOrderItem(orderItem));
       }
     }
-  }
-
-  // Navigate to BuyPage
-  await Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => BuyPage(
-        orders: orders,
-        user: _user,
-        isGstApplied: true,
-      ),
-    ),
-  );
-}
-
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'Pending':
-        return Colors.red;
-      case 'Preparing':
-        return Colors.orange;
-      case 'Ready':
-        return Colors.green;
-      case 'Served':
-        return Colors.blue;
-      default:
-        return Colors.grey;
+    for (final order in orders) {
+      for (final entry in order.items.entries) {
+        final orderItem = entry.key;
+        final quantity = entry.value;
+        for (int i = 0; i < quantity; i++) {
+          bloc.add(RemoveOrderItem(orderItem));
+        }
+      }
     }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Go to counter for bill.'),
+        backgroundColor: Colors.blue,
+      ),
+    );
+    // // Navigate to BuyPage
+    // await Navigator.push(
+    //   context,
+    //   MaterialPageRoute(
+    //     builder: (context) => BuyPage(
+    //       orders: orders,
+    //       user: _user,
+    //       isGstApplied: true,
+    //     ),
+    //   ),
+    // );
   }
 
   void _showRecentOrders(BuildContext context) {
@@ -292,7 +249,8 @@ Future<void> _generateBillPDF(List<Order> orders) async {
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Text(
-                                        state.errorMessage ?? 'Failed to load orders',
+                                        state.errorMessage ??
+                                            'Failed to load orders',
                                         style: TextStyle(
                                           fontSize: isTablet ? 15 : 13,
                                           color: Colors.grey[600],
@@ -312,7 +270,9 @@ Future<void> _generateBillPDF(List<Order> orders) async {
                               final recentOrders = state.recentOrders;
                               final Map<String, List<Order>> groupedOrders = {};
                               for (var order in recentOrders) {
-                                groupedOrders.putIfAbsent(order.table, () => []).add(order);
+                                groupedOrders
+                                    .putIfAbsent(order.table, () => [])
+                                    .add(order);
                               }
                               final totalAmount = recentOrders.fold<int>(
                                   0, (sum, order) => sum + order.total);
@@ -364,11 +324,14 @@ Future<void> _generateBillPDF(List<Order> orders) async {
                                                   .elementAt(index);
                                               final orders =
                                                   groupedOrders[table]!;
-                                              final tableTotal = orders.fold<int>(
-                                                  0,
-                                                  (sum, order) =>
-                                                      sum + order.total);
-                                              final bool allServed = orders.every((order) => order.status == 'Served');
+                                              final tableTotal =
+                                                  orders.fold<int>(
+                                                      0,
+                                                      (sum, order) =>
+                                                          sum + order.total);
+                                              final bool allServed =
+                                                  orders.every((order) =>
+                                                      order.status == 'Served');
                                               return Container(
                                                 decoration: BoxDecoration(
                                                   color: Colors.white,
@@ -405,8 +368,9 @@ Future<void> _generateBillPDF(List<Order> orders) async {
                                                       Text(
                                                         'Table: $table',
                                                         style: TextStyle(
-                                                          fontSize:
-                                                              isTablet ? 16 : 14,
+                                                          fontSize: isTablet
+                                                              ? 16
+                                                              : 14,
                                                           fontWeight:
                                                               FontWeight.bold,
                                                           color: const Color(
@@ -414,13 +378,15 @@ Future<void> _generateBillPDF(List<Order> orders) async {
                                                         ),
                                                       ),
                                                       Container(
-                                                        padding: const EdgeInsets
-                                                            .symmetric(
-                                                            horizontal: 8,
-                                                            vertical: 4),
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .symmetric(
+                                                                horizontal: 8,
+                                                                vertical: 4),
                                                         decoration:
                                                             BoxDecoration(
-                                                          color: Colors.grey[100],
+                                                          color:
+                                                              Colors.grey[100],
                                                           borderRadius:
                                                               BorderRadius
                                                                   .circular(8),
@@ -445,11 +411,12 @@ Future<void> _generateBillPDF(List<Order> orders) async {
                                                         .asMap()
                                                         .entries
                                                         .map((entry) {
-                                                      final orderIndex = entry.key;
+                                                      final orderIndex =
+                                                          entry.key;
                                                       final order = entry.value;
                                                       return Padding(
-                                                        padding:
-                                                            EdgeInsets.symmetric(
+                                                        padding: EdgeInsets
+                                                            .symmetric(
                                                           vertical:
                                                               isTablet ? 8 : 6,
                                                         ),
@@ -465,7 +432,8 @@ Future<void> _generateBillPDF(List<Order> orders) async {
                                                               children: [
                                                                 Text(
                                                                   'Order #${orderIndex + 1}',
-                                                                  style: TextStyle(
+                                                                  style:
+                                                                      TextStyle(
                                                                     fontSize:
                                                                         isTablet
                                                                             ? 14
@@ -482,27 +450,28 @@ Future<void> _generateBillPDF(List<Order> orders) async {
                                                                       .symmetric(
                                                                       horizontal:
                                                                           8,
-                                                                      vertical: 4),
+                                                                      vertical:
+                                                                          4),
                                                                   decoration:
                                                                       BoxDecoration(
-                                                                    color: _getStatusColor(
-                                                                            order
-                                                                                .status)
+                                                                    color: getStatusColor(order
+                                                                            .status)
                                                                         .withOpacity(
                                                                             0.1),
                                                                     borderRadius:
                                                                         BorderRadius
-                                                                            .circular(
-                                                                                8),
+                                                                            .circular(8),
                                                                   ),
                                                                   child: Text(
-                                                                    order.status,
-                                                                    style: TextStyle(
+                                                                    order
+                                                                        .status,
+                                                                    style:
+                                                                        TextStyle(
                                                                       fontSize:
                                                                           isTablet
                                                                               ? 12
                                                                               : 10,
-                                                                      color: _getStatusColor(
+                                                                      color: getStatusColor(
                                                                           order
                                                                               .status),
                                                                       fontWeight:
@@ -515,8 +484,10 @@ Future<void> _generateBillPDF(List<Order> orders) async {
                                                             ),
                                                             const SizedBox(
                                                                 height: 6),
-                                                            ...order.items.entries
-                                                                .map((itemEntry) {
+                                                            ...order
+                                                                .items.entries
+                                                                .map(
+                                                                    (itemEntry) {
                                                               return Padding(
                                                                 padding: EdgeInsets
                                                                     .symmetric(
@@ -531,30 +502,27 @@ Future<void> _generateBillPDF(List<Order> orders) async {
                                                                       width: isTablet
                                                                           ? 36
                                                                           : 28,
-                                                                      height:
-                                                                          isTablet
-                                                                              ? 36
-                                                                              : 28,
+                                                                      height: isTablet
+                                                                          ? 36
+                                                                          : 28,
                                                                       decoration:
                                                                           BoxDecoration(
                                                                         color: Colors
                                                                             .indigo
-                                                                            .withOpacity(
-                                                                                0.1),
+                                                                            .withOpacity(0.1),
                                                                         borderRadius:
-                                                                            BorderRadius
-                                                                                .circular(6),
+                                                                            BorderRadius.circular(6),
                                                                       ),
-                                                                      child: Center(
-                                                                        child: Text(
+                                                                      child:
+                                                                          Center(
+                                                                        child:
+                                                                            Text(
                                                                           itemEntry
                                                                               .key
                                                                               .menuItem
                                                                               .image,
-                                                                          style: TextStyle(
-                                                                              fontSize: isTablet
-                                                                                  ? 14
-                                                                                  : 12),
+                                                                          style:
+                                                                              TextStyle(fontSize: isTablet ? 14 : 12),
                                                                         ),
                                                                       ),
                                                                     ),
@@ -566,19 +534,15 @@ Future<void> _generateBillPDF(List<Order> orders) async {
                                                                       child:
                                                                           Column(
                                                                         crossAxisAlignment:
-                                                                            CrossAxisAlignment
-                                                                                .start,
+                                                                            CrossAxisAlignment.start,
                                                                         children: [
                                                                           Text(
                                                                             '${itemEntry.key.menuItem.name} (${itemEntry.key.customization})',
                                                                             style:
                                                                                 TextStyle(
-                                                                              fontSize:
-                                                                                  isTablet ? 13 : 11,
-                                                                              fontWeight:
-                                                                                  FontWeight.w600,
-                                                                              color:
-                                                                                  const Color(0xFF2D3748),
+                                                                              fontSize: isTablet ? 13 : 11,
+                                                                              fontWeight: FontWeight.w600,
+                                                                              color: const Color(0xFF2D3748),
                                                                             ),
                                                                             maxLines:
                                                                                 1,
@@ -589,10 +553,8 @@ Future<void> _generateBillPDF(List<Order> orders) async {
                                                                             '₹${itemEntry.key.menuItem.price} × ${itemEntry.value}',
                                                                             style:
                                                                                 TextStyle(
-                                                                              fontSize:
-                                                                                  isTablet ? 11 : 10,
-                                                                              color:
-                                                                                  Colors.grey[600],
+                                                                              fontSize: isTablet ? 11 : 10,
+                                                                              color: Colors.grey[600],
                                                                             ),
                                                                           ),
                                                                         ],
@@ -612,14 +574,19 @@ Future<void> _generateBillPDF(List<Order> orders) async {
                                                           isTablet ? 12 : 8),
                                                       child: SizedBox(
                                                         width: double.infinity,
-                                                        height: isTablet ? 40 : 36,
-                                                        child: ElevatedButton.icon(
-                                                          onPressed: allServed ? () =>
-                                                              _generateBillPDF(
-                                                                  orders) : null,
+                                                        height:
+                                                            isTablet ? 40 : 36,
+                                                        child:
+                                                            ElevatedButton.icon(
+                                                          onPressed: allServed
+                                                              ? () =>
+                                                                  _generateBillPDF(
+                                                                      orders)
+                                                              : null,
                                                           icon: const Icon(
                                                               Icons.receipt,
-                                                              color: Colors.white,
+                                                              color:
+                                                                  Colors.white,
                                                               size: 18),
                                                           label: Text(
                                                             'Proceed to Payment',
@@ -628,7 +595,8 @@ Future<void> _generateBillPDF(List<Order> orders) async {
                                                                   ? 13
                                                                   : 12,
                                                               fontWeight:
-                                                                  FontWeight.bold,
+                                                                  FontWeight
+                                                                      .bold,
                                                             ),
                                                           ),
                                                           style: ElevatedButton
@@ -657,7 +625,8 @@ Future<void> _generateBillPDF(List<Order> orders) async {
                                   ),
                                   if (recentOrders.isNotEmpty)
                                     Padding(
-                                      padding: EdgeInsets.all(isTablet ? 20 : 16),
+                                      padding:
+                                          EdgeInsets.all(isTablet ? 20 : 16),
                                       child: Column(
                                         children: [
                                           Container(
@@ -700,17 +669,20 @@ Future<void> _generateBillPDF(List<Order> orders) async {
                                             width: double.infinity,
                                             height: isTablet ? 48 : 40,
                                             child: ElevatedButton.icon(
-                                              onPressed: recentOrders.every((order) => order.status == 'Served') ?
-                                                  () =>
-                                                  _generateBillPDF(
-                                                      recentOrders) : null,
+                                              onPressed: recentOrders.every(
+                                                      (order) =>
+                                                          order.status ==
+                                                          'Served')
+                                                  ? () => _generateBillPDF(
+                                                      recentOrders)
+                                                  : null,
                                               icon: const Icon(Icons.receipt,
-                                                  color: Colors.white, size: 20),
+                                                  color: Colors.white,
+                                                  size: 20),
                                               label: Text(
                                                 'Proceed to Payment (All Tables)',
                                                 style: TextStyle(
-                                                  fontSize:
-                                                      isTablet ? 15 : 13,
+                                                  fontSize: isTablet ? 15 : 13,
                                                   fontWeight: FontWeight.bold,
                                                 ),
                                               ),
@@ -810,8 +782,8 @@ Future<void> _generateBillPDF(List<Order> orders) async {
               label: 'Current Order',
             ),
           ],
-          selectedLabelStyle:
-              TextStyle(fontSize: isTablet ? 13 : 11, fontWeight: FontWeight.w600),
+          selectedLabelStyle: TextStyle(
+              fontSize: isTablet ? 13 : 11, fontWeight: FontWeight.w600),
           unselectedLabelStyle: TextStyle(fontSize: isTablet ? 12 : 10),
         ),
         body: Container(
@@ -904,15 +876,19 @@ Future<void> _generateBillPDF(List<Order> orders) async {
                     _isVegFilter = !_isVegFilter;
                     final menusState = context.read<MenusBloc>().state;
                     if (menusState is MenusLoaded) {
-                      _menuItems = _getMenuItemsFromMenus(menusState.menus);
+                      _menuItems =
+                          getMenuItemsFromMenus(menusState.menus, _isVegFilter);
                     }
                   });
                 },
                 child: Container(
                   padding: EdgeInsets.symmetric(
-                      horizontal: isTablet ? 12 : 10, vertical: isTablet ? 6 : 4),
+                      horizontal: isTablet ? 12 : 10,
+                      vertical: isTablet ? 6 : 4),
                   decoration: BoxDecoration(
-                    color: _isVegFilter ? Colors.green.withOpacity(0.2) : Colors.red.withOpacity(0.2),
+                    color: _isVegFilter
+                        ? Colors.green.withOpacity(0.2)
+                        : Colors.red.withOpacity(0.2),
                     border: Border.all(
                       color: _isVegFilter ? Colors.green : Colors.red,
                       width: 1,
@@ -975,11 +951,12 @@ Future<void> _generateBillPDF(List<Order> orders) async {
         if (state is MenusLoaded) {
           setState(() {
             _categories = state.menus.map((menu) => menu.name).toSet().toList();
-            _menuItems = _getMenuItemsFromMenus(state.menus);
+            _menuItems = getMenuItemsFromMenus(state.menus, _isVegFilter);
             _isInitialLoad = false;
           });
         } else if (state is MenusError) {
-          developer.log('MenusBloc error: ${state.message}', name: 'TableDashboardScreen');
+          developer.log('MenusBloc error: ${state.message}',
+              name: 'TableDashboardScreen');
         }
       },
       child: BlocBuilder<MenusBloc, MenusState>(
@@ -1006,7 +983,8 @@ Future<void> _generateBillPDF(List<Order> orders) async {
                   ),
                   const SizedBox(height: 12),
                   TextButton(
-                    onPressed: () => context.read<MenusBloc>().add(FetchMenus()),
+                    onPressed: () =>
+                        context.read<MenusBloc>().add(FetchMenus()),
                     child: const Text('Retry'),
                   ),
                 ],
@@ -1017,8 +995,9 @@ Future<void> _generateBillPDF(List<Order> orders) async {
             selector: (state) => state,
             builder: (context, tableState) {
               if (tableState is TablesLoaded) {
-                final tableItems =
-                    tableState.tables.expand((table) => table.utilityItems).toList();
+                final tableItems = tableState.tables
+                    .expand((table) => table.utilityItems)
+                    .toList();
                 if (tableItems.isEmpty) {
                   return const Center(child: Text('No table items available'));
                 }
@@ -1232,7 +1211,9 @@ Future<void> _generateBillPDF(List<Order> orders) async {
                     customization: selectedOptions[item] ?? 'Medium',
                   ),
                 ));
-            _animationController.forward().then((_) => _animationController.reverse());
+            _animationController
+                .forward()
+                .then((_) => _animationController.reverse());
           },
           borderRadius: BorderRadius.circular(12),
           child: Padding(
@@ -1299,8 +1280,8 @@ Future<void> _generateBillPDF(List<Order> orders) async {
                             child: SizedBox(
                               width: isTablet ? 100 : 80,
                               child: Container(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   border: Border.all(
@@ -1320,8 +1301,9 @@ Future<void> _generateBillPDF(List<Order> orders) async {
                                       .map((option) => DropdownMenuItem<String>(
                                             value: option,
                                             child: Padding(
-                                              padding: const EdgeInsets.symmetric(
-                                                  horizontal: 8),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 8),
                                               child: Text(
                                                 option,
                                                 style: TextStyle(
@@ -1362,7 +1344,8 @@ Future<void> _generateBillPDF(List<Order> orders) async {
                   ),
                 ),
                 ScaleTransition(
-                  scale: Tween<double>(begin: 1.0, end: 1.2).animate(_animationController),
+                  scale: Tween<double>(begin: 1.0, end: 1.2)
+                      .animate(_animationController),
                   child: Container(
                     padding: EdgeInsets.all(isTablet ? 10 : 6),
                     decoration: BoxDecoration(
@@ -1461,7 +1444,8 @@ Future<void> _generateBillPDF(List<Order> orders) async {
                 ),
                 SizedBox(height: isTablet ? 12 : 10),
                 Expanded(
-                  child: BlocSelector<OrdersBloc, OrdersState, Map<OrderItem, int>>(
+                  child: BlocSelector<OrdersBloc, OrdersState,
+                      Map<OrderItem, int>>(
                     selector: (state) => state.currentOrder,
                     builder: (context, order) {
                       if (order.isEmpty) {
@@ -1499,7 +1483,8 @@ Future<void> _generateBillPDF(List<Order> orders) async {
                         controller: scrollController,
                         physics: const BouncingScrollPhysics(),
                         itemCount: order.entries.length,
-                        separatorBuilder: (context, index) => const Divider(height: 1),
+                        separatorBuilder: (context, index) =>
+                            const Divider(height: 1),
                         itemBuilder: (context, index) {
                           final entry = order.entries.elementAt(index);
                           return _buildOrderItem(entry, isTablet);
@@ -1783,7 +1768,8 @@ Future<void> _generateBillPDF(List<Order> orders) async {
                                     itemCount: tableItems.length,
                                     itemBuilder: (context, index) {
                                       final tableItem = tableItems[index];
-                                      return _buildTableItemCard(tableItem, isTablet);
+                                      return _buildTableItemCard(
+                                          tableItem, isTablet);
                                     },
                                   ),
                                 ),
@@ -1958,14 +1944,14 @@ Future<void> _generateBillPDF(List<Order> orders) async {
       SocketService().placeOrder(orderData);
       ordersBloc.add(PlaceOrder(orderId, selectedTable!));
 
-      final order = Order(
-        id: orderId,
-        table: selectedTable!,
-        items: currentState.currentOrder,
-        total: total,
-        status: 'Pending',
-        timestamp: DateTime.now(),
-      );
+      // final order = Order(
+      //   id: orderId,
+      //   table: selectedTable!,
+      //   items: currentState.currentOrder,
+      //   total: total,
+      //   status: 'Pending',
+      //   timestamp: DateTime.now(),
+      // );
 
       setState(() {
         selectedOptions.clear();
@@ -1977,7 +1963,8 @@ Future<void> _generateBillPDF(List<Order> orders) async {
         barrierDismissible: false,
         builder: (BuildContext context) {
           return Dialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             elevation: 8,
             backgroundColor: Colors.white,
             child: Container(
@@ -2110,7 +2097,8 @@ Future<void> _generateBillPDF(List<Order> orders) async {
         },
       );
     } catch (e) {
-      developer.log('Error sending order via socket: $e', name: 'TableDashboardScreen');
+      developer.log('Error sending order via socket: $e',
+          name: 'TableDashboardScreen');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to send order to server')),
@@ -2160,7 +2148,8 @@ class _SearchMenuScreenState extends State<SearchMenuScreen> {
     final query = _searchController.text.toLowerCase();
     setState(() {
       _filteredItems = widget.menuItems.where((item) {
-        final matchesFilter = widget.isVegFilter ? item.type == 'Veg' : item.type == 'Non-Veg';
+        final matchesFilter =
+            widget.isVegFilter ? item.type == 'Veg' : item.type == 'Non-Veg';
         final matchesQuery = item.name.toLowerCase().contains(query);
         return matchesFilter && matchesQuery;
       }).toList();
@@ -2191,7 +2180,9 @@ class _SearchMenuScreenState extends State<SearchMenuScreen> {
                     customization: widget.selectedOptions[item] ?? 'Medium',
                   ),
                 ));
-            widget.animationController.forward().then((_) => widget.animationController.reverse());
+            widget.animationController
+                .forward()
+                .then((_) => widget.animationController.reverse());
           },
           borderRadius: BorderRadius.circular(12),
           child: Padding(
@@ -2258,8 +2249,8 @@ class _SearchMenuScreenState extends State<SearchMenuScreen> {
                             child: SizedBox(
                               width: isTablet ? 100 : 80,
                               child: Container(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   border: Border.all(
@@ -2274,13 +2265,15 @@ class _SearchMenuScreenState extends State<SearchMenuScreen> {
                                   ],
                                 ),
                                 child: DropdownButton<String>(
-                                  value: widget.selectedOptions[item] ?? 'Medium',
+                                  value:
+                                      widget.selectedOptions[item] ?? 'Medium',
                                   items: ['Spicy', 'Less Spicy', 'Medium']
                                       .map((option) => DropdownMenuItem<String>(
                                             value: option,
                                             child: Padding(
-                                              padding: const EdgeInsets.symmetric(
-                                                  horizontal: 8),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 8),
                                               child: Text(
                                                 option,
                                                 style: TextStyle(
@@ -2321,7 +2314,8 @@ class _SearchMenuScreenState extends State<SearchMenuScreen> {
                   ),
                 ),
                 ScaleTransition(
-                  scale: Tween<double>(begin: 1.0, end: 1.2).animate(widget.animationController),
+                  scale: Tween<double>(begin: 1.0, end: 1.2)
+                      .animate(widget.animationController),
                   child: Container(
                     padding: EdgeInsets.all(isTablet ? 10 : 6),
                     decoration: BoxDecoration(
@@ -2373,7 +2367,8 @@ class _SearchMenuScreenState extends State<SearchMenuScreen> {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                      icon: const Icon(Icons.close,
+                          color: Colors.white, size: 28),
                       onPressed: () => Navigator.pop(context),
                     ),
                   ],
@@ -2397,14 +2392,16 @@ class _SearchMenuScreenState extends State<SearchMenuScreen> {
                           controller: _searchController,
                           decoration: InputDecoration(
                             hintText: 'Search menu items...',
-                            prefixIcon: const Icon(Icons.search, color: Colors.indigo),
+                            prefixIcon:
+                                const Icon(Icons.search, color: Colors.indigo),
                             filled: true,
                             fillColor: Colors.white,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
                               borderSide: BorderSide.none,
                             ),
-                            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                            contentPadding:
+                                const EdgeInsets.symmetric(vertical: 12),
                           ),
                           style: TextStyle(
                             fontSize: isTablet ? 16 : 14,
@@ -2461,7 +2458,8 @@ class _SearchMenuScreenState extends State<SearchMenuScreen> {
                                 )
                               : GridView.builder(
                                   physics: const BouncingScrollPhysics(),
-                                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                  gridDelegate:
+                                      SliverGridDelegateWithFixedCrossAxisCount(
                                     crossAxisCount: isTablet ? 2 : 1,
                                     childAspectRatio: isTablet ? 2.4 : 3.4,
                                     mainAxisSpacing: 10,

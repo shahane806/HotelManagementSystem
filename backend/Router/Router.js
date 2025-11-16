@@ -5,6 +5,7 @@ const { utilityController, utilityItemController, getNamedUtilities, deleteUtili
 const { addMenuItemController, deleteMenuItemController } = require("../Controllers/utilityController");
 const { createBill, getAllBills, updateBillStatus } = require("../Controllers/billController");
 const { getAllCustomers, createCustomer, deleteCustomer, updateCustomer } = require("../Controllers/customerController");
+const { createOrder } = require("../Controllers/razorpayController");
 const router = express.Router();
 
 router.get("/", (req, res) => {
@@ -37,5 +38,5 @@ router.get('/customers/', authenticate,getAllCustomers);
 router.post('/customers/', authenticate,createCustomer);
 router.delete('/customers/:userId',authenticate, deleteCustomer);
 router.put('/customers/:userId',authenticate, updateCustomer);
-
+router.post('/create-razorpay-order',authenticate, createOrder);
 module.exports = router;
