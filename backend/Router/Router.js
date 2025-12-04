@@ -1,19 +1,23 @@
 const express = require("express");
-const { loginController, registerController } = require("../Controllers/authController");
+const { loginController, registerController, forgotPasswordController, resetPasswordController } = require("../Controllers/authController");
 const { loginMiddlewere, registerMiddlewere, authenticate } = require("../Middlewere/authMiddlewere");
 const { utilityController, utilityItemController, getNamedUtilities, deleteUtilityItemController } = require("../Controllers/utilityController");
 const { addMenuItemController, deleteMenuItemController } = require("../Controllers/utilityController");
 const { createBill, getAllBills, updateBillStatus } = require("../Controllers/billController");
 const { getAllCustomers, createCustomer, deleteCustomer, updateCustomer } = require("../Controllers/customerController");
 const { createOrder } = require("../Controllers/razorpayController");
+const { getAllStaff, createStaff, deleteStaff, updateStaff } = require("../Controllers/staffController");
+const path = require('path');   // ← ADD THIS LINE
 const router = express.Router();
-
 router.get("/", (req, res) => {
   res.send("Hello World");
 });
-
-router.post("/auth/login",loginMiddlewere,loginController);
-router.post("/auth/register",registerMiddlewere,registerController);
+router.get('/reset-password/:token', (req, res) => {
+  res.sendFile(path.join(__dirname,  '../public/reset-password.html'));
+});
+router.post('/api/auth/reset-password/:token', resetPasswordController);
+router.post("/auth/login", loginController);
+router.post("/auth/forgot-password", forgotPasswordController);
 ///#Create New Utility  
 ///Dont hit this api until you create all the code regarding that utility in the frontend 
 ///line Models, Service, Bloc etc.
@@ -39,4 +43,13 @@ router.post('/customers/', authenticate,createCustomer);
 router.delete('/customers/:userId',authenticate, deleteCustomer);
 router.put('/customers/:userId',authenticate, updateCustomer);
 router.post('/create-razorpay-order',authenticate, createOrder);
+router.get('/staff/',authenticate,getAllStaff);
+router.post('/staff',authenticate,createStaff);
+router.delete('/staff/:userId',authenticate, deleteStaff);
+router.put('/staff/:userId',authenticate, updateStaff);
+
+
+
+
+
 module.exports = router;

@@ -6,6 +6,7 @@ class UserModel {
   final String email;
   final String mobile;
   final String aadhaarNumber;
+  String? role;
 
   UserModel({
     required this.userId,
@@ -13,6 +14,7 @@ class UserModel {
     required this.email,
     required this.mobile,
     required this.aadhaarNumber,
+    this.role
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -22,6 +24,7 @@ class UserModel {
       email: json['email'] ?? '',
       mobile: json['mobile'] ?? '',
       aadhaarNumber: json['aadhaarNumber'] ?? '',
+      role: json['role'] ?? ''
     );
   }
 
@@ -32,11 +35,12 @@ class UserModel {
       'email': email,
       'mobile': mobile,
       'aadhaarNumber': aadhaarNumber,
+      'role':role,
     };
   }
 
   @override
   String toString() {
-    return 'UserModel(userId: $userId, fullName: $fullName, email: $email, mobile: $mobile, aadhaarNumber: $aadhaarNumber)';
+    return 'UserModel(userId: $userId, fullName: $fullName, email: $email, mobile: $mobile, aadhaarNumber: $aadhaarNumber, role: $role)';
   }
 }

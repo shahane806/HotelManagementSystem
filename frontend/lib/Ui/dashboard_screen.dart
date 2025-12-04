@@ -4,6 +4,7 @@ import 'package:frontend/Ui/rooms_screen.dart';
 import 'package:frontend/ui/checkout_screen.dart';
 import 'package:frontend/ui/customers_screen.dart';
 import 'package:frontend/ui/kitchen_screen.dart';
+import 'package:frontend/ui/staff_screen.dart';
 import 'package:frontend/ui/tables_screen.dart';
 import 'package:frontend/widgets/internet_check.dart';
 import 'settings.dart';
@@ -22,17 +23,25 @@ class _DashboardScreenState extends State<DashboardScreen>
   late Animation<double> _fadeAnimation;
 
   final List<_DashboardItem> items = [
-    _DashboardItem("Kitchen", Icons.restaurant_menu, Colors.orange, "Manage orders & menu"),
-    _DashboardItem("Tables", Icons.table_restaurant, Colors.blue, "Table reservations"),
-    _DashboardItem("Checkout", Icons.point_of_sale, Colors.green, "Process payments"),
+    _DashboardItem("Kitchen", Icons.restaurant_menu, Colors.orange,
+        "Manage orders & menu"),
+    _DashboardItem(
+        "Tables", Icons.table_restaurant, Colors.blue, "Table reservations"),
+    _DashboardItem(
+        "Checkout", Icons.point_of_sale, Colors.green, "Process payments"),
     _DashboardItem("Rooms", Icons.hotel, Colors.purple, "Room management"),
-    _DashboardItem("Bookings", Icons.event_available, Colors.teal, "View reservations"),
-    _DashboardItem("Customers", Icons.people_outline, Colors.indigo, "Customer database"),
+    _DashboardItem(
+        "Bookings", Icons.event_available, Colors.teal, "View reservations"),
+    _DashboardItem(
+        "Customers", Icons.people_outline, Colors.indigo, "Customer database"),
     _DashboardItem("Staff", Icons.badge, Colors.brown, "Staff management"),
-    _DashboardItem("Payments", Icons.account_balance_wallet, Colors.red, "Financial records"),
-    _DashboardItem("Reports", Icons.analytics, Colors.deepPurple, "Analytics & insights"),
+    _DashboardItem("Payments", Icons.account_balance_wallet, Colors.red,
+        "Financial records"),
+    _DashboardItem(
+        "Reports", Icons.analytics, Colors.deepPurple, "Analytics & insights"),
     _DashboardItem("Utilities", Icons.build, Colors.grey, "System utilities"),
-    _DashboardItem("Settings", Icons.settings, Colors.blueGrey, "App configuration"),
+    _DashboardItem(
+        "Settings", Icons.settings, Colors.blueGrey, "App configuration"),
     _DashboardItem("Logout", Icons.exit_to_app, Colors.redAccent, "Sign out"),
   ];
 
@@ -63,7 +72,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
     final isTabletOrWeb = screenSize.width > 600;
-    final crossAxisCount = screenSize.width > 1200 ? 4 : (isTabletOrWeb ? 3 : 2);
+    final crossAxisCount =
+        screenSize.width > 1200 ? 4 : (isTabletOrWeb ? 3 : 2);
 
     return Scaffold(
       body: Container(
@@ -100,7 +110,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                           return GridView.builder(
                             physics: const BouncingScrollPhysics(),
                             itemCount: items.length,
-                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: crossAxisCount,
                               mainAxisSpacing: 20,
                               crossAxisSpacing: 20,
@@ -125,7 +136,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                                 builder: (context, child) {
                                   return Transform.scale(
                                     scale: animation.value,
-                                    child: _buildDashboardCard(items[index], context, index),
+                                    child: _buildDashboardCard(
+                                        items[index], context, index),
                                   );
                                 },
                               );
@@ -220,7 +232,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  Widget _buildDashboardCard(_DashboardItem item, BuildContext context, int index) {
+  Widget _buildDashboardCard(
+      _DashboardItem item, BuildContext context, int index) {
     return GestureDetector(
       onTap: () => _handleCardTap(item, context),
       child: Container(
@@ -303,10 +316,12 @@ class _DashboardScreenState extends State<DashboardScreen>
       Navigator.push(
         context,
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const InternetCheckWidget(child:  TableDashboardScreen()),
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const InternetCheckWidget(child: TableDashboardScreen()),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return SlideTransition(
-              position: animation.drive(Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)),
+              position: animation.drive(
+                  Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)),
               child: child,
             );
           },
@@ -316,10 +331,12 @@ class _DashboardScreenState extends State<DashboardScreen>
       Navigator.push(
         context,
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const InternetCheckWidget(child: KitchenDashboardScreen()),
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const InternetCheckWidget(child: KitchenDashboardScreen()),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return SlideTransition(
-              position: animation.drive(Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)),
+              position: animation.drive(
+                  Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)),
               child: child,
             );
           },
@@ -329,61 +346,94 @@ class _DashboardScreenState extends State<DashboardScreen>
       Navigator.push(
         context,
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const InternetCheckWidget(child:  UtilityScreen()),
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const InternetCheckWidget(child: UtilityScreen()),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return SlideTransition(
-              position: animation.drive(Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)),
+              position: animation.drive(
+                  Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)),
               child: child,
             );
           },
         ),
       );
-    }else if(item.title == "Customers"){
-      Navigator.push(context,PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const InternetCheckWidget(child:  CustomersScreen()),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return SlideTransition(
-              position: animation.drive(Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)),
-              child: child,
-            );
-          },
-        ),);
-    }else if(item.title == "Checkout"){
-       Navigator.push(context,PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const InternetCheckWidget(child:  CheckoutScreen()),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return SlideTransition(
-              position: animation.drive(Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)),
-              child: child,
-            );
-          },
-        ),);
-    } else if(item.title == "Rooms"){
-       Navigator.push(context,PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const InternetCheckWidget(child:  RoomsScreen()),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return SlideTransition(
-              position: animation.drive(Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)),
-              child: child,
-            );
-          },
-        ),);
-    }
-     else if (item.title == "Logout") {
-      _showLogoutDialog(context);
-    } else if (item.title == "Settings"){
+    } else if (item.title == "Customers") {
       Navigator.push(
-    context,
-    PageRouteBuilder(
-      pageBuilder: (context, animation, secondaryAnimation) => const InternetCheckWidget(child: Settings()),
-      transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        return SlideTransition(
-          position: animation.drive(Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)),
-          child: child,
-        );
-      },
-    ),
-  );
+        context,
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const InternetCheckWidget(child: CustomersScreen()),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return SlideTransition(
+              position: animation.drive(
+                  Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)),
+              child: child,
+            );
+          },
+        ),
+      );
+    } else if (item.title == "Checkout") {
+      Navigator.push(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const InternetCheckWidget(child: CheckoutScreen()),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return SlideTransition(
+              position: animation.drive(
+                  Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)),
+              child: child,
+            );
+          },
+        ),
+      );
+    } else if (item.title == "Rooms") {
+      Navigator.push(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const InternetCheckWidget(child: RoomsScreen()),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return SlideTransition(
+              position: animation.drive(
+                  Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)),
+              child: child,
+            );
+          },
+        ),
+      );
+    } else if (item.title == "Logout") {
+      _showLogoutDialog(context);
+    } else if (item.title == "Settings") {
+      Navigator.push(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const InternetCheckWidget(child: Settings()),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return SlideTransition(
+              position: animation.drive(
+                  Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)),
+              child: child,
+            );
+          },
+        ),
+      );
+    } else if(item.title == "Staff"){
+      Navigator.push(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const InternetCheckWidget(child: StaffScreen()),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return SlideTransition(
+              position: animation.drive(
+                  Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)),
+              child: child,
+            );
+          },
+        ),
+      );
     }
     else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -403,7 +453,8 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
           backgroundColor: item.color,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           margin: const EdgeInsets.all(16),
         ),
       );
@@ -415,7 +466,8 @@ class _DashboardScreenState extends State<DashboardScreen>
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text('Logout'),
           content: const Text('Are you sure you want to logout?'),
           actions: [
@@ -433,7 +485,8 @@ class _DashboardScreenState extends State<DashboardScreen>
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.redAccent,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
               ),
               child: const Text('Logout'),
             ),

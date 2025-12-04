@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:frontend/ui/authentication.dart';
 import 'package:frontend/ui/dashboard_screen.dart';
 import 'package:frontend/widgets/internet_check.dart';
 
@@ -100,7 +101,7 @@ class _SplashScreenState extends State<SplashScreen>
                 const Stack(
               children: [
                 InternetCheckWidget(
-                  child: DashboardScreen(),
+                  child: AuthScreen(),
                 ),
               ],
             ),

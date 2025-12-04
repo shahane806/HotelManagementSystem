@@ -19,7 +19,7 @@ class ApiConstants {
     if (Platform.isAndroid) {
       return isEmulator
           ? "http://10.0.2.2:3001"
-          : "http://192.168.209.59:3001"; // your PC Wi-Fi IP
+          : "http://192.168.56.1:3001"; // your PC Wi-Fi IP
     } else {
       return "http://10.0.2.2:3001";
     }
@@ -37,7 +37,7 @@ class ApiConstants {
     if (Platform.isAndroid) {
       return isEmulator
           ? "http://10.0.2.2:3000"
-          : "http://192.168.209.59:3000";
+          : "http://192.168.56.1:3000";
     } else {
       return "http://10.0.2.2:3000";
     }
