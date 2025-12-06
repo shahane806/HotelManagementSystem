@@ -30,14 +30,14 @@ class ApiConstants {
       // 🌐 WebSocket URL for browser
       // return "ws://localhost:3000";
       // Or hosted socket endpoint:
-      return "wss://hotelmanagementsystem-socket.onrender.com";
+      return "wss://hotelmanagementsystem-socket.onrender.com:443";
     }
 
     // 📱 Native
     if (Platform.isAndroid) {
       return isEmulator
           ? "http://10.0.2.2:3000"
-          : "wss://hotelmanagementsystem-socket.onrender.com";//"http://192.168.56.1:3000";
+          : "wss://hotelmanagementsystem-socket.onrender.com:443";//"http://192.168.56.1:3000";
     } else {
       return "http://10.0.2.2:3000";
     }
