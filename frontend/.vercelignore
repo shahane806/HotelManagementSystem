@@ -1,2 +1,3 @@
 *
 !vercel.json
+!build/web/**
