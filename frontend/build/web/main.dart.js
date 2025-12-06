@@ -32715,8 +32715,8 @@ r=A.cB(a,B.ey)
 r=r==null?null:r.b
 if(r==null)r=1
 return new A.va(s,r,A.Gz(a),A.dU(a),null,A.bo())},
-tK(){return"http://localhost:3001"},
-b4v(){return"ws://localhost:3000"},
+tK(){return"https://hotelmanagementsystem-ysx7.onrender.com"},
+b4v(){return"wss://hotelmanagementsystem-socket.onrender.com"},
 bhW(){var s,r,q,p,o,n,m,l,k=null
 if($.aq==null)A.aYv()
 $.aq.toString
