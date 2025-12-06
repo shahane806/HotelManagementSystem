@@ -140,7 +140,7 @@ const forgotPasswordController = async (req, res) => {
     return res.status(200).json({ success: true, message: "If an account exists, a reset link has been sent" });
   } catch (error) {
     console.error("Forgot Password Error:", error);
-    return res.status(500).json({ success: false, message: "Server error" });
+    return res.status(500).json({ success: false, message: "Server error "+error });
   }
 };
 
