@@ -12,9 +12,15 @@ const router = express.Router();
 router.get("/", (req, res) => {
   res.send("Hello World");
 });
-router.get('/reset-password/:token', (req, res) => {
-  res.sendFile(path.join(__dirname,  '../public/reset-password.html'));
+// router.get('/reset-password/:token', (req, res) => {
+//   res.sendFile(path.join(__dirname,  '../public/reset-password.html'));
+// });
+router.get("/reset-password/:token", (req, res, next) => {
+  // If token request is actually a js/css file, skip route
+  if (req.params.token.includes(".")) return next();
+  res.sendFile(path.join(__dirname, "../public/reset-password.html"));
 });
+
 router.post('/api/auth/reset-password/:token', resetPasswordController);
 router.post("/auth/login", loginController);
 router.post("/auth/forgot-password", forgotPasswordController);

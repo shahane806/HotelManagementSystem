@@ -14,7 +14,8 @@ const createBill = async (req, res) => {
     // Apply GST if isGstApplied is true
     let finalAmount = totalAmount;
     if (isGstApplied) {
-      const gst = (18 / 100) * totalAmount;
+      // const gst = (18 / 100) * totalAmount;
+      const gst = 0;
       finalAmount += gst;
     }
 

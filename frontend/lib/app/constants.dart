@@ -19,7 +19,7 @@ class AppConstants {
   static const double cardElevation = 4.0;
 
   // GST and Merchant Info
-  static const double gstRate = 0.18; // 18% GST
+  static const double gstRate = 0; // 18% GST
   static const String merchantGstNumber = '27AABCU9603R1ZM'; // Example GSTIN
   static const String companyName = 'Your Restaurant Name';
   static const String companyAddress = '123 Food Street, City, Country';

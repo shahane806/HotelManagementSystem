@@ -2,7 +2,9 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:frontend/Ui/dashboard_screen.dart';
+import 'package:frontend/repositories/user_repository.dart';
 import 'package:frontend/services/apiServicesAuthentication.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -63,7 +65,15 @@ void _login() async {
     print("Login : ${result}");
     // Success - Save token if needed (e.g., using shared_preferences)
     // Example: await SharedPrefs.saveToken(result['token']);
-
+    if (result['success'] == true) {
+     
+      final user = result['user'];
+      print("Decoded user: $user");
+      UserRepository.setUserData(user);
+    } else {
+      // Login failed
+      print("Login failed: ${result['message']}");
+    }
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Login Successful!"), backgroundColor: Colors.green),
