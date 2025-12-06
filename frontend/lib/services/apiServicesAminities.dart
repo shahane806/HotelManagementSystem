@@ -10,7 +10,7 @@ class ApiServiceAmenities {
   Future<List<AmenityModel>> getAmenityModel() async {
     try {
       final fullUrl = '$baseUrl/utilities/Amenity/';
-      print('Attempting GET request to: $fullUrl');
+      // print('Attempting GET request to: $fullUrl');
 
       final response = await http.get(
         Uri.parse(fullUrl),

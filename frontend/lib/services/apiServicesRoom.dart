@@ -9,7 +9,7 @@ class ApiServiceRooms {
   Future<List<RoomModel>> getRoomModel() async {
     try {
       final fullUrl = '$baseUrl/utilities/Room';
-      print('Attempting GET request to: $fullUrl');
+      // print('Attempting GET request to: $fullUrl');
 
       final response = await http.get(
         Uri.parse(fullUrl),

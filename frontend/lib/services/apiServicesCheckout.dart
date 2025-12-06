@@ -10,7 +10,7 @@ class Apiservicescheckout {
   static Future<List<Map<String, dynamic>>> getAllBills() async {
     try {
       final fullUrl = '$baseUrl/getAllBills';
-      developer.log('Attempting GET request to: $fullUrl', name: 'ApiServiceTables');
+      // developer.log('Attempting GET request to: $fullUrl', name: 'ApiServiceTables');
 
       final response = await http.get(
         Uri.parse(fullUrl),

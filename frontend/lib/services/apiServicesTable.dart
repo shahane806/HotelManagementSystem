@@ -12,7 +12,7 @@ class ApiServiceTables {
   Future<List<TableModel>> getTables() async {
     try {
       final fullUrl = '$baseUrl/utilities/Table';
-      print('Attempting GET request to: $fullUrl');
+      // print('Attempting GET request to: $fullUrl');
 
       final response = await http.get(
         Uri.parse(fullUrl),

@@ -10,7 +10,7 @@ class ApiServiceMenus {
   Future<List<MenuModel>> getMenuModel() async {
     try {
       final fullUrl = '$baseUrl/utilities/Menu';
-      print('Attempting GET request to: $fullUrl');
+      // print('Attempting GET request to: $fullUrl');
 
       final response = await http.get(
         Uri.parse(fullUrl),
