@@ -18,7 +18,6 @@ app.use(express.json())
 app.use(cors())
 app.use(express.urlencoded({
     extended:true,
-    limit:"1000kb"
 }))
 
 app.use(express.static('public'));
