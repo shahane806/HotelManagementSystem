@@ -10,16 +10,16 @@ class ApiConstants {
   static String get url {
     if (kIsWeb) {
       // 🌐 Running in browser
-      return "http://localhost:3001";
+      // return "http://localhost:3001";
       // or your hosted API endpoint:
-      // return "https://hotelmanagementsystem-ysx7.onrender.com";
+      return "https://hotelmanagementsystem-ysx7.onrender.com";
     }
 
     // 📱 Native (mobile/desktop)
     if (Platform.isAndroid) {
       return isEmulator
           ? "http://10.0.2.2:3001"
-          : "http://192.168.56.1:3001"; // your PC Wi-Fi IP
+          : "https://hotelmanagementsystem-ysx7.onrender.com";//"http://192.168.56.1:3001"; // your PC Wi-Fi IP
     } else {
       return "http://10.0.2.2:3001";
     }
@@ -28,16 +28,16 @@ class ApiConstants {
   static String get socketUrl {
     if (kIsWeb) {
       // 🌐 WebSocket URL for browser
-      return "ws://localhost:3000";
+      // return "ws://localhost:3000";
       // Or hosted socket endpoint:
-      // return "wss://hotelmanagementsystem-socket.onrender.com";
+      return "wss://hotelmanagementsystem-socket.onrender.com";
     }
 
     // 📱 Native
     if (Platform.isAndroid) {
       return isEmulator
           ? "http://10.0.2.2:3000"
-          : "http://192.168.56.1:3000";
+          : "wss://hotelmanagementsystem-socket.onrender.com";//"http://192.168.56.1:3000";
     } else {
       return "http://10.0.2.2:3000";
     }
