@@ -43,7 +43,6 @@ class Apiservicescheckout {
   }
 
   static Future<void> payBill(Bill obj) async {
-    print("Hit payBill: ${obj.toJson()}");
     try {
       final res = await http.post(
         Uri.parse('$baseUrl/payTableBill'),
@@ -54,14 +53,11 @@ class Apiservicescheckout {
       );
 
       if (res.statusCode == 201) {
-        print('Success: ${res.body}');
       } else {
-        print('Failed with status ${res.statusCode}: ${res.body}');
         throw Exception(
             'Failed to store bill: ${res.statusCode} - ${res.body}');
       }
     } catch (e) {
-      print('Error in payBill: $e');
       throw Exception('Failed to store bill: $e');
     }
   }
@@ -87,7 +83,6 @@ class Apiservicescheckout {
       developer.log("Response body: ${response.body}", name: 'ApiServiceTables');
 
       if (response.statusCode == 200) {
-        print('Bill status updated: ${response.body}');
       } else {
         throw Exception(
             'Failed to update bill status: ${response.statusCode} - ${response.body}');

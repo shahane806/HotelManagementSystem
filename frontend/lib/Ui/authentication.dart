@@ -63,12 +63,9 @@ class _AuthScreenState extends State<AuthScreen>
     if (result['success'] == true) {
      
       final user = result['user'];
-      print("Decoded user: $user");
       UserRepository.setUserData(user);
-      print("User : ${UserRepository.getUserData()}");
     } else {
       // Login failed
-      print("Login failed: ${result['message']}");
     }
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -82,7 +79,6 @@ class _AuthScreenState extends State<AuthScreen>
       );
     }
   } catch (e) {
-    print("e : $e");
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),

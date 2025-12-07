@@ -8,7 +8,6 @@ class Apiservicesauthentication {
   /// LOGIN - Returns JWT token on success
   static Future<Map<String, dynamic>> loginApiService(
       String username, String password) async {
-        print("UserName : $username Password : $password");
     try {
       final response = await http.post(
         Uri.parse("$_baseUrl/auth/login"),

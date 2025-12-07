@@ -20,7 +20,6 @@ class AmenitiesBloc extends Bloc<AmenitiesEvents, AmenitiesState> {
     emit(AmenitiesLoading());
     try {
       final List<AmenityModel> amenities = await apiService.getAmenityModel();
-      print("Amenity log : ${amenities}");
       emit(AmenitiesLoaded(amenities));
     } catch (e) {
       emit(AmenitiesError('Failed to load amenities: $e'));

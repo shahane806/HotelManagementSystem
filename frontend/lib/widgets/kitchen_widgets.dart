@@ -23,7 +23,6 @@ import '../bloc/KitchenBloc/event.dart';
       final dateTime = DateTime.parse(time);
       return '${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')} ${dateTime.hour >= 12 ? 'PM' : 'AM'}';
     } catch (e) {
-      print('Error parsing time: $e, time: $time');
       return 'Invalid Time';
     }
   }
@@ -130,7 +129,6 @@ import '../bloc/KitchenBloc/event.dart';
 
   Widget buildOrdersList(BuildContext context, List<Map<String, dynamic>> orders,
       double screenWidth, bool isTablet, bool isDesktop) {
-    print('Rendering orders list with ${orders.length} orders: $orders');
     if (isDesktop) {
       return buildGridLayout(context, orders, screenWidth);
     } else {
@@ -450,7 +448,6 @@ import '../bloc/KitchenBloc/event.dart';
         ),
       );
     } catch (e) {
-      print('Error building order card: $e, order: $order');
       return Card(
         child: Padding(
           padding: const EdgeInsets.all(16),

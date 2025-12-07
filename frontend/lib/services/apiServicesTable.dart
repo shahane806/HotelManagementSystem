@@ -12,7 +12,6 @@ class ApiServiceTables {
   Future<List<TableModel>> getTables() async {
     try {
       final fullUrl = '$baseUrl/utilities/Table';
-      // print('Attempting GET request to: $fullUrl');
 
       final response = await http.get(
         Uri.parse(fullUrl),
@@ -20,20 +19,14 @@ class ApiServiceTables {
           'Content-Type': 'application/json',
         },
       );
-
-      print("Response status: ${response.statusCode}");
-      print("Response body: ${response.body}");
-
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         if (data.isNotEmpty) {
           List<TableModel> tables = data
               .map((json) => TableModel.fromJson(json as Map<String, dynamic>))
               .toList();
-          print("Parsed tables: ${tables.map((t) => t.utilityName).toList()}");
           return tables;
         } else {
-          print("No table data found in response");
           return [];
         }
       } else {
@@ -41,7 +34,6 @@ class ApiServiceTables {
             'Failed to load tables: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      print("Error in getTables: $e");
       throw Exception('Failed to load tables: $e');
     }
   }
@@ -68,15 +60,12 @@ class ApiServiceTables {
         }),
       );
 
-      print(
-          "Add table item response: ${response.statusCode} - ${response.body}");
 
       if (response.statusCode != 200) {
         throw Exception(
             'Failed to add table item: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      print("Error in addTableItem: $e");
       throw Exception('Failed to add table item: $e');
     }
   }
@@ -96,15 +85,12 @@ class ApiServiceTables {
         },
       );
 
-      print(
-          "Delete table item response: ${response.statusCode} - ${response.body}");
 
       if (response.statusCode != 200) {
         throw Exception(
             'Failed to delete table item: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      print("Error in deleteTableItem: $e");
       throw Exception('Failed to delete table item: $e');
     }
   }

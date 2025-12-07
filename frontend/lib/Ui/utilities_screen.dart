@@ -888,7 +888,6 @@ class _UtilityScreenState extends State<UtilityScreen> {
               if (state is RoomLoading) {
                 return _buildShimmerSection(screenWidth: screenWidth);
               } else if (state is RoomLoaded) {
-                print('Rooms loaded: ${state.rooms.map((r) => r.name).toList()}');
                 return _buildModernSection(
                   "Rooms",
                   Icons.hotel,
@@ -902,7 +901,6 @@ class _UtilityScreenState extends State<UtilityScreen> {
                   screenWidth: screenWidth,
                 );
               } else if (state is RoomError) {
-                print('Rooms error: ${state.message}');
                 return _buildModernSection(
                   "Rooms",
                   Icons.hotel,
@@ -914,7 +912,6 @@ class _UtilityScreenState extends State<UtilityScreen> {
                   screenWidth: screenWidth,
                 );
               }
-              print('No rooms loaded');
               return _buildModernSection(
                 "Rooms",
                 Icons.hotel,
@@ -935,7 +932,6 @@ class _UtilityScreenState extends State<UtilityScreen> {
                 final amenityNames = state.amenities
                     .expand((a) => a.name.isNotEmpty == true ? [a.name] : ['Unnamed Amenity'])
                     .toList();
-                print('Amenities loaded: $amenityNames');
                 return _buildModernSection(
                   "Amenities",
                   Icons.spa,
@@ -946,10 +942,8 @@ class _UtilityScreenState extends State<UtilityScreen> {
                   screenWidth: screenWidth,
                 );
               } else if (state is AmenitiesError) {
-                print('Amenities error: ${state.message}');
                 return Center(child: Text(state.message));
               }
-              print('No amenities loaded');
               return _buildModernSection(
                 "Amenities",
                 Icons.spa,
@@ -975,7 +969,6 @@ class _UtilityScreenState extends State<UtilityScreen> {
               if (state is RoomLoading) {
                 return _buildShimmerSection(screenWidth: screenWidth);
               } else if (state is RoomLoaded) {
-                print('Rooms loaded: ${state.rooms.map((r) => r.name).toList()}');
                 return _buildModernSection(
                   "Rooms",
                   Icons.hotel,
@@ -989,7 +982,6 @@ class _UtilityScreenState extends State<UtilityScreen> {
                   screenWidth: screenWidth,
                 );
               } else if (state is RoomError) {
-                print('Rooms error: ${state.message}');
                 return _buildModernSection(
                   "Rooms",
                   Icons.hotel,
@@ -1001,7 +993,6 @@ class _UtilityScreenState extends State<UtilityScreen> {
                   screenWidth: screenWidth,
                 );
               }
-              print('No rooms loaded');
               return _buildModernSection(
                 "Rooms",
                 Icons.hotel,
@@ -1022,7 +1013,6 @@ class _UtilityScreenState extends State<UtilityScreen> {
                 final amenityNames = state.amenities
                     .expand((a) => a.name.isNotEmpty == true ? [a.name] : ['Unnamed Amenity'])
                     .toList();
-                print('Amenities loaded: $amenityNames');
                 return _buildModernSection(
                   "Amenities",
                   Icons.spa,
@@ -1033,11 +1023,9 @@ class _UtilityScreenState extends State<UtilityScreen> {
                   screenWidth: screenWidth,
                 );
               } else if (state is AmenitiesError) {
-                print('Amenities error: ${state.message}');
                 return Center(child: Text(state.message));
               }
               if (kDebugMode) {
-                print('No amenities loaded');
               }
               return _buildModernSection(
                 "Amenities",
@@ -1061,7 +1049,6 @@ class _UtilityScreenState extends State<UtilityScreen> {
         if (state is TablesLoading) {
           return _buildShimmerSection(screenWidth: screenWidth);
         } else if (state is TablesLoaded) {
-          print('Table utilities loaded: ${state.tables.map((t) => t.utilityName).toList()}');
           final tableItems = state.tables
               .expand((table) => table.utilityItems
                   .map((item) => {
@@ -1078,13 +1065,11 @@ class _UtilityScreenState extends State<UtilityScreen> {
             _addTableItem,
             onDelete: (display) {
               final item = tableItems.firstWhere((i) => i['display'] == display);
-              print('Deleting table item: ${item['itemName']} from utility: ${item['utilityId']}');
               _deleteTableItem(item['utilityId'] as String, item['itemName'] as String);
             },
             screenWidth: screenWidth,
           );
         } else if (state is TablesError) {
-          print('Tables error: ${state.message}');
           return _buildModernSection(
             "Tables",
             Icons.table_restaurant,
@@ -1095,7 +1080,6 @@ class _UtilityScreenState extends State<UtilityScreen> {
             screenWidth: screenWidth,
           );
         }
-        print('No table utilities loaded');
         return _buildModernSection(
           "Tables",
           Icons.table_restaurant,
@@ -1118,7 +1102,6 @@ class _UtilityScreenState extends State<UtilityScreen> {
     String? errorMessage,
     required double screenWidth,
   }) {
-    print('Building $title section with items: $items');
     return Card(
       elevation: 4,
       shadowColor: Colors.black.withOpacity(0.1),
@@ -1200,7 +1183,6 @@ class _UtilityScreenState extends State<UtilityScreen> {
               )
             else
               ...items.map((item) {
-                print('Rendering item: $item');
                 return Container(
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -1238,7 +1220,6 @@ class _UtilityScreenState extends State<UtilityScreen> {
                         IconButton(
                           icon: Icon(Icons.delete, color: Colors.red[400], size: 20),
                           onPressed: () {
-                            print('Deleting item: $item');
                             onDelete(item);
                           },
                         ),
@@ -1275,7 +1256,6 @@ class _UtilityScreenState extends State<UtilityScreen> {
         if (state is MenusLoading) {
           return _buildShimmerSection(screenWidth: screenWidth);
         } else if (state is MenusLoaded) {
-          print('Menus loaded: ${state.menus.map((m) => m.name).toList()}');
           return Card(
             elevation: 4,
             shadowColor: Colors.black.withOpacity(0.1),
@@ -1358,7 +1338,6 @@ class _UtilityScreenState extends State<UtilityScreen> {
                             trailing: IconButton(
                               icon: Icon(Icons.delete, color: Colors.red[400], size: 20),
                               onPressed: () {
-                                print('Deleting menu: ${menu.name}');
                                 _deleteMenu(menu.name);
                               },
                             ),
@@ -1414,7 +1393,6 @@ class _UtilityScreenState extends State<UtilityScreen> {
                                                 IconButton(
                                                   icon: Icon(Icons.delete, color: Colors.red[400], size: 20),
                                                   onPressed: () {
-                                                    print('Deleting menu item: ${item.menuitemname} from menu: ${menu.name}');
                                                     _deleteMenuItem(menu.name, item.menuitemname);
                                                   },
                                                 ),
@@ -1467,7 +1445,6 @@ class _UtilityScreenState extends State<UtilityScreen> {
             ),
           );
         } else if (state is MenusError) {
-          print('Menus error: ${state.message}');
           String displayMessage = state.message.contains('404')
               ? 'Menu not found. Please check the menu name or server configuration.'
               : state.message;
@@ -1552,7 +1529,6 @@ class _UtilityScreenState extends State<UtilityScreen> {
             ),
           );
         }
-        print('No menus loaded');
         return Card(
           elevation: 4,
           shadowColor: Colors.black.withOpacity(0.1),

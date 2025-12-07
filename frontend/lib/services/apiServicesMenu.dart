@@ -10,7 +10,6 @@ class ApiServiceMenus {
   Future<List<MenuModel>> getMenuModel() async {
     try {
       final fullUrl = '$baseUrl/utilities/Menu';
-      // print('Attempting GET request to: $fullUrl');
 
       final response = await http.get(
         Uri.parse(fullUrl),
@@ -19,8 +18,6 @@ class ApiServiceMenus {
         },
       );
 
-      print("Response status: ${response.statusCode}");
-      print("Response body: ${response.body}");
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
@@ -30,17 +27,14 @@ class ApiServiceMenus {
           List<MenuModel> menus = utilityItems
               .map((json) => MenuModel.fromJson(json as Map<String, dynamic>))
               .toList();
-          print("Parsed menus: ${menus.map((m) => m.name).toList()}");
           return menus;
         } else {
-          print("No menu data found in response");
           return [];
         }
       } else {
         throw Exception('Failed to load menus: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      print("Error in getMenuModel: $e");
       throw Exception('Failed to load menus: $e');
     }
   }
@@ -59,13 +53,10 @@ class ApiServiceMenus {
         }),
       );
 
-      print("Add menu response: ${response.statusCode} - ${response.body}");
-
       if (response.statusCode != 200) {
         throw Exception('Failed to add menu: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      print("Error in addMenu: $e");
       throw Exception('Failed to add menu: $e');
     }
   }
@@ -84,13 +75,11 @@ class ApiServiceMenus {
         }),
       );
 
-      print("Add menu item response: ${response.statusCode} - ${response.body}");
 
       if (response.statusCode != 200) {
         throw Exception('Failed to add menu item: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      print("Error in addMenuItem: $e");
       throw Exception('Failed to add menu item: $e');
     }
   }
@@ -104,13 +93,11 @@ class ApiServiceMenus {
         },
       );
 
-      print("Delete menu response: ${response.statusCode} - ${response.body}");
 
       if (response.statusCode != 200) {
         throw Exception('Failed to delete menu: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      print("Error in deleteMenu: $e");
       throw Exception('Failed to delete menu: $e');
     }
   }
@@ -130,13 +117,11 @@ class ApiServiceMenus {
         },
       );
 
-      print("Delete menu item response: ${response.statusCode} - ${response.body}");
 
       if (response.statusCode != 200) {
         throw Exception('Failed to delete menu item: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      print("Error in deleteMenuItem: $e");
       throw Exception('Failed to delete menu item: $e');
     }
   }

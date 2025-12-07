@@ -28,7 +28,6 @@ class _InternetCheckWidgetState extends State<InternetCheckWidget> {
 
     _connectivitySubscription =
         _connectivity.onConnectivityChanged.listen((result) {
-      print('Connectivity changed: $result');
       _verifyConnectionAndShowDialog();
     });
 
@@ -63,25 +62,21 @@ class _InternetCheckWidgetState extends State<InternetCheckWidget> {
     for (final endpoint in endpoints) {
       try {
         final response = await http.get(Uri.parse(endpoint)).timeout(timeout);
-        print('Internet check response for $endpoint: ${response.statusCode}');
         if (response.statusCode == 200) {
           return true;
         }
       } catch (e) {
-        print('Internet check failed for $endpoint: $e');
       }
     }
 
     // Fallback: If all endpoints fail, check connectivity result
     final connectivityResult = await _connectivity.checkConnectivity();
     final hasNetwork = !connectivityResult.contains(ConnectivityResult.none);
-    print('Fallback connectivity check: $hasNetwork');
     return hasNetwork && kIsWeb; // Trust navigator.onLine for web, but not mobile
   }
 
   Future<void> _verifyConnectionAndShowDialog() async {
     final connectivityResult = await _connectivity.checkConnectivity();
-    print('Current connectivity: $connectivityResult');
 
     if (connectivityResult.contains(ConnectivityResult.none)) {
       if (!_dialogShown) {
@@ -95,7 +90,6 @@ class _InternetCheckWidgetState extends State<InternetCheckWidget> {
       _showNoInternetDialog();
     } else if (isOnline && _dialogShown) {
       if (mounted && Navigator.canPop(context)) {
-        print('Dismissing no internet dialog');
         Navigator.of(context, rootNavigator: true).pop();
         _dialogShown = false;
       }
@@ -103,7 +97,6 @@ class _InternetCheckWidgetState extends State<InternetCheckWidget> {
   }
 
   void _showNoInternetDialog() {
-    print('Showing no internet dialog');
     _dialogShown = true;
     showDialog(
       barrierDismissible: false,
@@ -115,10 +108,8 @@ class _InternetCheckWidgetState extends State<InternetCheckWidget> {
         actions: [
           TextButton(
             onPressed: () async {
-              print('Retry button pressed');
               final isOnline = await _hasRealInternetConnection();
               if (isOnline && mounted && Navigator.canPop(context)) {
-                print('Internet restored, dismissing dialog');
                 Navigator.of(context, rootNavigator: true).pop();
                 _dialogShown = false;
               }

@@ -37,7 +37,6 @@ class KitchenDashboardView extends StatelessWidget {
             : state.orders.where((order) => order['status'] == state.selectedStatusFilter).toList();
         final newOrders = state.orders.where((order) => order['status'] != 'Served' ).toList();
 
-        print('Building UI with orders: ${state.orders.length}, filtered: ${filteredOrders.length}, new: ${newOrders.length}, refreshKey: ${state.refreshKey}');
 
         return Scaffold(
           backgroundColor: Colors.grey[50],

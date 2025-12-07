@@ -74,7 +74,6 @@ class StaffApiService{
 
   // Delete a Staff
   Future<void> deleteStaff(String userId) async {
-    print("$_baseUrl/$userId");
     try {
       final response = await http.delete(Uri.parse('$_baseUrl/$userId'));
       if (response.statusCode != 200) {

@@ -1506,7 +1506,6 @@
 //       'enableNativeOTP': true,
 //       'userToken': "",
 //     };
-//     print("payUPaymentParams: $payUPaymentParams");
 //     return payUPaymentParams;
 //   }
 

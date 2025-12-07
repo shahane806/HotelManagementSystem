@@ -10,7 +10,6 @@ class ApiServiceAmenities {
   Future<List<AmenityModel>> getAmenityModel() async {
     try {
       final fullUrl = '$baseUrl/utilities/Amenity/';
-      // print('Attempting GET request to: $fullUrl');
 
       final response = await http.get(
         Uri.parse(fullUrl),
@@ -19,15 +18,12 @@ class ApiServiceAmenities {
         },
       );
 
-      print("response status: ${response.statusCode}");
-      print("response body: ${response.body}");
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
 
         if (data.isNotEmpty) {
           // Check the structure of each item
-          print("Decoded data: $data");
 
           // If your AmenityModel expects a 'name' field directly, but your API returns
           // utilityItems: [{name: ...}], you need to extract the names from utilityItems.
@@ -42,7 +38,6 @@ class ApiServiceAmenities {
             }
           }
 
-          print("Parsed Amenity Models: $amenities");
           return amenities;
         } else {
           throw Exception('No amenity data found');
@@ -77,7 +72,6 @@ class ApiServiceAmenities {
           'Content-Type': 'application/json',
         },
       );
-      print("Delete : ${jsonDecode(response.body)}");
       if (response.statusCode != 200) {
         throw Exception('Failed to delete amenity: ${response.body}');
       }
