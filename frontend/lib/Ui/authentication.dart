@@ -1,4 +1,3 @@
-// lib/ui/auth_screen.dart
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:frontend/Ui/dashboard_screen.dart';
@@ -46,7 +45,7 @@ class _AuthScreenState extends State<AuthScreen>
     _particleController.dispose();
     super.dispose();
   }
-void _login() async {
+  void _login() async {
   if (_loginEmail.text.trim().isEmpty || _loginPass.text.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Please fill all fields"), backgroundColor: Colors.red),
@@ -61,9 +60,6 @@ void _login() async {
       _loginEmail.text.trim(),
       _loginPass.text,
     );
-    print("Login : ${result}");
-    // Success - Save token if needed (e.g., using shared_preferences)
-    // Example: await SharedPrefs.saveToken(result['token']);
     if (result['success'] == true) {
      
       final user = result['user'];
@@ -218,10 +214,10 @@ void _forgotPassword() async {
           children: [
             // Logo & Title (only when keyboard is hidden)
             if (MediaQuery.of(context).viewInsets.bottom < 100) ...[
-              Icon(Icons.hotel_class, size: 80, color: Colors.white),
+             const Icon(Icons.hotel_class, size: 80, color: Colors.white),
               const SizedBox(height: 16),
-              Text("Hotel Pro", style: TextStyle(fontSize: 42, fontWeight: FontWeight.w900, color: Colors.white)),
-              Text("Welcome back", style: TextStyle(fontSize: 16, color: Colors.white70)),
+             const Text("Hotel Pro", style: TextStyle(fontSize: 42, fontWeight: FontWeight.w900, color: Colors.white)),
+             const Text("Welcome back", style: TextStyle(fontSize: 16, color: Colors.white70)),
               const SizedBox(height: 30),
             ],
 
@@ -234,7 +230,7 @@ void _forgotPassword() async {
             ),
 
             const SizedBox(height: 10),
-            Text("© 2025 Hotel Pro", style: TextStyle(color: Colors.white60, fontSize: 13)),
+            const Text("© 2025 Hotel Pro", style: TextStyle(color: Colors.white60, fontSize: 13)),
           ],
         ),
       ),
@@ -343,8 +339,11 @@ void _forgotPassword() async {
                       ? (_obscureConfirm ? Icons.visibility_off : Icons.visibility)
                       : (_obscure ? Icons.visibility_off : Icons.visibility)),
                   onPressed: () => setState(() {
-                    if (isConfirm) _obscureConfirm = !_obscureConfirm;
-                    else _obscure = !_obscure;
+                    if (isConfirm) {
+                      _obscureConfirm = !_obscureConfirm;
+                    } else {
+                      _obscure = !_obscure;
+                    }
                   }),
                 )
               : null,

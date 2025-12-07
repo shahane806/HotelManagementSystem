@@ -133,7 +133,9 @@ class KitchenDashboardView extends StatelessWidget {
         if (screenWidth > 600)
           IconButton(
             icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-            onPressed: () {},
+            onPressed: () {
+              
+            },
           ),
         const SizedBox(width: 8),
       ],
