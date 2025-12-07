@@ -40,7 +40,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
-
+    
     // Initialize animation controllers
     _logoController = AnimationController(
       duration: const Duration(milliseconds: 1500),
@@ -81,9 +81,10 @@ class _SplashScreenState extends State<SplashScreen>
 
     // Dispatch fetch events
     context.read<AmenitiesBloc>().add(FetchAmenities());
-    context.read<MenusBloc>().add(FetchMenus());
-    context.read<TablesBloc>().add(FetchTables());
+    // context.read<MenusBloc>().add(FetchMenus());
+    // context.read<TablesBloc>().add(FetchTables());
     context.read<RoomsBloc>().add(FetchRooms());
+    
   }
 
   void _startAnimations() async {

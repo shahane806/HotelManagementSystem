@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:frontend/Ui/dashboard_screen.dart';
 import 'package:frontend/repositories/user_repository.dart';
 import 'package:frontend/services/apiServicesAuthentication.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -214,7 +213,7 @@ void _forgotPassword() async {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-        child: Column(
+        child:  Column(
           children: [
             // Logo & Title (only when keyboard is hidden)
             if (MediaQuery.of(context).viewInsets.bottom < 100) ...[
