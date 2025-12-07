@@ -1,21 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:frontend/Ui/dashboard_screen.dart';
+import 'package:frontend/models/user_model.dart';
+import 'package:frontend/repositories/user_repository.dart';
 import 'package:frontend/ui/authentication.dart';
-import 'package:frontend/ui/dashboard_screen.dart';
+// import 'package:frontend/ui/dashboard_screen.dart';
 import 'package:frontend/widgets/internet_check.dart';
 
 import '../bloc/AmenitiesUtility/bloc.dart';
 import '../bloc/AmenitiesUtility/event.dart';
 import '../bloc/AmenitiesUtility/state.dart';
-import '../bloc/MenuUtility/bloc.dart';
-import '../bloc/MenuUtility/event.dart';
-import '../bloc/MenuUtility/state.dart';
+// import '../bloc/MenuUtility/bloc.dart';
+// import '../bloc/MenuUtility/event.dart';
+// import '../bloc/MenuUtility/state.dart';
 import '../bloc/RoomUtility/bloc.dart';
 import '../bloc/RoomUtility/event.dart';
 import '../bloc/RoomUtility/state.dart';
-import '../bloc/TableUtility/bloc.dart';
-import '../bloc/TableUtility/event.dart';
-import '../bloc/TableUtility/state.dart';
+// import '../bloc/TableUtility/bloc.dart';
+// import '../bloc/TableUtility/event.dart';
+// import '../bloc/TableUtility/state.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -33,8 +36,8 @@ class _SplashScreenState extends State<SplashScreen>
   late Animation<Offset> _slideAnimation;
 
   bool _amenitiesLoaded = false;
-  bool _menusLoaded = false;
-  bool _tablesLoaded = false;
+  // bool _menusLoaded = false;
+  // bool _tablesLoaded = false;
   bool _roomsLoaded = false;
 
   @override
@@ -93,16 +96,17 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   void _navigateToHome() {
-    if (_amenitiesLoaded && _menusLoaded && _tablesLoaded && _roomsLoaded) {
+    if (_amenitiesLoaded && _roomsLoaded) {
       if (mounted) {
+        UserModel? user = UserRepository.getUserData();
         Navigator.pushReplacement(
           context,
           PageRouteBuilder(
             pageBuilder: (context, animation, secondaryAnimation) =>
-                const Stack(
+                 Stack(
               children: [
                 InternetCheckWidget(
-                  child: AuthScreen(),
+                  child: user == null ? const AuthScreen() : const DashboardScreen(),
                 ),
               ],
             ),
@@ -148,34 +152,36 @@ class _SplashScreenState extends State<SplashScreen>
             }
           },
         ),
-        BlocListener<MenusBloc, MenusState>(
-          listener: (context, state) {
-            if (state is MenusLoaded) {
-              setState(() {
-                _menusLoaded = true;
-              });
-              _navigateToHome();
-            } else if (state is MenusError) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Failed to load menus: ${state.message}')),
-              );
-            }
-          },
-        ),
-        BlocListener<TablesBloc, TablesState>(
-          listener: (context, state) {
-            if (state is TablesLoaded) {
-              setState(() {
-                _tablesLoaded = true;
-              });
-              _navigateToHome();
-            } else if (state is TablesError) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Failed to load tables: ${state.message}')),
-              );
-            }
-          },
-        ),
+        
+        // BlocListener<MenusBloc, MenusState>(
+        //   listener: (context, state) {
+        //     if (state is MenusLoaded) {
+        //       setState(() {
+        //         _menusLoaded = true;
+        //       });
+        //       _navigateToHome();
+        //     } else if (state is MenusError) {
+        //       ScaffoldMessenger.of(context).showSnackBar(
+        //         SnackBar(content: Text('Failed to load menus: ${state.message}')),
+        //       );
+        //     }
+        //   },
+        // ),
+        // BlocListener<TablesBloc, TablesState>(
+        //   listener: (context, state) {
+        //     if (state is TablesLoaded) {
+        //       setState(() {
+        //         _tablesLoaded = true;
+        //       });
+        //       _navigateToHome();
+        //     } else if (state is TablesError) {
+        //       ScaffoldMessenger.of(context).showSnackBar(
+        //         SnackBar(content: Text('Failed to load tables: ${state.message}')),
+        //       );
+        //     }
+        //   },
+        // ),
+      
         BlocListener<RoomsBloc, RoomState>(
           listener: (context, state) {
             if (state is RoomLoaded) {

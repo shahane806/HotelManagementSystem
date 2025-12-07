@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AppConstants {
   // Colors
@@ -29,4 +30,8 @@ class AppConstants {
 
   // Animation Duration
   static const Duration animationDuration = Duration(milliseconds: 600);
+  static SharedPreferences? pref;
+  static void initiateSharedPreferences() async{
+    pref = await SharedPreferences.getInstance();
+  }
 }

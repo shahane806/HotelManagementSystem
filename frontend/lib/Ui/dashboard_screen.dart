@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:frontend/Ui/rooms_screen.dart';
 import 'package:frontend/repositories/user_repository.dart';
+import 'package:frontend/ui/authentication.dart';
 import 'package:frontend/ui/checkout_screen.dart';
 import 'package:frontend/ui/customers_screen.dart';
 import 'package:frontend/ui/kitchen_screen.dart';
@@ -22,59 +23,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     with TickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-  
-  final List<_DashboardItem> items = [
-   if (UserRepository.getUserData().role == "Chef" || 
-      UserRepository.getUserData().role == "Admin")
-    _DashboardItem(
-      "Kitchen", 
-      Icons.restaurant_menu, 
-      Colors.orange,
-      "Manage orders & menu"
-    ),
-    if (UserRepository.getUserData().role == "Waiter" || 
-      UserRepository.getUserData().role == "Admin")
-    _DashboardItem(
-        "Tables", Icons.table_restaurant, Colors.blue, "Table reservations"),
-        if (
-      UserRepository.getUserData().role == "Admin")
-    _DashboardItem(
-        "Checkout", Icons.point_of_sale, Colors.green, "Process payments"),
-        if (
-      UserRepository.getUserData().role == "Admin")
-    _DashboardItem("Rooms", Icons.hotel, Colors.purple, "Room management"),
-    if (
-      UserRepository.getUserData().role == "Admin")
-    _DashboardItem(
-        "Bookings", Icons.event_available, Colors.teal, "View reservations"),
-        if (
-      UserRepository.getUserData().role == "Admin")
-    _DashboardItem(
-        "Customers", Icons.people_outline, Colors.indigo, "Customer database"),
-        if (
-      UserRepository.getUserData().role == "Admin")
-    _DashboardItem("Staff", Icons.badge, Colors.brown, "Staff management"),
-    if (
-      UserRepository.getUserData().role == "Admin")
-    _DashboardItem("Payments", Icons.account_balance_wallet, Colors.red,
-        "Financial records"),
-        if (
-      UserRepository.getUserData().role == "Admin")
-    _DashboardItem(
-        "Reports", Icons.analytics, Colors.deepPurple, "Analytics & insights"),
-        if (
-      UserRepository.getUserData().role == "Admin")
-    _DashboardItem("Utilities", Icons.build, Colors.grey, "System utilities"),
-    if (
-      UserRepository.getUserData().role == "Admin")
-    _DashboardItem(
-      
-        "Settings", Icons.settings, Colors.blueGrey, "App configuration"),
-        if (
-      UserRepository.getUserData().role == "Admin")
-    _DashboardItem("Logout", Icons.exit_to_app, Colors.redAccent, "Sign out"),
-  ];
-
+ 
+   late List<_DashboardItem> items ;
   @override
   void initState() {
     super.initState();
@@ -90,6 +40,59 @@ class _DashboardScreenState extends State<DashboardScreen>
       curve: Curves.easeInOut,
     ));
     _animationController.forward();
+    final userRole = UserRepository.getUserData()?.role;
+    items =  [
+   if (userRole == "Chef" || 
+      userRole == "Admin")
+    _DashboardItem(
+      "Kitchen", 
+      Icons.restaurant_menu, 
+      Colors.orange,
+      "Manage orders & menu"
+    ),
+    if (userRole == "Waiter" || 
+      userRole == "Admin")
+    _DashboardItem(
+        "Tables", Icons.table_restaurant, Colors.blue, "Table reservations"),
+        if (
+      userRole == "Admin")
+    _DashboardItem(
+        "Checkout", Icons.point_of_sale, Colors.green, "Process payments"),
+        if (
+      userRole == "Admin")
+    _DashboardItem("Rooms", Icons.hotel, Colors.purple, "Room management"),
+    if (
+      userRole == "Admin")
+    _DashboardItem(
+        "Bookings", Icons.event_available, Colors.teal, "View reservations"),
+        if (
+      userRole == "Admin")
+    _DashboardItem(
+        "Customers", Icons.people_outline, Colors.indigo, "Customer database"),
+        if (
+      userRole == "Admin")
+    _DashboardItem("Staff", Icons.badge, Colors.brown, "Staff management"),
+    if (
+      userRole == "Admin")
+    _DashboardItem("Payments", Icons.account_balance_wallet, Colors.red,
+        "Financial records"),
+        if (
+      userRole == "Admin")
+    _DashboardItem(
+        "Reports", Icons.analytics, Colors.deepPurple, "Analytics & insights"),
+        if (
+      userRole == "Admin")
+    _DashboardItem("Utilities", Icons.build, Colors.grey, "System utilities"),
+    if (
+      userRole == "Admin")
+    _DashboardItem(
+      
+        "Settings", Icons.settings, Colors.blueGrey, "App configuration"),
+        if (
+      userRole == "Admin")
+    _DashboardItem("Logout", Icons.exit_to_app, Colors.redAccent, "Sign out"),
+  ];
+
   }
 
   @override
@@ -507,7 +510,8 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
             ElevatedButton(
               onPressed: () {
-                Navigator.of(context).pop();
+                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=> const AuthScreen()));
+                UserRepository.logout();
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Logged out successfully')),
                 );

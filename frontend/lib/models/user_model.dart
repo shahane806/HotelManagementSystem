@@ -19,7 +19,7 @@ class UserModel {
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
-      userId: json['userId']?.toString() ?? '',
+      userId: json['id']?.toString() ?? '',
       fullName: json['fullName'] ?? '',
       email: json['email'] ?? '',
       mobile: json['mobile'] ?? '',
@@ -30,7 +30,7 @@ class UserModel {
 
   Map<String, dynamic> toJson() {
     return {
-      'userId': userId,
+      'id': userId,
       'fullName': fullName,
       'email': email,
       'mobile': mobile,
@@ -41,6 +41,6 @@ class UserModel {
 
   @override
   String toString() {
-    return 'UserModel(userId: $userId, fullName: $fullName, email: $email, mobile: $mobile, aadhaarNumber: $aadhaarNumber, role: $role)';
+    return 'UserModel(id: $userId, fullName: $fullName, email: $email, mobile: $mobile, aadhaarNumber: $aadhaarNumber, role: $role)';
   }
 }

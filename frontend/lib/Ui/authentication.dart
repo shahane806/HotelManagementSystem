@@ -69,6 +69,7 @@ void _login() async {
       final user = result['user'];
       print("Decoded user: $user");
       UserRepository.setUserData(user);
+      print("User : ${UserRepository.getUserData()}");
     } else {
       // Login failed
       print("Login failed: ${result['message']}");
