@@ -7,6 +7,5 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
   final socketService = SocketService();
   socketService.connect(); // Manually connect
-
   runApp(wrapper(const MyApp()));
 }
