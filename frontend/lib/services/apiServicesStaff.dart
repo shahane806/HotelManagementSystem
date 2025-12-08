@@ -58,7 +58,7 @@ class StaffApiService{
   Future<UserModel> updateStaff(UserModel staff) async {
     try {
       final response = await http.put(
-        Uri.parse('$_baseUrl/${staff.userId}'),
+        Uri.parse('$_baseUrl/${staff.id}'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(staff.toJson()),
       );

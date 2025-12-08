@@ -77,7 +77,7 @@ class _CustomersScreenState extends State<CustomersScreen> with SingleTickerProv
   void _submitForm() {
     if (_formKey.currentState!.validate()) {
       final user = UserModel(
-        userId: isEditMode ? selectedCustomer!.userId : const Uuid().v4(),
+        id: isEditMode ? selectedCustomer!.id : const Uuid().v4(),
         fullName: _fullNameController.text,
         email: _emailController.text,
         mobile: _mobileController.text,
@@ -511,7 +511,7 @@ class _CustomersScreenState extends State<CustomersScreen> with SingleTickerProv
                                                   icon: const Icon(Icons.delete,
                                                       color: Colors.red, size: 24),
                                                   onPressed: () {
-                                                    context.read<CustomerBloc>().add(DeleteCustomer(customer.userId));
+                                                    context.read<CustomerBloc>().add(DeleteCustomer(customer.id));
                                                     ScaffoldMessenger.of(context).showSnackBar(
                                                       const SnackBar(
                                                         content: Text('Customer removed'),

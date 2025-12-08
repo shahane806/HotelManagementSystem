@@ -40,7 +40,7 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
   bool _isInitialLoad = true;
   bool _isVegFilter = true;
   final UserModel _user = UserModel(
-    userId: '0001',
+    id: '0001',
     fullName: 'John Doe',
     email: 'john.doe@example.com',
     mobile: '9876543210',

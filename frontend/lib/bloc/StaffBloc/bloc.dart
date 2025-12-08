@@ -46,9 +46,10 @@ class StaffBloc extends Bloc<StaffEvent, StaffState> {
   }
 
   Future<void> _onDeleteStaff(DeleteStaff event, Emitter<StaffState> emit) async {
+    print("event.Userid : ${event.id}");
     emit(StaffLoading());
     try {
-      await apiService.deleteStaff(event.userId);
+      await apiService.deleteStaff(event.id);
       final staff = await apiService.getAllStaff();
       emit(StaffLoaded(staff));
     } catch (e) {

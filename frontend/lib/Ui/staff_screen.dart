@@ -22,14 +22,11 @@ class _StaffScreenState extends State<StaffScreen>
   final _mobileController = TextEditingController();
   final _aadhaarController = TextEditingController();
   final _roleController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+
   String? _selectedRole;
-  final roles = [
-    'Admin',
-    'Manager',
-    'Chef',
-    'Waiter',
-    'Room Service'
-  ];
+  final roles = ['Admin', 'Manager', 'Chef', 'Waiter', 'Room Service'];
   late TabController _tabController;
   bool isEditMode = false;
   UserModel? selectedStaff;
@@ -49,7 +46,22 @@ class _StaffScreenState extends State<StaffScreen>
     _mobileController.dispose();
     _aadhaarController.dispose();
     _tabController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+   _roleController.dispose();
     super.dispose();
+  }
+
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) return 'Please enter password';
+    if (value.length < 6) return 'Password must be at least 6 characters';
+    return null;
+  }
+
+  String? _validateConfirmPassword(String? value) {
+    if (value == null || value.isEmpty) return 'Please confirm password';
+    if (value != _passwordController.text) return 'Passwords do not match';
+    return null;
   }
 
   // Validate Aadhaar number (12 digits)
@@ -88,12 +100,13 @@ class _StaffScreenState extends State<StaffScreen>
   void _submitForm() {
     if (_formKey.currentState!.validate()) {
       final user = UserModel(
-        userId: isEditMode ? selectedStaff!.userId : const Uuid().v4(),
+        id: isEditMode ? selectedStaff!.id : const Uuid().v4(),
         fullName: _fullNameController.text,
         email: _emailController.text,
         mobile: _mobileController.text,
         aadhaarNumber: _aadhaarController.text,
         role: _roleController.text,
+        password: _passwordController.text,
       );
 
       if (isEditMode) {
@@ -116,6 +129,9 @@ class _StaffScreenState extends State<StaffScreen>
     _mobileController.clear();
     _aadhaarController.clear();
     _roleController.clear();
+    _passwordController.clear();
+    _confirmPasswordController.clear();
+
     setState(() {
       isEditMode = false;
       selectedStaff = null;
@@ -329,7 +345,6 @@ class _StaffScreenState extends State<StaffScreen>
                                 DropdownButtonFormField<String>(
                                   value: _selectedRole, // your selected value
                                   decoration: InputDecoration(
-                                    
                                     hintText: 'Role',
                                     prefixIcon: const Icon(Icons.verified_user,
                                         color: Colors.indigo),
@@ -421,6 +436,41 @@ class _StaffScreenState extends State<StaffScreen>
                                   keyboardType: TextInputType.number,
                                 ),
                                 const SizedBox(height: 20),
+TextFormField(
+  controller: _passwordController,
+  decoration: InputDecoration(
+    hintText: 'Password',
+    prefixIcon: const Icon(Icons.lock, color: Colors.indigo),
+    filled: true,
+    fillColor: Colors.white,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: BorderSide.none,
+    ),
+    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+  ),
+  obscureText: true,
+  validator: _validatePassword,
+),
+const SizedBox(height: 16),
+TextFormField(
+  controller: _confirmPasswordController,
+  decoration: InputDecoration(
+    hintText: 'Confirm Password',
+    prefixIcon: const Icon(Icons.lock_outline, color: Colors.indigo),
+    filled: true,
+    fillColor: Colors.white,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: BorderSide.none,
+    ),
+    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+  ),
+  obscureText: true,
+  validator: _validateConfirmPassword,
+),
+
+
                                 BlocBuilder<StaffBloc, StaffState>(
                                   builder: (context, state) {
                                     bool isLoading = state is StaffLoading;
@@ -615,7 +665,7 @@ class _StaffScreenState extends State<StaffScreen>
                                                         .read<StaffBloc>()
                                                         .add(DeleteStaff(
                                                             staffMember
-                                                                .userId));
+                                                                .id));
                                                     ScaffoldMessenger.of(
                                                             context)
                                                         .showSnackBar(

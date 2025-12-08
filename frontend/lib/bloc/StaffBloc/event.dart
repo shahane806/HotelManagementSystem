@@ -17,7 +17,7 @@ class UpdateStaff extends StaffEvent {
 }
 
 class DeleteStaff extends StaffEvent {
-  final String userId;
+  final String id;
 
-  DeleteStaff(this.userId);
+  DeleteStaff(this.id);
 }

@@ -58,7 +58,7 @@ class CustomerApiService {
   Future<UserModel> updateCustomer(UserModel customer) async {
     try {
       final response = await http.put(
-        Uri.parse('$_baseUrl/${customer.userId}'),
+        Uri.parse('$_baseUrl/${customer.id}'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(customer.toJson()),
       );
