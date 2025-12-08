@@ -21,7 +21,7 @@ const Customer = require('../Models/customerModel');
 
 const updateCustomer = async (req, res) => {
   try {
-    const customer = await Customer.findOneAndUpdate({ userId: req.params.userId }, req.body, { new: true });
+    const customer = await Customer.findOneAndUpdate({ id: req.params.userId }, req.body, { new: true });
     if (!customer) {
       return res.status(404).json({ message: 'Customer not found' });
     }
@@ -35,7 +35,7 @@ const deleteCustomer = async (req, res) => {
   console.log("Delete request params:", req.params);
 
   try {
-    let customer = await Customer.findOneAndDelete({ userId: req.params.userId });
+    let customer = await Customer.findOneAndDelete({ id: req.params.userId });
 
     if (!customer) {
       customer = await Customer.findByIdAndDelete(req.params.userId);

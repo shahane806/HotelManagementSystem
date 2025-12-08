@@ -20,7 +20,7 @@ const createStaff = async (req, res) => {
     }
 
     const staff = new Staff({
-      userId: uuidv4(), // auto-generate
+      id: uuidv4(), // auto-generate
       fullName,
       email,
       mobile,
@@ -42,7 +42,7 @@ const updateStaff = async (req, res) => {
 
   try {
     const staff = await Staff.findOneAndUpdate(
-      { userId: req.params.userId },
+      { id: req.params.userId },
       req.body,
       { new: true }
     );
@@ -59,7 +59,7 @@ const deleteStaff = async (req, res) => {
   console.log("Delete request params:", req.params);
 
   try {
-    let staff = await Staff.findOneAndDelete({ userId: req.params.userId });
+    let staff = await Staff.findOneAndDelete({ id: req.params.userId });
 
     if (!staff) {
       staff = await Staff.findByIdAndDelete(req.params.userId);

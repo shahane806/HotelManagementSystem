@@ -17,7 +17,7 @@ class UpdateCustomer extends CustomerEvent {
 }
 
 class DeleteCustomer extends CustomerEvent {
-  final String userId;
+  final String id;
 
-  DeleteCustomer(this.userId);
+  DeleteCustomer(this.id);
 }

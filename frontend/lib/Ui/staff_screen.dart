@@ -634,6 +634,7 @@ TextFormField(
                                             trailing: Row(
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
+                                                 staffMember.fullName != "Om Shahane" ?
                                                 IconButton(
                                                   icon: const Icon(Icons.edit,
                                                       color: Colors.blue,
@@ -655,7 +656,8 @@ TextFormField(
                                                     });
                                                     _tabController.animateTo(0);
                                                   },
-                                                ),
+                                                ):Container(),
+                                                staffMember.fullName != "Om Shahane" ?
                                                 IconButton(
                                                   icon: const Icon(Icons.delete,
                                                       color: Colors.red,
@@ -677,7 +679,8 @@ TextFormField(
                                                       ),
                                                     );
                                                   },
-                                                ),
+                                                )
+                                                :Container()
                                               ],
                                             ),
                                           ),

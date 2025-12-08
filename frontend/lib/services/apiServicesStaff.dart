@@ -38,6 +38,7 @@ class StaffApiService{
   }
   // Create a new Staff
   Future<UserModel> createStaff(UserModel staff) async {
+    print("Staff: ${staff.toJson()}");
     try {
       final response = await http.post(
         Uri.parse(_baseUrl),

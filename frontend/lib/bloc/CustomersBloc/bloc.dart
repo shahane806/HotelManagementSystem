@@ -46,9 +46,11 @@ class CustomerBloc extends Bloc<CustomerEvent, CustomerState> {
   }
 
   Future<void> _onDeleteCustomer(DeleteCustomer event, Emitter<CustomerState> emit) async {
+    print("Event UserId : ${event.id}");
+
     emit(CustomerLoading());
     try {
-      await apiService.deleteCustomer(event.userId);
+      await apiService.deleteCustomer(event.id);
       final customers = await apiService.getAllCustomers();
       emit(CustomerLoaded(customers));
     } catch (e) {

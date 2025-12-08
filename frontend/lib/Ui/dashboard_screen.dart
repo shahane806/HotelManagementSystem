@@ -40,7 +40,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       curve: Curves.easeInOut,
     ));
     _animationController.forward();
-    final userRole = UserRepository.getUserData()?.role;
+    final userRole = UserRepository.getUserData()?.role ?? 'Admin';
     items =  [
    if (userRole == "Chef" || 
       userRole == "Admin")
