@@ -4,7 +4,7 @@ import 'order_model.dart';
 class Bill {
   final String billId;
   final String table;
-  final UserModel user;
+  // final UserModel user;
   final List<Order> orders;
   final double totalAmount;
   final bool isGstApplied;
@@ -12,7 +12,7 @@ class Bill {
   Bill({
     required this.billId,
     required this.table,
-    required this.user,
+    // required this.user,
     required this.orders,
     required this.totalAmount,
     required this.isGstApplied,
@@ -21,7 +21,7 @@ class Bill {
   Map<String, dynamic> toJson() => {
         'billId': billId,
         'table': table,
-        'user': user.toJson(), // ✅ convert properly
+        // 'user': user.toJson(), // ✅ convert properly
         'orders': orders.map((e) => e.toJson()).toList(), // ✅ convert list
         'totalAmount': totalAmount,
         'isGstApplied': isGstApplied,

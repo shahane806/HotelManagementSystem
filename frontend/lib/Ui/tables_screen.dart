@@ -39,13 +39,13 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
   List<MenuItem> _menuItems = [];
   bool _isInitialLoad = true;
   bool _isVegFilter = true;
-  final UserModel _user = UserModel(
-    id: '0001',
-    fullName: 'John Doe',
-    email: 'john.doe@example.com',
-    mobile: '9876543210',
-    aadhaarNumber: '',
-  );
+  // final UserModel _user = UserModel(
+  //   id: '0001',
+  //   fullName: 'John Doe',
+  //   email: 'john.doe@example.com',
+  //   mobile: '9876543210',
+  //   aadhaarNumber: '',
+  // );
 
   @override
   void initState() {
@@ -107,7 +107,7 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
         (sum, order) => sum + order.total.toDouble(),
       ),
       orders: orders,
-      user: _user,
+      // user: _user,
       isGstApplied: true,
     );
 
@@ -120,7 +120,7 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
       'table': bill.table,
       'totalAmount': bill.totalAmount,
       'orders': bill.orders.map((o) => o.toJson()).toList(),
-      'user': bill.user.toJson(),
+      // 'user': bill.user.toJson(),
       'isGstApplied': bill.isGstApplied,
     });
     // 5. **REMOVE PAID ORDERS FROM RECENT LIST**

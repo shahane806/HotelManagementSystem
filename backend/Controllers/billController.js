@@ -2,11 +2,11 @@ const { v4: uuidv4 } = require('uuid');
 const bill = require('../Models/billModel');
 const createBill = async (req, res) => {
   console.log("hei");
-  const { table, user, orders, totalAmount, isGstApplied } = req.body;
+  const { table,  orders, totalAmount, isGstApplied } = req.body;
   console.log(req.body);
 
   try {
-    if (!table || !user || !orders || !totalAmount || isGstApplied === undefined) {
+    if (!table || !orders || !totalAmount || isGstApplied === undefined) {
       console.log("Missing required fielsds");
       return res.status(400).json({ message: 'Missing required fields' });
     }
@@ -23,7 +23,7 @@ const createBill = async (req, res) => {
     const newBill = new bill({
       billId,
       table,
-      user,
+      // user,
       orders,
       totalAmount: finalAmount, // Save updated amount with GST
       isGstApplied,

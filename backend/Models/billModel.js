@@ -3,12 +3,12 @@ const mongoose = require('mongoose');
 const billSchema = new mongoose.Schema({
   billId: { type: String, unique: true, required: true },
   table: { type: String, required: true },
-  user: {
-    id: { type: String, required: true },
-    fullName: { type: String, required: true },
-    email: { type: String, required: true },
-    mobile: { type: String, required: true }
-  },
+  // user: {
+  //   id: { type: String, required: true },
+  //   fullName: { type: String, required: true },
+  //   email: { type: String, required: true },
+  //   mobile: { type: String, required: true }
+  // },
   orders: [{
     orderId: { type: String, required: true },
     items: [{
