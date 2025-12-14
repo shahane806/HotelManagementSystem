@@ -44,8 +44,7 @@ class KitchenDashboardBloc extends Bloc<KitchenDashboardEvent, KitchenDashboardS
           orders: updatedOrders,
           refreshKey: state.refreshKey + 1,
         ));
-      } else {
-      }
+      } 
     });
 
     // Handle order status update

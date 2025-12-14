@@ -418,29 +418,57 @@ import '../bloc/KitchenBloc/event.dart';
                         ),
                       ),
                     ),
-                  if (status != 'Served')
-                    ElevatedButton(
-                      onPressed: () {context.read<KitchenDashboardBloc>().add(
-                            UpdateOrderStatusEvent(orderId, 'Served'),
-                          );
-                          context.read<KitchenDashboardBloc>().add(RefreshDashboard());
-                          },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue[50],
-                        foregroundColor: Colors.blue,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
-                      child: Text(
-                        'Set Served',
-                        style: TextStyle(
-                          fontSize: isTablet ? 12 : 10,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
+                 if (status != 'Served')
+  ElevatedButton(
+    onPressed: () {
+      showDialog(
+        context: context,
+        builder: (BuildContext dialogContext) {
+          return AlertDialog(
+            title: const Text('Confirm Action'),
+            content: const Text('Are you sure you want to set this order as Served?'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop(); // Close dialog
+                },
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop(); // Close dialog
+
+                  context.read<KitchenDashboardBloc>().add(
+                    UpdateOrderStatusEvent(orderId, 'Served'),
+                  );
+                  context.read<KitchenDashboardBloc>().add(
+                    RefreshDashboard(),
+                  );
+                },
+                child: const Text('Confirm'),
+              ),
+            ],
+          );
+        },
+      );
+    },
+    style: ElevatedButton.styleFrom(
+      backgroundColor: Colors.blue[50],
+      foregroundColor: Colors.blue,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    ),
+    child: Text(
+      'Set Served',
+      style: TextStyle(
+        fontSize: isTablet ? 12 : 10,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+  )
+
                 ],
               ),
             ],

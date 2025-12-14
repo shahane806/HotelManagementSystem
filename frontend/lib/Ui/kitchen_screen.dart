@@ -5,7 +5,6 @@ import '../bloc/KitchenBloc/event.dart';
 import '../bloc/KitchenBloc/state.dart';
 import '../services/socketService.dart';
 import '../widgets/kitchen_widgets.dart';
-import 'kitchen_served_orders.dart';
 class KitchenDashboardScreen extends StatelessWidget {
   const KitchenDashboardScreen({super.key});
 
@@ -133,7 +132,7 @@ class KitchenDashboardView extends StatelessWidget {
          IconButton(
           icon: const Icon(Icons.list, color: Colors.white),
           onPressed: () {
-            Navigator.push(context, MaterialPageRoute(builder: (context)=>const KitchenServedOrders()));
+            // Navigator.push(context, MaterialPageRoute(builder: (context)=>const KitchenServedOrders()));
           },
         ),
         if (screenWidth > 600)
