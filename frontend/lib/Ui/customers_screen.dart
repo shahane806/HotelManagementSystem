@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
 import '../bloc/CustomersBloc/bloc.dart';
@@ -317,7 +318,10 @@ class _CustomersScreenState extends State<CustomersScreen> with SingleTickerProv
                                     color: const Color(0xFF2D3748),
                                   ),
                                   validator: _validateMobile,
-                                  keyboardType: TextInputType.phone,
+                                   inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                    LengthLimitingTextInputFormatter(10),
+                                  ],
                                 ),
                                 const SizedBox(height: 16),
                                 TextFormField(
@@ -339,6 +343,10 @@ class _CustomersScreenState extends State<CustomersScreen> with SingleTickerProv
                                   ),
                                   validator: _validateAadhaar,
                                   keyboardType: TextInputType.number,
+                                   inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                    LengthLimitingTextInputFormatter(12),
+                                  ],
                                 ),
                                 const SizedBox(height: 20),
                                 BlocBuilder<CustomerBloc, CustomerState>(

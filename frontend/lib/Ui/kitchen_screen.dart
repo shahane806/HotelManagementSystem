@@ -5,6 +5,7 @@ import '../bloc/KitchenBloc/event.dart';
 import '../bloc/KitchenBloc/state.dart';
 import '../services/socketService.dart';
 import '../widgets/kitchen_widgets.dart';
+import 'kitchen_served_orders.dart';
 class KitchenDashboardScreen extends StatelessWidget {
   const KitchenDashboardScreen({super.key});
 
@@ -36,7 +37,7 @@ class KitchenDashboardView extends StatelessWidget {
             ? state.orders
             : state.orders.where((order) => order['status'] == state.selectedStatusFilter).toList();
         final newOrders = state.orders.where((order) => order['status'] != 'Served' ).toList();
-
+        
 
         return Scaffold(
           backgroundColor: Colors.grey[50],
@@ -127,6 +128,12 @@ class KitchenDashboardView extends StatelessWidget {
           icon: const Icon(Icons.refresh, color: Colors.white),
           onPressed: () {
             context.read<KitchenDashboardBloc>().add(RefreshDashboard());
+          },
+        ),
+         IconButton(
+          icon: const Icon(Icons.list, color: Colors.white),
+          onPressed: () {
+            Navigator.push(context, MaterialPageRoute(builder: (context)=>const KitchenServedOrders()));
           },
         ),
         if (screenWidth > 600)

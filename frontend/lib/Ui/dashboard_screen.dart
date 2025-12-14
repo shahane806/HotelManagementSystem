@@ -59,7 +59,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     _DashboardItem(
         "Checkout", Icons.point_of_sale, Colors.green, "Process payments"),
         if (
-      userRole == "Admin")
+      userRole == "Admin"  || userRole == "Room Service")
     _DashboardItem("Rooms", Icons.hotel, Colors.purple, "Room management"),
     if (
       userRole == "Admin")
@@ -88,8 +88,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     _DashboardItem(
       
         "Settings", Icons.settings, Colors.blueGrey, "App configuration"),
-        if (
-      userRole == "Admin")
+       
     _DashboardItem("Logout", Icons.exit_to_app, Colors.redAccent, "Sign out"),
   ];
 

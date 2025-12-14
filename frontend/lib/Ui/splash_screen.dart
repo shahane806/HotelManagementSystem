@@ -106,7 +106,7 @@ class _SplashScreenState extends State<SplashScreen>
                  Stack(
               children: [
                 InternetCheckWidget(
-                  child: user == null ? const DashboardScreen() : const DashboardScreen(),
+                  child: user == null ? const AuthScreen() : const DashboardScreen(),
                 ),
               ],
             ),
