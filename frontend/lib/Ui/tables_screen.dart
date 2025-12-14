@@ -18,7 +18,6 @@ import '../models/bill_model.dart';
 import '../models/order_model.dart';
 import '../models/table_model.dart';
 import '../models/menu_model.dart';
-import '../models/user_model.dart';
 import '../services/socketService.dart';
 import '../widgets/table_widgets.dart';
 
@@ -35,7 +34,7 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
   late AnimationController _animationController;
   int _selectedIndex = 0;
   final Map<MenuItem, String> selectedOptions = {};
-  List<String> _categories = [];
+  List<String> categories = [];
   List<MenuItem> _menuItems = [];
   bool _isInitialLoad = true;
   bool _isVegFilter = true;
@@ -950,7 +949,7 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
       listener: (context, state) {
         if (state is MenusLoaded) {
           setState(() {
-            _categories = state.menus.map((menu) => menu.name).toSet().toList();
+            categories = state.menus.map((menu) => menu.name).toSet().toList();
             _menuItems = getMenuItemsFromMenus(state.menus, _isVegFilter);
             _isInitialLoad = false;
           });
@@ -975,7 +974,7 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    state.message ?? 'Failed to load menus',
+                    state.message,
                     style: TextStyle(
                       fontSize: isTablet ? 15 : 13,
                       color: Colors.grey[600],
