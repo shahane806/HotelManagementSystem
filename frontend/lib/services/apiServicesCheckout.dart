@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:frontend/app/api_constants.dart';
 import 'package:http/http.dart' as http;
+import '../app/constants.dart';
 import '../models/bill_model.dart';
 
 class Apiservicescheckout {
@@ -9,6 +10,7 @@ class Apiservicescheckout {
 
   static Future<List<Map<String, dynamic>>> getAllBills() async {
     try {
+        final token = AppConstants.pref?.getString('token');
       final fullUrl = '$baseUrl/getAllBills';
       // developer.log('Attempting GET request to: $fullUrl', name: 'ApiServiceTables');
 
@@ -16,6 +18,7 @@ class Apiservicescheckout {
         Uri.parse(fullUrl),
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token'
         },
       );
 
@@ -44,10 +47,12 @@ class Apiservicescheckout {
 
   static Future<void> payBill(Bill obj) async {
     try {
+       final token = AppConstants.pref?.getString('token');
       final res = await http.post(
         Uri.parse('$baseUrl/payTableBill'),
         headers: {
           'Content-Type': 'application/json',
+          'Authorization':'Bearer $token'
         },
         body: jsonEncode(obj.toJson()),
       );
@@ -66,11 +71,12 @@ class Apiservicescheckout {
     try {
       final fullUrl = '$baseUrl/updateBillStatus';
       developer.log('Attempting POST request to: $fullUrl', name: 'ApiServiceTables');
-
+ final token = AppConstants.pref?.getString('token');
       final response = await http.post(
         Uri.parse(fullUrl),
         headers: {
           'Content-Type': 'application/json',
+          'Authorization':'Bearer $token'
         },
         body: jsonEncode({
           'billId': billId,

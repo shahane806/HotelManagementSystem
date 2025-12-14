@@ -36,10 +36,8 @@ class ApiServiceTables {
     }
   }
 
-  Future<void> addTableItem(String utilityId, String name, int count) async {
-    if (utilityId.isEmpty) {
-      throw Exception('Invalid utility ID: $utilityId');
-    }
+  Future<void> addTableItem(String name, int count) async {
+   
     if (name.isEmpty) {
       throw Exception('Invalid table name: $name');
     }

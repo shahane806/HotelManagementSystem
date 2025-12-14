@@ -34,7 +34,7 @@ class AmenitiesBloc extends Bloc<AmenitiesEvents, AmenitiesState> {
     try {
       await apiService.addAmenity(event.amenityItemName);
       final List<AmenityModel> amenities = await apiService.getAmenityModel();
-      emit(AmenitiesLoaded(amenities)); // ✅ emit updated list
+      emit(AmenitiesLoaded(amenities)); 
     } catch (e) {
       emit(AmenitiesError('Failed to add amenity: $e'));
     }

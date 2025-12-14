@@ -32,7 +32,7 @@ class TablesBloc extends Bloc<TablesEvents, TablesState> {
   ) async {
     emit(TablesLoading());
     try {
-      await apiService.addTableItem(event.utilityId, event.name, event.count);
+      await apiService.addTableItem(event.name, event.count);
       final List<TableModel> tables = await apiService.getTables();
       emit(TablesLoaded(tables));
     } catch (e) {

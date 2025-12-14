@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:http/http.dart' as http;
 
+import '../app/constants.dart';
+
 class InternetCheckWidget extends StatefulWidget {
   final Widget child;
 
@@ -61,7 +63,8 @@ class _InternetCheckWidgetState extends State<InternetCheckWidget> {
 
     for (final endpoint in endpoints) {
       try {
-        final response = await http.get(Uri.parse(endpoint)).timeout(timeout);
+         final token = AppConstants.pref?.getString('token');
+        final response = await http.get(Uri.parse(endpoint),headers: {'Content-Type':'application/json','Authorization':'Bearer $token'}).timeout(timeout);
         if (response.statusCode == 200) {
           return true;
         }

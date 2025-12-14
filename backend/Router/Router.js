@@ -21,6 +21,9 @@ router.get("/reset-password/:token", (req, res, next) => {
 router.post('/api/auth/reset-password/:token', resetPasswordController);
 router.post("/auth/login", loginController);
 router.post("/auth/forgot-password", forgotPasswordController);
+
+
+
 ///#Create New Utility  
 ///Dont hit this api until you create all the code regarding that utility in the frontend 
 ///line Models, Service, Bloc etc.
@@ -37,6 +40,10 @@ router.delete("/utilities/:utilityName/:itemName", authenticate, deleteUtilityIt
 router.post("/utilities/:utilityName/:menuName/items", authenticate, addMenuItemController);
 ///#Delete Item from Menu from Menu Utiltiy
 router.delete("/utilities/:utilityName/:menuName/items/:menuitemname", authenticate, deleteMenuItemController);
+
+
+
+
 
 router.post('/payTableBill', authenticate, createBill);
 router.get('/getAllBills',authenticate,getAllBills)
