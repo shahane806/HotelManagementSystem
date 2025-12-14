@@ -28885,8 +28885,8 @@ r=A.cb(a,B.d4)
 r=r==null?null:r.b
 if(r==null)r=1
 return new A.rm(s,r,A.Ch(a),A.dk(a),null,A.b7())},
-zN(){return"http://localhost:3001"},
-aTr(){return"ws://localhost:3000"},
+zN(){return"https://hotelmanagementsystem-ysx7.onrender.com"},
+aTr(){return"https://hotelmanagementsystem-socket.onrender.com"},
 a3C(){var s=0,r=A.O(t.H),q
 var $async$a3C=A.J(function(a,b){if(a===1)return A.L(b,r)
 while(true)switch(s){case 0:q=$
