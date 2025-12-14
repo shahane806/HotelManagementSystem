@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:frontend/app/api_constants.dart';
 import 'package:http/http.dart' as http;
 
+import '../app/constants.dart';
 import '../models/amenity_model.dart';
 
 class ApiServiceAmenities {
@@ -10,11 +11,12 @@ class ApiServiceAmenities {
   Future<List<AmenityModel>> getAmenityModel() async {
     try {
       final fullUrl = '$baseUrl/utilities/Amenity/';
-
+      final token = AppConstants.pref?.getString('token');
       final response = await http.get(
         Uri.parse(fullUrl),
         headers: {
           'Content-Type': 'application/json',
+          'Authorization':'Bearer $token'
         },
       );
 
@@ -51,10 +53,12 @@ class ApiServiceAmenities {
   }
 
   Future<void> addAmenity(String name) async {
+    final token = AppConstants.pref?.getString('token');
     final response = await http.post(
       Uri.parse('$baseUrl/utilities/Amenity/items'),
       headers: {
         'Content-Type': 'application/json',
+        'Authorization' : 'Bearer $token'
       },
       body: jsonEncode({'name': name}),
     );
@@ -66,10 +70,12 @@ class ApiServiceAmenities {
 
   Future<void> deleteAmenity(String name) async {
     try {
+      final token = AppConstants.pref?.getString('token');
       final response = await http.delete(
         Uri.parse('$baseUrl/utilities/Amenity/items/$name'),
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token'
         },
       );
       if (response.statusCode != 200) {

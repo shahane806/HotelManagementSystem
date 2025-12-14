@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../app/api_constants.dart';
 import '../../models/room_model.dart';
+import '../app/constants.dart';
 
 class ApiServiceRooms {
   final String baseUrl = ApiConstants.url;
@@ -9,11 +10,12 @@ class ApiServiceRooms {
   Future<List<RoomModel>> getRoomModel() async {
     try {
       final fullUrl = '$baseUrl/utilities/Room';
-
+      final token = AppConstants.pref?.getString('token');
       final response = await http.get(
         Uri.parse(fullUrl),
         headers: {
           'Content-Type': 'application/json',
+          'Authorization':'Bearer $token'
         },
       );
 
@@ -40,10 +42,12 @@ class ApiServiceRooms {
 
   Future<void> addRoom(int name, String price, bool isAC) async {
     try {
+       final token = AppConstants.pref?.getString('token');
       final response = await http.post(
         Uri.parse('$baseUrl/utilities/Room/items'),
         headers: {
           'Content-Type': 'application/json',
+          'Authorization':'Bearer $token'
         },
         body: jsonEncode({
           'name': name,
@@ -66,10 +70,12 @@ class ApiServiceRooms {
       throw Exception('Invalid room number: $name');
     }
     try {
+       final token = AppConstants.pref?.getString('token');
       final response = await http.delete(
         Uri.parse('$baseUrl/utilities/Room/$name'),
         headers: {
           'Content-Type': 'application/json',
+          'Authorization':'Bearer $token'
         },
       );
 

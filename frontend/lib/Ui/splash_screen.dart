@@ -1,24 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:frontend/Ui/dashboard_screen.dart';
 import 'package:frontend/models/user_model.dart';
 import 'package:frontend/repositories/user_repository.dart';
 import 'package:frontend/ui/authentication.dart';
-// import 'package:frontend/ui/dashboard_screen.dart';
 import 'package:frontend/widgets/internet_check.dart';
-
-import '../bloc/AmenitiesUtility/bloc.dart';
-import '../bloc/AmenitiesUtility/event.dart';
-import '../bloc/AmenitiesUtility/state.dart';
-// import '../bloc/MenuUtility/bloc.dart';
-// import '../bloc/MenuUtility/event.dart';
-// import '../bloc/MenuUtility/state.dart';
-import '../bloc/RoomUtility/bloc.dart';
-import '../bloc/RoomUtility/event.dart';
-import '../bloc/RoomUtility/state.dart';
-// import '../bloc/TableUtility/bloc.dart';
-// import '../bloc/TableUtility/event.dart';
-// import '../bloc/TableUtility/state.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -35,16 +20,10 @@ class _SplashScreenState extends State<SplashScreen>
   late Animation<double> _textAnimation;
   late Animation<Offset> _slideAnimation;
 
-  bool _amenitiesLoaded = false;
-  // bool _menusLoaded = false;
-  // bool _tablesLoaded = false;
-  bool _roomsLoaded = false;
-
   @override
   void initState() {
     super.initState();
-    
-    // Initialize animation controllers
+
     _logoController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
@@ -79,47 +58,41 @@ class _SplashScreenState extends State<SplashScreen>
       curve: Curves.easeOutCubic,
     ));
 
-    // Start animations
     _startAnimations();
-
-    // Dispatch fetch events
-    context.read<AmenitiesBloc>().add(FetchAmenities());
-    // context.read<MenusBloc>().add(FetchMenus());
-    // context.read<TablesBloc>().add(FetchTables());
-    context.read<RoomsBloc>().add(FetchRooms());
-    
   }
 
   void _startAnimations() async {
     await _logoController.forward();
     await _textController.forward();
+
+    await Future.delayed(const Duration(milliseconds: 800));
+
+    navigateToHome();
   }
 
-  void _navigateToHome() {
-    if (_amenitiesLoaded && _roomsLoaded) {
-      if (mounted) {
-        UserModel? user = UserRepository.getUserData();
-        Navigator.pushReplacement(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                 Stack(
-              children: [
-                InternetCheckWidget(
-                  child: user == null ? const AuthScreen() : const DashboardScreen(),
-                ),
-              ],
-            ),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(
-                opacity: animation,
-                child: child,
-              );
-            },
-            transitionDuration: const Duration(milliseconds: 800),
+  void navigateToHome() {
+    if (mounted) {
+      UserModel? user = UserRepository.getUserData();
+      Navigator.pushReplacement(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => Stack(
+            children: [
+              InternetCheckWidget(
+                child:
+                    user == null ? const AuthScreen() : const DashboardScreen(),
+              ),
+            ],
           ),
-        );
-      }
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(
+              opacity: animation,
+              child: child,
+            );
+          },
+          transitionDuration: const Duration(milliseconds: 800),
+        ),
+      );
     }
   }
 
@@ -135,180 +108,116 @@ class _SplashScreenState extends State<SplashScreen>
     final screenSize = MediaQuery.of(context).size;
     final isTablet = screenSize.width > 600;
 
-    return MultiBlocListener(
-      listeners: [
-        BlocListener<AmenitiesBloc, AmenitiesState>(
-          listener: (context, state) {
-            if (state is AmenitiesLoaded) {
-              setState(() {
-                _amenitiesLoaded = true;
-              });
-              _navigateToHome();
-            } else if (state is AmenitiesError) {
-              // Handle error (e.g., show a snackbar or retry)
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Failed to load amenities: ${state.message}')),
-              );
-            }
-          },
-        ),
-        
-        // BlocListener<MenusBloc, MenusState>(
-        //   listener: (context, state) {
-        //     if (state is MenusLoaded) {
-        //       setState(() {
-        //         _menusLoaded = true;
-        //       });
-        //       _navigateToHome();
-        //     } else if (state is MenusError) {
-        //       ScaffoldMessenger.of(context).showSnackBar(
-        //         SnackBar(content: Text('Failed to load menus: ${state.message}')),
-        //       );
-        //     }
-        //   },
-        // ),
-        // BlocListener<TablesBloc, TablesState>(
-        //   listener: (context, state) {
-        //     if (state is TablesLoaded) {
-        //       setState(() {
-        //         _tablesLoaded = true;
-        //       });
-        //       _navigateToHome();
-        //     } else if (state is TablesError) {
-        //       ScaffoldMessenger.of(context).showSnackBar(
-        //         SnackBar(content: Text('Failed to load tables: ${state.message}')),
-        //       );
-        //     }
-        //   },
-        // ),
-      
-        BlocListener<RoomsBloc, RoomState>(
-          listener: (context, state) {
-            if (state is RoomLoaded) {
-              setState(() {
-                _roomsLoaded = true;
-              });
-              _navigateToHome();
-            } else if (state is RoomError) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Failed to load rooms: ${state.message}')),
-              );
-            }
-          },
-        ),
-      ],
-      child: Scaffold(
-        body: Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color(0xFF667eea),
-                Color(0xFF764ba2),
-              ],
-            ),
+    return Scaffold(
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF667eea),
+              Color(0xFF764ba2),
+            ],
           ),
-          child: SafeArea(
-           
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Spacer(),
-                // Animated Logo
-                ScaleTransition(
-                  scale: _logoAnimation,
-                  child: Container(
-                    padding: EdgeInsets.all(isTablet ? 32 : 24),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(30),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      Icons.hotel,
-                      size: isTablet ? 120 : 80,
-                      color: Colors.white,
-                    ),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Spacer(),
+              // Animated Logo
+              ScaleTransition(
+                scale: _logoAnimation,
+                child: Container(
+                  padding: EdgeInsets.all(isTablet ? 32 : 24),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(30),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    Icons.hotel,
+                    size: isTablet ? 120 : 80,
+                    color: Colors.white,
                   ),
                 ),
-                SizedBox(height: screenSize.height * 0.04),
-                // Animated Text
-                SlideTransition(
-                  position: _slideAnimation,
-                  child: FadeTransition(
-                    opacity: _textAnimation,
-                    child: Column(
-                      children: [
-                        Text(
-                          'Hotel Management\nSystem',
-                          style: TextStyle(
-                            fontSize: isTablet ? 32 : 28,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            height: 1.2,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        SizedBox(height: screenSize.height * 0.02),
-                        Container(
-                          constraints: BoxConstraints(
-                            maxWidth: screenSize.width * 0.8,
-                          ),
-                          child: Text(
-                            'Manage guests, bookings, and payments with ease',
-                            style: TextStyle(
-                              fontSize: isTablet ? 18 : 16,
-                              color: Colors.white70,
-                              fontWeight: FontWeight.w400,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const Spacer(),
-                // Loading Indicator
-                FadeTransition(
+              ),
+              SizedBox(height: screenSize.height * 0.04),
+              // Animated Text
+              SlideTransition(
+                position: _slideAnimation,
+                child: FadeTransition(
                   opacity: _textAnimation,
                   child: Column(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(50),
-                        ),
-                        child: const CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          strokeWidth: 3,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Loading...',
+                      Text(
+                        'Hotel Management\nSystem',
                         style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
+                          fontSize: isTablet ? 32 : 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          height: 1.2,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: screenSize.height * 0.02),
+                      Container(
+                        constraints: BoxConstraints(
+                          maxWidth: screenSize.width * 0.8,
+                        ),
+                        child: Text(
+                          'Manage guests, bookings, and payments with ease',
+                          style: TextStyle(
+                            fontSize: isTablet ? 18 : 16,
+                            color: Colors.white70,
+                            fontWeight: FontWeight.w400,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
                       ),
                     ],
                   ),
                 ),
-                SizedBox(height: screenSize.height * 0.05),
-              ],
-            ),
+              ),
+              const Spacer(),
+              // Loading Indicator
+              FadeTransition(
+                opacity: _textAnimation,
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(50),
+                      ),
+                      child: const CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        strokeWidth: 3,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Loading...',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: screenSize.height * 0.05),
+            ],
           ),
         ),
       ),

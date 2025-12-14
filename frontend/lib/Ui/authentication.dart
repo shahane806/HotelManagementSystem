@@ -18,10 +18,6 @@ class _AuthScreenState extends State<AuthScreen>
 
   final _loginEmail = TextEditingController();
   final _loginPass = TextEditingController();
-  // final _signupName = TextEditingController();
-  // final _signupEmail = TextEditingController();
-  // final _signupPass = TextEditingController();
-  // final _signupConfirmPass = TextEditingController();
   final _forgotEmail = TextEditingController();
 
   bool _obscure = true;
@@ -33,7 +29,6 @@ class _AuthScreenState extends State<AuthScreen>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _particleController = AnimationController(vsync: this, duration: const Duration(seconds: 30))..repeat();
-
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) setState(() {});
     });
@@ -63,9 +58,14 @@ class _AuthScreenState extends State<AuthScreen>
     if (result['success'] == true) {
      
       final user = result['user'];
+      final token = result['token'];
+
       UserRepository.setUserData(user);
+      UserRepository.setToken(token);
     } else {
-      // Login failed
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+      );
     }
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -90,18 +90,7 @@ class _AuthScreenState extends State<AuthScreen>
     }
   }
 }
-  // void _signup() {
-  //   if (_signupPass.text != _signupConfirmPass.text) {
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       const SnackBar(content: Text("Passwords do not match!"), backgroundColor: Colors.red),
-  //     );
-  //     return;
-  //   }
-  //   ScaffoldMessenger.of(context).showSnackBar(
-  //     const SnackBar(content: Text("Account created!"), backgroundColor: Colors.green),
-  //   );
-  //   _tabController.animateTo(0);
-  // }
+
 void _forgotPassword() async {
   if (_forgotEmail.text.trim().isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -295,15 +284,6 @@ void _forgotPassword() async {
         const SizedBox(height: 16),
         _btn("Login", _login, const Color(0xFF667eea)),
       ]);
-
-  // Widget _signupTab() => _form([
-  //       _field(_signupName, "Full Name", Icons.person),
-  //       _field(_signupEmail, "Email", Icons.alternate_email),
-  //       _field(_signupPass, "Password", Icons.lock, true),
-  //       _field(_signupConfirmPass, "Confirm Password", Icons.lock_outline, true,  true),
-  //       const SizedBox(height: 16),
-  //       _btn("Create Account", _signup, const Color(0xFF764ba2)),
-  //     ]);
 
   Widget _forgotTab() => _form([
         const Icon(Icons.lock_reset, size: 64, color: Colors.orange),

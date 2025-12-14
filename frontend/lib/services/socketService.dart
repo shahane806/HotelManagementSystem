@@ -92,6 +92,8 @@ class SocketService {
         _processEventQueue();
       }
     });
+
+    
     socket.on('billsFetched', (data) {
       try {
         final bills = List<Map<String, dynamic>>.from(data);

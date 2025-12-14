@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 class InternetCheckWidget extends StatefulWidget {
   final Widget child;
 
-  const InternetCheckWidget({Key? key, required this.child}) : super(key: key);
+  const InternetCheckWidget({super.key, required this.child});
 
   @override
   State<InternetCheckWidget> createState() => _InternetCheckWidgetState();

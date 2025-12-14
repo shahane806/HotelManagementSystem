@@ -1,22 +1,20 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'package:frontend/app/api_constants.dart';
-import 'package:frontend/models/user_model.dart';
+import 'package:frontend/app/constants.dart';
 import 'package:http/http.dart' as http;
-import '../models/bill_model.dart';
 import '../models/table_model.dart';
-import '../models/order_model.dart';
 class ApiServiceTables {
   final String baseUrl = ApiConstants.url;
 
   Future<List<TableModel>> getTables() async {
     try {
       final fullUrl = '$baseUrl/utilities/Table';
-
+      final token = AppConstants.pref?.getString('token');
       final response = await http.get(
         Uri.parse(fullUrl),
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token'
         },
       );
       if (response.statusCode == 200) {
@@ -49,10 +47,12 @@ class ApiServiceTables {
       throw Exception('Invalid seating capacity: $count');
     }
     try {
+       final token = AppConstants.pref?.getString('token');
       final response = await http.post(
         Uri.parse('$baseUrl/utilities/Table/items'),
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token'
         },
         body: jsonEncode({
           'name': name,
@@ -78,10 +78,12 @@ class ApiServiceTables {
       throw Exception('Invalid item name: $itemName');
     }
     try {
+       final token = AppConstants.pref?.getString('token');
       final response = await http.delete(
         Uri.parse('$baseUrl/utilities/Table/$itemName'),
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token'
         },
       );
 

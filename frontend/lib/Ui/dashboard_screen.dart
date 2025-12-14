@@ -23,8 +23,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     with TickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
- 
-   late List<_DashboardItem> items ;
+  late List<_DashboardItem> items;
+
   @override
   void initState() {
     super.initState();
@@ -41,57 +41,40 @@ class _DashboardScreenState extends State<DashboardScreen>
     ));
     _animationController.forward();
     final userRole = UserRepository.getUserData()?.role ?? 'Admin';
-    items =  [
-   if (userRole == "Chef" || 
-      userRole == "Admin")
-    _DashboardItem(
-      "Kitchen", 
-      Icons.restaurant_menu, 
-      Colors.orange,
-      "Manage orders & menu"
-    ),
-    if (userRole == "Waiter" || 
-      userRole == "Admin")
-    _DashboardItem(
-        "Tables", Icons.table_restaurant, Colors.blue, "Table reservations"),
-        if (
-      userRole == "Admin")
-    _DashboardItem(
-        "Checkout", Icons.point_of_sale, Colors.green, "Process payments"),
-        if (
-      userRole == "Admin"  || userRole == "Room Service")
-    _DashboardItem("Rooms", Icons.hotel, Colors.purple, "Room management"),
-    if (
-      userRole == "Admin")
-    _DashboardItem(
-        "Bookings", Icons.event_available, Colors.teal, "View reservations"),
-        if (
-      userRole == "Admin")
-    _DashboardItem(
-        "Customers", Icons.people_outline, Colors.indigo, "Customer database"),
-        if (
-      userRole == "Admin")
-    _DashboardItem("Staff", Icons.badge, Colors.brown, "Staff management"),
-    if (
-      userRole == "Admin")
-    _DashboardItem("Payments", Icons.account_balance_wallet, Colors.red,
-        "Financial records"),
-        if (
-      userRole == "Admin")
-    _DashboardItem(
-        "Reports", Icons.analytics, Colors.deepPurple, "Analytics & insights"),
-        if (
-      userRole == "Admin")
-    _DashboardItem("Utilities", Icons.build, Colors.grey, "System utilities"),
-    if (
-      userRole == "Admin")
-    _DashboardItem(
-      
-        "Settings", Icons.settings, Colors.blueGrey, "App configuration"),
-       
-    _DashboardItem("Logout", Icons.exit_to_app, Colors.redAccent, "Sign out"),
-  ];
-
+    items = [
+      if (userRole == "Chef" || userRole == "Admin")
+        _DashboardItem("Kitchen", Icons.restaurant_menu, Colors.orange,
+            "Manage orders & menu"),
+      if (userRole == "Waiter" || userRole == "Admin")
+        _DashboardItem("Tables", Icons.table_restaurant, Colors.blue,
+            "Table reservations"),
+      if (userRole == "Admin")
+        _DashboardItem(
+            "Checkout", Icons.point_of_sale, Colors.green, "Process payments"),
+      if (userRole == "Admin" || userRole == "Room Service")
+        _DashboardItem("Rooms", Icons.hotel, Colors.purple, "Room management"),
+      if (userRole == "Admin")
+        _DashboardItem("Bookings", Icons.event_available, Colors.teal,
+            "View reservations"),
+      if (userRole == "Admin")
+        _DashboardItem("Customers", Icons.people_outline, Colors.indigo,
+            "Customer database"),
+      if (userRole == "Admin")
+        _DashboardItem("Staff", Icons.badge, Colors.brown, "Staff management"),
+      if (userRole == "Admin")
+        _DashboardItem("Payments", Icons.account_balance_wallet, Colors.red,
+            "Financial records"),
+      if (userRole == "Admin")
+        _DashboardItem("Reports", Icons.analytics, Colors.deepPurple,
+            "Analytics & insights"),
+      if (userRole == "Admin")
+        _DashboardItem(
+            "Utilities", Icons.build, Colors.grey, "System utilities"),
+      if (userRole == "Admin")
+        _DashboardItem(
+            "Settings", Icons.settings, Colors.blueGrey, "App configuration"),
+      _DashboardItem("Logout", Icons.exit_to_app, Colors.redAccent, "Sign out"),
+    ];
   }
 
   @override
@@ -451,7 +434,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           },
         ),
       );
-    } else if(item.title == "Staff"){
+    } else if (item.title == "Staff") {
       Navigator.push(
         context,
         PageRouteBuilder(
@@ -466,8 +449,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           },
         ),
       );
-    }
-    else {
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -509,7 +491,10 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
             ElevatedButton(
               onPressed: () {
-                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=> const AuthScreen()));
+                Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const AuthScreen()));
                 UserRepository.logout();
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Logged out successfully')),

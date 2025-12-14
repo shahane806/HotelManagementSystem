@@ -1,6 +1,6 @@
 const express = require("express");
-const { loginController, registerController, forgotPasswordController, resetPasswordController } = require("../Controllers/authController");
-const { loginMiddlewere, registerMiddlewere, authenticate } = require("../Middlewere/authMiddlewere");
+const { loginController , forgotPasswordController, resetPasswordController } = require("../Controllers/authController");
+const {  authenticate } = require("../Middlewere/authMiddlewere");
 const { utilityController, utilityItemController, getNamedUtilities, deleteUtilityItemController } = require("../Controllers/utilityController");
 const { addMenuItemController, deleteMenuItemController } = require("../Controllers/utilityController");
 const { createBill, getAllBills, updateBillStatus } = require("../Controllers/billController");
@@ -12,11 +12,8 @@ const router = express.Router();
 router.get("/", (req, res) => {
   res.send("Hello World");
 });
-// router.get('/reset-password/:token', (req, res) => {
-//   res.sendFile(path.join(__dirname,  '../public/reset-password.html'));
-// });
+
 router.get("/reset-password/:token", (req, res, next) => {
-  // If token request is actually a js/css file, skip route
   if (req.params.token.includes(".")) return next();
   res.sendFile(path.join(__dirname, "../public/reset-password.html"));
 });

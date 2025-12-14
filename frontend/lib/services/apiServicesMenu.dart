@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:frontend/app/api_constants.dart';
 import 'package:http/http.dart' as http;
 
+import '../app/constants.dart';
 import '../models/menu_model.dart';
 
 class ApiServiceMenus {
@@ -10,11 +11,12 @@ class ApiServiceMenus {
   Future<List<MenuModel>> getMenuModel() async {
     try {
       final fullUrl = '$baseUrl/utilities/Menu';
-
+      final token = AppConstants.pref?.getString('token');
       final response = await http.get(
         Uri.parse(fullUrl),
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token'
         },
       );
 
@@ -41,10 +43,12 @@ class ApiServiceMenus {
 
   Future<void> addMenu(String name, String type) async {
     try {
+       final token = AppConstants.pref?.getString('token');
       final response = await http.post(
         Uri.parse('$baseUrl/utilities/Menu/items'),
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token'
         },
         body: jsonEncode({
           'name': name,
@@ -63,10 +67,12 @@ class ApiServiceMenus {
 
   Future<void> addMenuItem(String menuName, String itemName, String price, String type) async {
     try {
+        final token = AppConstants.pref?.getString('token');
       final response = await http.post(
         Uri.parse('$baseUrl/utilities/Menu/$menuName/items'),
         headers: {
           'Content-Type': 'application/json',
+          'Authorization':'Bearer $token'
         },
         body: jsonEncode({
           'menuitemname': itemName,
@@ -86,10 +92,12 @@ class ApiServiceMenus {
 
   Future<void> deleteMenu(String menuName) async {
     try {
+       final token = AppConstants.pref?.getString('token');
       final response = await http.delete(
         Uri.parse('$baseUrl/utilities/Menu/$menuName'),
         headers: {
           'Content-Type': 'application/json',
+          'Authorization':'Bearer $token'
         },
       );
 
@@ -110,10 +118,12 @@ class ApiServiceMenus {
       throw Exception('Invalid item name: $itemName');
     }
     try {
+       final token = AppConstants.pref?.getString('token');
       final response = await http.delete(
         Uri.parse('$baseUrl/utilities/Menu/$menuName/items/$itemName'),
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token'
         },
       );
 
