@@ -4,7 +4,7 @@
   "description": "HotelManagementSystemBackend",
   "main": "index.js",
   "scripts": {
-    "start": "node dist/index.js",
+    "start": "node index.js",
     "dev": "nodemon index.js",
     "build": "esbuild index.js --bundle --platform=node --outfile=dist/index.js"
   },
@@ -23,6 +23,7 @@
   "homepage": "https://github.com/shahane806/HotelManagementSystem#readme",
   "dependencies": {
     "bcryptjs": "^3.0.2",
+    "cloudinary": "^2.8.0",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "esbuild": "^0.25.5",
@@ -31,6 +32,9 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.16.0",
+    "multer": "^2.0.2",
+    "multer-storage-cloudinary": "^4.0.0",
+    "nodemailer": "^7.0.12",
     "razorpay": "^2.9.6",
     "socket.io": "^4.8.1",
     "uuid": "^11.1.0"

@@ -4,7 +4,6 @@ const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const Staff = require("../Models/staffModel");
 const nodemailer = require("nodemailer");
-
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 587,
