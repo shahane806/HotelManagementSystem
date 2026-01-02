@@ -14,6 +14,11 @@ class KitchenDashboardBloc extends Bloc<KitchenDashboardEvent, KitchenDashboardS
           selectedStatusFilter: 'All',
           refreshKey: 0,
         )) {
+
+          on<SetOrdersEvent>((event, emit) {
+  emit(state.copyWith(orders: event.orders));
+});
+
     // Initialize socket connection and listeners
     on<InitializeDashboard>((event, emit) async {
       // If cache has valid orders, use them initially to prevent clearing
@@ -104,12 +109,15 @@ class KitchenDashboardBloc extends Bloc<KitchenDashboardEvent, KitchenDashboardS
         try {
           // Fetch orders from the server
           final orders = await socketService.fetchOrders();
+
           // Validate orders
           if (orders.isNotEmpty && orders.every(_isValidOrder)) {
             final nonServedOrders = orders.where((order) => order['status'] != 'Served').toList();
+            final servedOrders = orders.where((order)=>order['status'] == 'Served');
             _orderCache = nonServedOrders; // Update cache with non-Served orders
             emit(state.copyWith(
               orders: nonServedOrders,
+              servedOrders : servedOrders.toList().length > 0 ? servedOrders.toList() : [] ,
               refreshKey: state.refreshKey + 1,
             ));
             return; // Success, exit the retry loop
@@ -139,9 +147,8 @@ class KitchenDashboardBloc extends Bloc<KitchenDashboardEvent, KitchenDashboardS
     bool _isValidOrder(Map<String, dynamic> order) {
       return order.containsKey('id') &&
           order.containsKey('table') &&
-          order.containsKey('items') &&
           order.containsKey('status') &&
-          order.containsKey('time') &&
+          order.containsKey('createdAt') &&
           order.containsKey('total') &&
           order['items'] is List;
     }

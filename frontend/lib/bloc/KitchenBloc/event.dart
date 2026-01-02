@@ -22,3 +22,8 @@ class ChangeFilter extends KitchenDashboardEvent {
 }
 
 class RefreshDashboard extends KitchenDashboardEvent {}
+class SetOrdersEvent extends KitchenDashboardEvent {
+  final List<Map<String, dynamic>> orders;
+
+  SetOrdersEvent(this.orders);
+}

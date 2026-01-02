@@ -21,7 +21,7 @@ import '../bloc/KitchenBloc/event.dart';
   String formatTime(String time) {
     try {
       final dateTime = DateTime.parse(time);
-      return '${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')} ${dateTime.hour >= 12 ? 'PM' : 'AM'}';
+      return '${dateTime.day}/${dateTime.month}/${dateTime.year}  ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')} ${dateTime.hour >= 12 ? 'PM' : 'AM'}';
     } catch (e) {
       return 'Invalid Time';
     }
@@ -92,7 +92,7 @@ import '../bloc/KitchenBloc/event.dart';
 
   Widget buildFilterRow(BuildContext context, double screenWidth, bool isTablet) {
     final state = context.read<KitchenDashboardBloc>().state;
-    const statusFilters = ['All', 'Pending', 'Preparing', 'Ready'];
+    const statusFilters = ['All', 'Pending', 'Preparing', 'Ready','Served'];
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -172,7 +172,7 @@ import '../bloc/KitchenBloc/event.dart';
       final table = order['table'] as String? ?? 'Unknown Table';
       final items = (order['items'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [];
       final status = order['status'] as String? ?? 'Unknown';
-      final time = order['time'] as String? ?? '';
+      final time = order['createdAt'] as String? ?? '';
       final orderId = order['id'] as String? ?? 'Unknown';
       final total = order['total'] as int? ?? 0;
 

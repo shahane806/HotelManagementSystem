@@ -1,7 +1,8 @@
 const express = require('express');
+require("./mongodb")
 const http = require('http');
 const { Server } = require('socket.io');
-const { v4: uuidv4 } = require('uuid'); // For generating unique order IDs
+const orderModel = require('./Models/orderModel');
 
 const app = express();
 const server = http.createServer(app);
@@ -10,7 +11,6 @@ const io = new Server(server, {
     origin: '*', // Allow all origins for development; restrict in production
   },
 });
-
 // In-memory order storage (replace with a database in production)
 let orders = [];
 
@@ -22,13 +22,33 @@ io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
   // Handle fetchOrders event
-  socket.on('fetchOrders', () => {
-    console.log(`Fetching all orders for socket: ${socket.id}`);
+socket.on('fetchOrders', async () => {
+  try {
+    const date = new Date();
+
+    const start = new Date(date);
+    start.setUTCHours(0, 0, 0, 0);
+
+    const end = new Date(date);
+    end.setUTCHours(23, 59, 59, 999);
+
+    const orders = await orderModel.find({
+      createdAt: {
+        $gte: start,
+        $lte: end,
+      },
+    });
+
     socket.emit('ordersFetched', orders);
-  });
+  } catch (e) {
+    console.error(e);
+    socket.emit('ordersFetched', []);
+  }
+});
+
 
   // Handle placeOrder event
-  socket.on('placeOrder', (order) => {
+  socket.on('placeOrder', async (order) => {
     try {
       // Validate order data
       if (!isValidOrder(order)) {
@@ -38,15 +58,12 @@ io.on('connection', (socket) => {
       }
 
       // Assign a unique ID if not provided
-      const orderId = order.id || uuidv4();
       const orderWithStatus = {
         ...order,
-        id: orderId,
         status: 'Pending',
         time: order.time || new Date().toISOString(), // Ensure time is set
       };
-
-      orders.push(orderWithStatus);
+      await new orderModel(orderWithStatus).save()
       console.log('New order placed:', orderWithStatus);
       io.emit('newOrder', orderWithStatus);
     } catch (error) {
@@ -56,41 +73,49 @@ io.on('connection', (socket) => {
   });
 
   // Handle updateStatus event
-  socket.on('updateStatus', ({ orderId, status, sourceSocketId }) => {
-    try {
-      // Validate update data
-      if (!orderId || !isValidStatus(status)) {
-        socket.emit('error', { message: 'Invalid update data', data: { orderId, status } });
-        console.log('Invalid update data received:', { orderId, status });
-        return;
-      }
+  socket.on('updateStatus', async ({ orderId, status, sourceSocketId }) => {
+  try {
+    // Validate input
+    if (!orderId || !isValidStatus(status)) {
+      socket.emit('error', { message: 'Invalid update data', data: { orderId, status } });
+      console.log('Invalid update data received:', { orderId, status });
+      return;
+    }
 
-      console.log(`Updating order ${orderId} to status: ${status} from socket: ${sourceSocketId}`);
-      const orderExists = orders.some(order => order.id === orderId);
-      if (!orderExists) {
+    console.log(`Updating order ${orderId} to status: ${status} from socket: ${sourceSocketId}`);
+
+    // Atomically update only if status is different
+    const updatedOrder = await orderModel.findOneAndUpdate(
+      { id: orderId, status: { $ne: status } }, // Only update if status is different
+      { status },
+      { new: true } // Return updated document
+    );
+
+    if (!updatedOrder) {
+      // Order not found OR status is already the same
+      const existingOrder = await orderModel.findById(orderId);
+      if (!existingOrder) {
         socket.emit('error', { message: `Order ${orderId} not found` });
         console.log(`Order ${orderId} not found`);
-        return;
-      }
-
-      // Check if status has changed
-      const currentOrder = orders.find(order => order.id === orderId);
-      if (currentOrder.status === status) {
+      } else {
         console.log(`Order ${orderId} already has status ${status}, skipping update`);
-        return;
       }
-
-      orders = orders.map(order =>
-        order.id === orderId ? { ...order, status } : order
-      );
-      // Broadcast to all clients except the sender
-      socket.broadcast.emit('orderUpdated', { orderId, status, sourceSocketId });
-      console.log(`Broadcasted orderUpdated for order ${orderId} to status ${status}`);
-    } catch (error) {
-      console.error('Error processing updateStatus:', error);
-      socket.emit('error', { message: 'Error updating order status', error: error.message });
+      return;
     }
-  });
+
+    // Broadcast the update to other clients
+    socket.broadcast.emit('orderUpdated', {
+      orderId,
+      status,
+      sourceSocketId,
+    });
+    console.log(`Broadcasted orderUpdated for order ${orderId} to status ${status}`);
+  } catch (error) {
+    console.error('Error processing updateStatus:', error);
+    socket.emit('error', { message: 'Error updating order status', error: error.message });
+  }
+});
+
   socket.on('payBill', (bill) => {
     try {
       // Validate bill data (add more validation as needed)
@@ -103,12 +128,10 @@ io.on('connection', (socket) => {
       // Process payment (in real app, integrate with payment gateway)
       // For now, assume success and mark related orders as paid
       const table = bill.table;
-      orders = orders.map(order => 
-        order.table === table ? { ...order, status: 'Paid' } : order
-      );
-
-      // Remove paid orders or archive them (for simplicity, filter out)
-      orders = orders.filter(order => order.table !== table);
+       orderModel.updateMany(
+  { table },                // filter
+  { $set: { status: "Paid" } }
+);
 
       console.log('Bill paid for table:', table);
       io.emit('billPaid', { ...bill, success: true });

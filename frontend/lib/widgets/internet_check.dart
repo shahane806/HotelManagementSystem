@@ -64,11 +64,12 @@ class _InternetCheckWidgetState extends State<InternetCheckWidget> {
     for (final endpoint in endpoints) {
       try {
          final token = AppConstants.pref?.getString('token');
-        final response = await http.get(Uri.parse(endpoint),headers: {'Content-Type':'application/json','Authorization':'Bearer $token'}).timeout(timeout);
+         final response = await http.get(Uri.parse(endpoint),headers: {'Content-Type':'application/json','Authorization':'Bearer $token'}).timeout(timeout);
         if (response.statusCode == 200) {
           return true;
         }
       } catch (e) {
+        print("Error Internet Check : $e");
       }
     }
 

@@ -2,16 +2,14 @@ const express = require("express")
 const cors = require("cors")
 const dotenv = require("dotenv")
 const rateLimit = require("express-rate-limit")
-const mongoose = require("mongoose")
 const router = require("./Router/Router")
 const path = require("path");
-
+require("./mongodb")
 dotenv.config()
 
-
 const helmet = require("helmet")
-const app = express()
 
+const app = express()
 app.set('trust proxy', 1);
 app.use(helmet())
 app.use(express.json())
@@ -30,10 +28,6 @@ app.use(rateLimit({
 app.use(express.static(path.join(__dirname, "public")));
 app.use(router)
 const port = process.env.PORT || 5000
-const mongoDbUrl = process.env.MONGODB_URL_AUTH 
 app.listen(port,'0.0.0.0',()=>{
    console.log('App is running on port :'+port)
-})
-mongoose.connect(mongoDbUrl).then(()=>{
-    console.log("MongoDbAuthCluster is connected")
 })

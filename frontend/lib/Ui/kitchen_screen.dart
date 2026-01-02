@@ -5,6 +5,7 @@ import '../bloc/KitchenBloc/event.dart';
 import '../bloc/KitchenBloc/state.dart';
 import '../services/socketService.dart';
 import '../widgets/kitchen_widgets.dart';
+
 class KitchenDashboardScreen extends StatelessWidget {
   const KitchenDashboardScreen({super.key});
 
@@ -20,8 +21,19 @@ class KitchenDashboardScreen extends StatelessWidget {
   }
 }
 
-class KitchenDashboardView extends StatelessWidget {
+class KitchenDashboardView extends StatefulWidget {
   const KitchenDashboardView({super.key});
+
+  @override
+  State<KitchenDashboardView> createState() => _KitchenDashboardViewState();
+}
+
+class _KitchenDashboardViewState extends State<KitchenDashboardView> {
+  @override
+  void initState() {
+    super.initState();
+    
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,12 +44,21 @@ class KitchenDashboardView extends StatelessWidget {
 
     return BlocBuilder<KitchenDashboardBloc, KitchenDashboardState>(
       builder: (context, state) {
-        final filteredOrders = state.selectedStatusFilter == 'All'
-            ? state.orders
-            : state.orders.where((order) => order['status'] == state.selectedStatusFilter).toList();
-        final newOrders = state.orders.where((order) => order['status'] != 'Served' ).toList();
         
 
+final filteredOrders = state.selectedStatusFilter == 'All'
+    ? state.orders
+    : state.selectedStatusFilter != 'Served' ?  state.orders
+        .where((order) =>
+            order['status'] == state.selectedStatusFilter)
+        .toList() : state.servedOrders ?? [];
+
+final newOrders = state.selectedStatusFilter != 'Served' ? state.orders
+    .where((order) => order['status'] != 'Served')
+    .toList() : state.servedOrders ?? []
+   ;
+
+        
         return Scaffold(
           backgroundColor: Colors.grey[50],
           appBar: buildAppBar(context, screenWidth),
@@ -51,11 +72,12 @@ class KitchenDashboardView extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    buildHeader(context, screenWidth, filteredOrders.length),
+                    buildHeader(
+                        context, screenWidth, filteredOrders.length),
                     const SizedBox(height: 20),
                     buildFilterRow(context, screenWidth, isTablet),
                     const SizedBox(height: 20),
-                    if (newOrders.isNotEmpty) ...[
+                    if (newOrders.isNotEmpty && state.selectedStatusFilter != 'Served') ...[
                       Text(
                         'New Orders',
                         style: TextStyle(
@@ -65,11 +87,19 @@ class KitchenDashboardView extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      buildOrdersList(context, newOrders, screenWidth, isTablet, isDesktop),
+                      buildOrdersList(
+                        context,
+                        newOrders,
+                        screenWidth,
+                        isTablet,
+                        isDesktop,
+                      ),
                       const SizedBox(height: 20),
                     ],
                     Text(
-                      state.selectedStatusFilter == 'All' ? 'All Orders' : '${state.selectedStatusFilter} Orders',
+                      state.selectedStatusFilter == 'All'
+                          ? 'All Orders'
+                          : '${state.selectedStatusFilter} Orders',
                       style: TextStyle(
                         fontSize: isTablet ? 18 : 16,
                         fontWeight: FontWeight.bold,
@@ -77,12 +107,23 @@ class KitchenDashboardView extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                                        newOrders.isEmpty ? const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                      Center(child: Text("No Orders Yet"),),
-                    ],) : buildOrdersList(context, filteredOrders, screenWidth, isTablet, isDesktop)
+                    newOrders.isEmpty
+                        ? const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Center(
+                                child: Text("No Orders Yet"),
+                              ),
+                            ],
+                          )
+                        : buildOrdersList(
+                            context,
+                            filteredOrders,
+                            screenWidth,
+                            isTablet,
+                            isDesktop,
+                          ),
                   ],
                 ),
               ),
@@ -93,7 +134,8 @@ class KitchenDashboardView extends StatelessWidget {
     );
   }
 
-  PreferredSizeWidget buildAppBar(BuildContext context, double screenWidth) {
+  PreferredSizeWidget buildAppBar(
+      BuildContext context, double screenWidth) {
     return AppBar(
       title: Row(
         children: [
@@ -103,7 +145,11 @@ class KitchenDashboardView extends StatelessWidget {
               color: Colors.white.withOpacity(0.2),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.restaurant_menu, color: Colors.white, size: 20),
+            child: const Icon(
+              Icons.restaurant_menu,
+              color: Colors.white,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 12),
           const Flexible(
@@ -126,27 +172,20 @@ class KitchenDashboardView extends StatelessWidget {
         IconButton(
           icon: const Icon(Icons.refresh, color: Colors.white),
           onPressed: () {
-            context.read<KitchenDashboardBloc>().add(RefreshDashboard());
+            context
+                .read<KitchenDashboardBloc>()
+                .add(RefreshDashboard());
           },
         ),
-         IconButton(
-          icon: const Icon(Icons.list, color: Colors.white),
-          onPressed: () {
-            // Navigator.push(context, MaterialPageRoute(builder: (context)=>const KitchenServedOrders()));
-          },
-        ),
+        
         if (screenWidth > 600)
           IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-            onPressed: () {
-              
-            },
+            icon: const Icon(Icons.notifications_outlined,
+                color: Colors.white),
+            onPressed: () {},
           ),
         const SizedBox(width: 8),
       ],
     );
   }
-
- 
-
 }
