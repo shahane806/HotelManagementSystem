@@ -1,19 +1,18 @@
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
-const crypto = require("crypto");
 const Staff = require("../Models/staffModel");
-const nodemailer = require("nodemailer");
+// const nodemailer = require("nodemailer");
 
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+// const transporter = nodemailer.createTransport({
+//   host: "smtp.gmail.com",
+//   port: 587,
+//   secure: false,
+//   auth: {
+//     user: process.env.EMAIL_USER,
+//     pass: process.env.EMAIL_PASS,
+//   },
+// });
 
 const JWT_SECRET = process.env.SECRET_KEY;
 const JWT_EXPIRES_IN = "7d";
@@ -137,12 +136,12 @@ const forgotPasswordController = async (req, res) => {
         </body>
         </html>`;
 
-    await transporter.sendMail({
-      from: `"Hotel Pro" <${process.env.EMAIL_USER}>`,
-      to: user.email,
-      subject: "Password Reset",
-      html,
-    });
+    // await transporter.sendMail({
+    //   from: `"Hotel Pro" <${process.env.EMAIL_USER}>`,
+    //   to: user.email,
+    //   subject: "Password Reset",
+    //   html,
+    // });
 
     return res.status(200).json({
       success: true,
