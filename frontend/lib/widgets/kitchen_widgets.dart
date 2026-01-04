@@ -303,7 +303,7 @@ import '../bloc/KitchenBloc/event.dart';
                               children: [
                                 Expanded(
                                   child: Text(
-                                    '$name ($customization) x$quantity',
+                                    '$name ($customization) x $quantity',
                                     style: TextStyle(
                                       fontSize: isTablet ? 14 : 12,
                                       color: Colors.grey[800],

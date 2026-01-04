@@ -1,25 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:frontend/services/socketService.dart';
 import '../bloc/KitchenBloc/bloc.dart';
 import '../bloc/KitchenBloc/event.dart';
 import '../bloc/KitchenBloc/state.dart';
-import '../services/socketService.dart';
 import '../widgets/kitchen_widgets.dart';
-
-class KitchenDashboardScreen extends StatelessWidget {
-  const KitchenDashboardScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) {
-        final bloc = KitchenDashboardBloc(SocketService());
-        return bloc;
-      },
-      child: const KitchenDashboardView(),
-    );
-  }
-}
 
 class KitchenDashboardView extends StatefulWidget {
   const KitchenDashboardView({super.key});
@@ -32,7 +17,12 @@ class _KitchenDashboardViewState extends State<KitchenDashboardView> {
   @override
   void initState() {
     super.initState();
-    
+    context.read<KitchenDashboardBloc>().add(InitializeDashboard());
+    SocketService().socket.on("ordersFetched", (_) {
+  if (!mounted) return;
+  context.read<KitchenDashboardBloc>().add(RefreshDashboard());
+});
+
   }
 
   @override
@@ -41,24 +31,22 @@ class _KitchenDashboardViewState extends State<KitchenDashboardView> {
     final screenWidth = mediaQuery.size.width;
     final isTablet = screenWidth > 600;
     final isDesktop = screenWidth > 1200;
-
+    
     return BlocBuilder<KitchenDashboardBloc, KitchenDashboardState>(
       builder: (context, state) {
-        
+        print("Om Shahane : Kitchen Updated");
 
-final filteredOrders = state.selectedStatusFilter == 'All'
-    ? state.orders
-    : state.selectedStatusFilter != 'Served' ?  state.orders
-        .where((order) =>
-            order['status'] == state.selectedStatusFilter)
-        .toList() : state.servedOrders ?? [];
+        final allOrders = state.orders;
 
-final newOrders = state.selectedStatusFilter != 'Served' ? state.orders
-    .where((order) => order['status'] != 'Served')
-    .toList() : state.servedOrders ?? []
-   ;
+        final newOrders =
+            allOrders.where((o) => o['status'] != 'Served').toList();
 
-        
+        final filteredOrders = state.selectedStatusFilter == 'All'
+            ? allOrders
+            : allOrders
+                .where((o) => o['status'] == state.selectedStatusFilter)
+                .toList();
+
         return Scaffold(
           backgroundColor: Colors.grey[50],
           appBar: buildAppBar(context, screenWidth),
@@ -72,12 +60,12 @@ final newOrders = state.selectedStatusFilter != 'Served' ? state.orders
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    buildHeader(
-                        context, screenWidth, filteredOrders.length),
+                    buildHeader(context, screenWidth, filteredOrders.length),
                     const SizedBox(height: 20),
                     buildFilterRow(context, screenWidth, isTablet),
                     const SizedBox(height: 20),
-                    if (newOrders.isNotEmpty && state.selectedStatusFilter != 'Served') ...[
+                    if (newOrders.isNotEmpty &&
+                        state.selectedStatusFilter != 'Served') ...[
                       Text(
                         'New Orders',
                         style: TextStyle(
@@ -107,16 +95,8 @@ final newOrders = state.selectedStatusFilter != 'Served' ? state.orders
                       ),
                     ),
                     const SizedBox(height: 12),
-                    newOrders.isEmpty
-                        ? const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Center(
-                                child: Text("No Orders Yet"),
-                              ),
-                            ],
-                          )
+                    filteredOrders.isEmpty
+                        ? const Center(child: Text("No Orders Yet"))
                         : buildOrdersList(
                             context,
                             filteredOrders,
@@ -134,8 +114,7 @@ final newOrders = state.selectedStatusFilter != 'Served' ? state.orders
     );
   }
 
-  PreferredSizeWidget buildAppBar(
-      BuildContext context, double screenWidth) {
+  PreferredSizeWidget buildAppBar(BuildContext context, double screenWidth) {
     return AppBar(
       title: Row(
         children: [
@@ -172,16 +151,12 @@ final newOrders = state.selectedStatusFilter != 'Served' ? state.orders
         IconButton(
           icon: const Icon(Icons.refresh, color: Colors.white),
           onPressed: () {
-            context
-                .read<KitchenDashboardBloc>()
-                .add(RefreshDashboard());
+            context.read<KitchenDashboardBloc>().add(RefreshDashboard());
           },
         ),
-        
         if (screenWidth > 600)
           IconButton(
-            icon: const Icon(Icons.notifications_outlined,
-                color: Colors.white),
+            icon: const Icon(Icons.notifications_outlined, color: Colors.white),
             onPressed: () {},
           ),
         const SizedBox(width: 8),

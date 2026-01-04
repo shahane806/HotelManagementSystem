@@ -347,7 +347,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         context,
         PageRouteBuilder(
           pageBuilder: (context, animation, secondaryAnimation) =>
-              const InternetCheckWidget(child: KitchenDashboardScreen()),
+              const InternetCheckWidget(child: KitchenDashboardView()),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return SlideTransition(
               position: animation.drive(

@@ -55,6 +55,7 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
     );
     SocketService().connect();
     SocketService().socket.on('orderUpdated', (data) {
+      print("Om Shahane : Table Screen : ${data}");
       final map = Map<String, dynamic>.from(data);
       final orderId = map['orderId'] as String?;
       final status = map['status'] as String?;
