@@ -69,11 +69,14 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
       }
 
       context.read<OrdersBloc>().add(UpdateOrderStatus(orderId, status));
+      context.read<OrdersBloc>().add(FetchRecentOrders());
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<TablesBloc>().add(FetchTables());
       context.read<MenusBloc>().add(FetchMenus());
+      context.read<OrdersBloc>().add(FetchRecentOrders());
+
     });
   }
 
@@ -96,6 +99,7 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
   }
 
   Future<void> _generateBillPDF(List<Order> orders) async {
+    print("Hello ");
     if (!mounted || orders.isEmpty) return;
 
     // Construct the Bill object
@@ -110,7 +114,7 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
       // user: _user,
       isGstApplied: true,
     );
-
+    print("Om Shahane : Proceed to payment ");
     // Call API to pay bill
     await Apiservicescheckout.payBill(bill);
 
@@ -167,6 +171,7 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
   }
 
   void _showRecentOrders(BuildContext context) {
+
     final isTablet = MediaQuery.of(context).size.width > 600;
     Navigator.push(
       context,

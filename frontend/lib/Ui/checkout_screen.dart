@@ -717,159 +717,217 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       return receiptContent;
     }
   }
+Future<String> _generateReceiptContent(
+    dynamic response,
+    List<dynamic> orders,
+    dynamic user,
+    bool isGstApplied,
+    {bool showDialogOnFailure = false}) async {
+  try {
+    final safeOrders = orders.where((order) => order != null).toList();
 
-  Future<String> _generateReceiptContent(
-      dynamic response, List<dynamic> orders, dynamic user, bool isGstApplied,
-      {bool showDialogOnFailure = false}) async {
-    try {
-      final safeOrders = orders.where((order) => order != null).toList();
-      final double totalPrice = safeOrders.fold(
-        0.0,
-        (sum, order) =>
-            sum +
-            ((order is Map && order['total'] is num)
-                ? order['total'].toDouble()
-                : 0.0),
-      );
-      final double gstAmount =
-          isGstApplied ? totalPrice * (AppConstants.gstRate ?? 0.0) : 0.0;
-      final double total = totalPrice + gstAmount;
+    final double totalPrice = safeOrders.fold(
+      0.0,
+      (sum, order) =>
+          sum +
+          ((order is Map && order['total'] is num)
+              ? order['total'].toDouble()
+              : 0.0),
+    );
 
-      final Map<String, String> paymentMethodMap = {
-        'UPI': 'UPI',
-        'DYNAMIC_QR': 'Dynamic QR',
-        'CHALLAN': 'Challan',
-        'ENACH': 'eNACH',
-        'EFTNET': 'NEFT/RTGS',
-        'PAYTM': 'Paytm',
-        'PHONEPE': 'PhonePe',
-        'AMAZONPAY': 'Amazon Pay',
-        'FREECHARGE': 'FreeCharge',
-        'JIOMONEY': 'JioMoney',
-        'OLAMONEY': 'Ola Money',
-        'AIRTELMONEY': 'Airtel Money',
-        'PAYZAPP': 'PayZapp',
-        'CC': 'Credit Card',
-        'DC': 'Debit Card',
-        'MASTERCARD': 'MasterCard',
-        'VISA': 'Visa',
-        'VISA_ELECTRON': 'Visa Electron',
-        'RUPAY': 'RuPay',
-        'AMEX': 'American Express',
-        'DINERS': 'Diners Club',
-        'MAESTRO': 'Maestro',
-        'NB': 'Net Banking',
-        'EMI': 'EMI',
-        'EMI_DC': 'Debit Card EMI',
-        'EMI_CARDLESS': 'Cardless EMI',
-        'LAZYPAY': 'LazyPay',
-        'OLA_POSTPAID': 'Ola Postpaid',
-        'PAYPAL': 'PayPal',
-        'PLUXEE': 'Pluxee (Sodexo Meal Card)',
-        'WALLET': 'Wallet',
-        'CASH': 'Cash',
-        'Cash': 'Cash',
-        'Online': 'Online'
-      };
+    final double gstAmount =
+        isGstApplied ? totalPrice * (AppConstants.gstRate ?? 0.0) : 0.0;
 
-      final payuResponse =
-          response is Map && response.containsKey('payuResponse')
-              ? response['payuResponse']
-              : null;
-      String paymentMethod = 'Unknown';
-      if (payuResponse != null) {
-        if (payuResponse is String) {
-          try {
-            final decoded = jsonDecode(payuResponse) as Map;
-            paymentMethod =
-                paymentMethodMap[decoded['mode']?.toString()] ?? 'Unknown';
-          } catch (e) {
-            developer.log('Error decoding payuResponse string: $e',
-                name: 'CheckoutScreen');
-          }
-        } else if (payuResponse is Map) {
+    final double total = totalPrice + gstAmount;
+
+    final Map<String, String> paymentMethodMap = {
+      'UPI': 'UPI',
+      'DYNAMIC_QR': 'Dynamic QR',
+      'CHALLAN': 'Challan',
+      'ENACH': 'eNACH',
+      'EFTNET': 'NEFT/RTGS',
+      'PAYTM': 'Paytm',
+      'PHONEPE': 'PhonePe',
+      'AMAZONPAY': 'Amazon Pay',
+      'FREECHARGE': 'FreeCharge',
+      'JIOMONEY': 'JioMoney',
+      'OLAMONEY': 'Ola Money',
+      'AIRTELMONEY': 'Airtel Money',
+      'PAYZAPP': 'PayZapp',
+      'CC': 'Credit Card',
+      'DC': 'Debit Card',
+      'MASTERCARD': 'MasterCard',
+      'VISA': 'Visa',
+      'VISA_ELECTRON': 'Visa Electron',
+      'RUPAY': 'RuPay',
+      'AMEX': 'American Express',
+      'DINERS': 'Diners Club',
+      'MAESTRO': 'Maestro',
+      'NB': 'Net Banking',
+      'EMI': 'EMI',
+      'EMI_DC': 'Debit Card EMI',
+      'EMI_CARDLESS': 'Cardless EMI',
+      'LAZYPAY': 'LazyPay',
+      'OLA_POSTPAID': 'Ola Postpaid',
+      'PAYPAL': 'PayPal',
+      'PLUXEE': 'Pluxee (Sodexo Meal Card)',
+      'WALLET': 'Wallet',
+      'CASH': 'Cash',
+      'Cash': 'Cash',
+      'Online': 'Online'
+    };
+
+    final payuResponse =
+        response is Map && response.containsKey('payuResponse')
+            ? response['payuResponse']
+            : null;
+
+    String paymentMethod = 'Unknown';
+
+    if (payuResponse != null) {
+      if (payuResponse is String) {
+        try {
+          final decoded = jsonDecode(payuResponse) as Map;
           paymentMethod =
-              paymentMethodMap[payuResponse['mode']?.toString()] ?? 'Unknown';
+              paymentMethodMap[decoded['mode']?.toString()] ?? 'Unknown';
+        } catch (e) {
+          developer.log('Error decoding payuResponse string: $e',
+              name: 'CheckoutScreen');
         }
+      } else if (payuResponse is Map) {
+        paymentMethod =
+            paymentMethodMap[payuResponse['mode']?.toString()] ?? 'Unknown';
       }
-
-      final String transactionId =
-          payuResponse is Map && payuResponse['txnid'] is String
-              ? payuResponse['txnid']
-              : 'TXN${Random().nextInt(1000000).toString().padLeft(6, '0')}';
-      final String paymentStatus =
-          payuResponse is Map && payuResponse['status'] is String
-              ? payuResponse['status'].toUpperCase()
-              : 'SUCCESS';
-      final String date = DateTime.now().toString().split(' ').first;
-
-      final String userName = user is Map && user['fullName'] != null
-          ? _sanitizeText(user['fullName'])
-          : 'Unknown User';
-      final String userMobile = user is Map && user['mobile'] != null
-          ? _sanitizeText(user['mobile'])
-          : 'N/A';
-
-      String receiptContent = '''
-${_sanitizeText(AppConstants.companyName ?? 'Unknown Company')}
-${_sanitizeText(AppConstants.companyAddress ?? 'Unknown Address')}
-${isGstApplied ? 'GSTIN: ${_sanitizeText(AppConstants.merchantGstNumber ?? 'N/A')}' : ''}
-Merchant: $userName
-Mobile: $userMobile
-Payment Receipt
-Date: $date
-Customer Details
-Name: $userName
-Mobile: $userMobile
-Order Summary
-${safeOrders.expand((order) {
-        final items = order is Map && order['items'] is List
-            ? order['items'] as List
-            : [];
-        return items.map((item) {
-          final menuItem = item is Map ? item : {};
-          final String itemName = menuItem['name'] != null
-              ? _sanitizeText(menuItem['name'])
-              : 'Unknown Item';
-          final int quantity = (menuItem['quantity'] is num)
-              ? (menuItem['quantity'] as num).toInt()
-              : 1;
-          final num pricePerUnit =
-              (menuItem['price'] is num) ? menuItem['price'] as num : 0;
-          final num price = pricePerUnit * quantity;
-          final String customization = menuItem['customization'] != null
-              ? _sanitizeText(menuItem['customization'])
-              : '';
-          final String displayName = customization.isNotEmpty
-              ? '$itemName [$customization]'
-              : itemName;
-          return '$displayName x$quantity: ${AppConstants.rupeeSymbol ?? '₹'}${price.toString()}';
-        });
-      }).join('\n')}
-Subtotal: ${AppConstants.rupeeSymbol ?? '₹'}${totalPrice.toString()}
-${isGstApplied ? 'GST (${((AppConstants.gstRate ?? 0.0) * 100).toString()}%): ${AppConstants.rupeeSymbol ?? '₹'}${gstAmount.toString()}' : ''}
-Total Amount: ${AppConstants.rupeeSymbol ?? '₹'}${total.toString()}
-Payment Details
-Payment Method: $paymentMethod
-Transaction ID: $transactionId
-Payment Status: $paymentStatus
-Thank you for your purchase!
-Come visit us again at ${_sanitizeText(AppConstants.companyName ?? 'Unknown Company')}
-''';
-
-      if (showDialogOnFailure && mounted) {
-        _showReceiptDialog(receiptContent);
-      }
-      return receiptContent;
-    } catch (e, stackTrace) {
-      developer.log(
-          'Error generating receipt content: $e, StackTrace: $stackTrace',
-          name: 'CheckoutScreen');
-      _showSnackBar(
-          'Failed to generate receipt content: $e', AppConstants.errorColor);
-      return '';
     }
+
+    final String transactionId =
+        payuResponse is Map && payuResponse['txnid'] is String
+            ? payuResponse['txnid']
+            : 'TXN${Random().nextInt(1000000).toString().padLeft(6, '0')}';
+
+    final String paymentStatus =
+        payuResponse is Map && payuResponse['status'] is String
+            ? payuResponse['status'].toUpperCase()
+            : 'SUCCESS';
+
+    final String date = DateTime.now().toString().split(' ').first;
+
+    final String userName = user is Map && user['fullName'] != null
+        ? _sanitizeText(user['fullName'])
+        : 'Unknown User';
+
+    final String userMobile = user is Map && user['mobile'] != null
+        ? _sanitizeText(user['mobile'])
+        : 'N/A';
+
+    /// -------------------------------
+    /// BUILD RECEIPT LINE BY LINE
+    /// -------------------------------
+    final List<String> lines = [];
+
+    lines.add(_sanitizeText(AppConstants.companyName ?? 'Unknown Company'));
+    lines.add(_sanitizeText(AppConstants.companyAddress ?? 'Unknown Address'));
+
+    if (isGstApplied) {
+      lines.add(
+          'GSTIN: ${_sanitizeText(AppConstants.merchantGstNumber ?? 'N/A')}');
+    }
+
+    lines.add('Merchant: $userName');
+    lines.add('Mobile: $userMobile');
+    lines.add('Payment Receipt');
+    lines.add('Date: $date');
+    lines.add('');
+    lines.add('Customer Details');
+    lines.add('Name: $userName');
+    lines.add('Mobile: $userMobile');
+    lines.add('');
+    lines.add('Order Summary');
+
+    for (final order in safeOrders) {
+      final items =
+          order is Map && order['items'] is List ? order['items'] as List : [];
+
+      for (final item in items) {
+        final menuItem = item is Map ? item : {};
+        final String itemName = menuItem['name'] != null
+            ? _sanitizeText(menuItem['name'])
+            : 'Unknown Item';
+
+        final int quantity = (menuItem['quantity'] is num)
+            ? (menuItem['quantity'] as num).toInt()
+            : 1;
+
+        final num pricePerUnit =
+            (menuItem['price'] is num) ? menuItem['price'] as num : 0;
+
+        final num price = pricePerUnit * quantity;
+
+        final String customization = menuItem['customization'] != null
+            ? _sanitizeText(menuItem['customization'])
+            : '';
+
+        final String displayName =
+            customization.isNotEmpty ? '$itemName [$customization]' : itemName;
+
+        lines.add(
+            '$displayName x$quantity: ${AppConstants.rupeeSymbol ?? '₹'}$price');
+      }
+    }
+
+    lines.add('');
+    lines.add(
+        'Subtotal: ${AppConstants.rupeeSymbol ?? '₹'}$totalPrice');
+
+    if (isGstApplied) {
+      lines.add(
+          'GST (${((AppConstants.gstRate ?? 0.0) * 100)}%): ${AppConstants.rupeeSymbol ?? '₹'}$gstAmount');
+    }
+
+    lines.add(
+        'Total Amount: ${AppConstants.rupeeSymbol ?? '₹'}$total');
+    lines.add('');
+    lines.add('Payment Details');
+    lines.add('Payment Method: $paymentMethod');
+    lines.add('Transaction ID: $transactionId');
+    lines.add('Payment Status: $paymentStatus');
+    lines.add('');
+    lines.add('Thank you for your purchase!');
+    lines.add(
+        'Come visit us again at ${_sanitizeText(AppConstants.companyName ?? 'Unknown Company')}');
+
+    /// -------------------------------
+    /// PAGINATION LOGIC
+    /// -------------------------------
+    const int maxLinesPerPage = 40;
+    final StringBuffer paginatedReceipt = StringBuffer();
+
+    for (int i = 0; i < lines.length; i++) {
+      paginatedReceipt.writeln(lines[i]);
+
+      if ((i + 1) % maxLinesPerPage == 0 && i != lines.length - 1) {
+        paginatedReceipt.writeln('\f'); // PAGE BREAK
+      }
+    }
+
+    final receiptContent = paginatedReceipt.toString();
+
+    if (showDialogOnFailure && mounted) {
+      _showReceiptDialog(receiptContent);
+    }
+
+    return receiptContent;
+  } catch (e, stackTrace) {
+    developer.log(
+        'Error generating receipt content: $e, StackTrace: $stackTrace',
+        name: 'CheckoutScreen');
+
+    _showSnackBar(
+        'Failed to generate receipt content: $e', AppConstants.errorColor);
+
+    return '';
   }
+}
 
   bool _isValidMobile(String mobile) {
     return RegExp(r'^\d{10}$').hasMatch(mobile);

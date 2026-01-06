@@ -3,7 +3,7 @@ const bill = require('../Models/billModel');
 const createBill = async (req, res) => {
   console.log("hei");
   const { table,  orders, totalAmount, isGstApplied } = req.body;
-  console.log(req.body);
+  console.log(table)
 
   try {
     if (!table || !orders || !totalAmount || isGstApplied === undefined) {
@@ -18,7 +18,7 @@ const createBill = async (req, res) => {
       const gst = 0;
       finalAmount += gst;
     }
-
+    console.log("hello");
     const billId = uuidv4();
     const newBill = new bill({
       billId,
@@ -31,6 +31,7 @@ const createBill = async (req, res) => {
     });
 
     await newBill.save();
+    console.log("HELLO");
     res.status(201).json({ message: 'Bill stored successfully', billId, totalAmount: finalAmount });
   } catch (error) {
     console.error('Error storing bill:', error);

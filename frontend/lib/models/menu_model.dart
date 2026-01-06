@@ -86,7 +86,7 @@ class MenuItem extends Equatable {
     required this.price,
     required this.category,
     required this.image,
-    required this.type,
+    required this.type, required String description,
   });
 Map<String, dynamic> toJson() => {
         'name': name,
@@ -101,7 +101,7 @@ Map<String, dynamic> toJson() => {
         price: json['price'],
         category: json['category'],
         image: json['image'],
-        type: json['type'],
+        type: json['type'], description: '',
       );
   @override
   List<Object> get props => [name, price, category, image, type];

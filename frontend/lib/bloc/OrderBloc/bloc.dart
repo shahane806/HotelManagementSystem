@@ -95,7 +95,9 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
       FetchRecentOrders event, Emitter<OrdersState> emit) async {
     try {
       emit(state.copyWith(status: OrdersStatus.loading));
+
       final recentOrders = await repository.fetchRecentOrders();
+      print("Recent Orders : ${recentOrders}");
       final filteredOrders = recentOrders.where((order) {
         return order.status != 'Paid' && order.status != 'Completed';
       }).toList();

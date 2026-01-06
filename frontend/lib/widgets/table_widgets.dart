@@ -56,7 +56,7 @@ List<MenuItem> getMenuItemsFromMenus(List<MenuModel> menus, bool isVegFilter) {
         price: price,
         category: menu.name,
         image: categoryEmojis[menu.name] ?? '🍽️',
-        type: entry.type,
+        type: entry.type, description: '',
       );
     });
   }).toList();

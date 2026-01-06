@@ -46,8 +46,10 @@ class Apiservicescheckout {
   }
 
   static Future<void> payBill(Bill obj) async {
+    print("Helo");
     try {
        final token = AppConstants.pref?.getString('token');
+       print("token : ${token}");
       final res = await http.post(
         Uri.parse('$baseUrl/payTableBill'),
         headers: {
@@ -58,6 +60,7 @@ class Apiservicescheckout {
       );
 
       if (res.statusCode == 201) {
+        print("Bill Paid");
       } else {
         throw Exception(
             'Failed to store bill: ${res.statusCode} - ${res.body}');
