@@ -9,6 +9,15 @@ const { createOrder } = require("../Controllers/razorpayController");
 const { getAllStaff, createStaff, deleteStaff, updateStaff } = require("../Controllers/staffController");
 const path = require('path');   // ← ADD THIS LINE
 const router = express.Router();
+const { upload } = require("../config/multer");
+const {
+  createRoom,
+  fetchRooms,
+  getRoomById,
+  updateRoom,
+  deleteRoom,
+  updateRoomStatus,
+} = require("../Controllers/roomController");
 router.get("/", (req, res) => {
   res.send("Hello World");
 });
@@ -57,6 +66,24 @@ router.get('/staff/',authenticate,getAllStaff);
 router.post('/staff',authenticate,createStaff);
 router.delete('/staff/:userId',authenticate, deleteStaff);
 router.put('/staff/:userId',authenticate, updateStaff);
+
+
+
+
+
+// Create room with multiple images
+router.post("/roomCreateWithMultipleImages", authenticate, upload.array("images", 5), createRoom);
+// Get all rooms with filtering and pagination
+router.get("/GetAllRooms", authenticate, fetchRooms);
+// Get room by ID
+router.get("/GetRoomById/:id", authenticate, getRoomById);
+// Update room
+router.put("/UpdateRoomById/:id", authenticate, upload.array("images", 5), updateRoom);
+// Update room status
+router.patch("/UpdateRoomByStatusById/:id/status", authenticate, updateRoomStatus);
+// Delete room
+router.delete("/DeleteRoomById/:id", authenticate, deleteRoom);
+
 
 
 

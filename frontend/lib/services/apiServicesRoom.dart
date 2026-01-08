@@ -1,12 +1,23 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 import '../../app/api_constants.dart';
 import '../../models/room_model.dart';
 import '../app/constants.dart';
+import '../models/hotel_room_model.dart';
 
 class ApiServiceRooms {
   final String baseUrl = ApiConstants.url;
 
+  Map<String, String> _headers() {
+    final token = AppConstants.pref?.getString('token');
+    return {
+      'Authorization': 'Bearer $token',
+    };
+  }
+
+  
   Future<List<RoomModel>> getRoomModel() async {
     try {
       final fullUrl = '$baseUrl/utilities/Room';
@@ -87,4 +98,157 @@ class ApiServiceRooms {
       throw Exception('Failed to delete room: $e');
     }
   }
+
+  
+// =======================
+  // GET ALL ROOMS
+  // =======================
+ Future<List<HotelRoomModel>> getAllRooms() async {
+  final response = await http.get(
+    Uri.parse('$baseUrl/GetAllRooms'),
+    headers: _headers(),
+  );
+
+  if (response.statusCode == 200) {
+    final body = jsonDecode(response.body);
+    final List rooms = body['rooms'];
+    return rooms.map((e) => HotelRoomModel.fromJson(e)).toList();
+  } else {
+    throw Exception(response.body);
+  }
+}
+
+
+  // =======================
+  // GET ROOM BY ID
+  // =======================
+  Future<RoomModel> getRoomById(String id) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/GetRoomById/$id'),
+      headers: _headers(),
+    );
+
+    if (response.statusCode == 200) {
+      return RoomModel.fromJson(jsonDecode(response.body)['room']);
+    } else {
+      throw Exception(response.body);
+    }
+  }
+
+
+  // =======================
+  // CREATE ROOM (MULTI IMAGE)
+  // =======================
+  Future<void> createRoom({
+    required String roomNo,
+    required String type,
+    required int capacity,
+    required double pricePerNight,
+    required int floor,
+    required String description,
+    required List<String> facilities,
+    required List<dynamic> images,
+  }) async {
+    var request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$baseUrl/roomCreateWithMultipleImages'),
+    );
+
+    request.headers.addAll(_headers());
+
+    request.fields.addAll({
+      'roomNo': roomNo,
+      'type': type,
+      'capacity': capacity.toString(),
+      'pricePerNight': pricePerNight.toString(),
+      'floor': floor.toString(),
+      'description': description,
+      'facilities': facilities.join(','),
+    });
+
+    for (var img in images) {
+      request.files.add(
+        await http.MultipartFile.fromPath('images', img.path),
+      );
+    }
+
+    final response = await request.send();
+    if (response.statusCode != 201) {
+      throw Exception('Failed to create room');
+    }
+  }
+
+  // =======================
+  // UPDATE ROOM
+  // =======================
+  Future<void> updateRoom({
+    required String id,
+    String? roomNo,
+    String? type,
+    int? capacity,
+    double? price,
+    int? floor,
+    String? description,
+    List<dynamic>? images,
+  }) async {
+    var request = http.MultipartRequest(
+      'PUT',
+      Uri.parse('$baseUrl/UpdateRoomById/$id'),
+    );
+
+    request.headers.addAll(_headers());
+
+    if (roomNo != null) request.fields['roomNo'] = roomNo;
+    if (type != null) request.fields['type'] = type;
+    if (capacity != null) request.fields['capacity'] = capacity.toString();
+    if (price != null) request.fields['pricePerNight'] = price.toString();
+    if (floor != null) request.fields['floor'] = floor.toString();
+    if (description != null) request.fields['description'] = description;
+
+    if (images != null) {
+      for (var img in images) {
+        request.files.add(
+          await http.MultipartFile.fromPath('images', img.path),
+        );
+      }
+    }
+
+    final response = await request.send();
+    if (response.statusCode != 200) {
+      throw Exception('Failed to update room');
+    }
+  }
+
+  // =======================
+  // UPDATE ROOM STATUS
+  // =======================
+  Future<void> updateRoomStatus(String id, String status) async {
+    final response = await http.patch(
+      Uri.parse('$baseUrl/UpdateRoomByStatusById/$id/status'),
+      headers: {
+        ..._headers(),
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'status': status}),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to update room status');
+    }
+  }
+
+  // =======================
+  // DELETE ROOM
+  // =======================
+  Future<void> deleteRoomById(String id) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/DeleteRoomById/$id'),
+      headers: _headers(),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete room');
+    }
+  }
+  
 }

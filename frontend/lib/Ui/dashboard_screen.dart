@@ -403,20 +403,28 @@ class _DashboardScreenState extends State<DashboardScreen>
         ),
       );
     } else if (item.title == "Rooms") {
-      Navigator.push(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              const InternetCheckWidget(child: RoomsScreen()),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return SlideTransition(
-              position: animation.drive(
-                  Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)),
-              child: child,
-            );
-          },
-        ),
+     Navigator.push(
+  context,
+  PageRouteBuilder(
+    pageBuilder: (context, animation, secondaryAnimation) =>
+        const RoomsScreen(),
+    transitionDuration: const Duration(milliseconds: 300),
+    reverseTransitionDuration: const Duration(milliseconds: 300),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      // Slide in from the right (standard Material style)
+      const begin = Offset(1.0, 0.0);
+      const end = Offset.zero;
+      final tween = Tween(begin: begin, end: end).chain(
+        CurveTween(curve: Curves.easeOutCubic),
       );
+
+      return SlideTransition(
+        position: animation.drive(tween),
+        child: child,
+      );
+    },
+  ),
+);
     } else if (item.title == "Logout") {
       _showLogoutDialog(context);
     } else if (item.title == "Settings") {
