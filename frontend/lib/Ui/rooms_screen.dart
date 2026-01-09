@@ -29,29 +29,33 @@ class _RoomsScreenState extends State<RoomsScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.black87,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              widget.isAdminView ? 'Manage Rooms' : 'Discover Rooms',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 24,
-              ),
-            ),
-            Text(
-              widget.isAdminView
-                  ? 'Add, edit & manage hotel rooms'
-                  : 'Find your perfect stay',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
-            ),
-          ],
+  elevation: 0,
+  backgroundColor: Colors.transparent,
+  foregroundColor: Colors.black87,
+  title: SizedBox(
+    height: 56, // IMPORTANT
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          widget.isAdminView ? 'Manage Rooms' : 'Discover Rooms',
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
+        Text(
+          widget.isAdminView
+              ? 'Add, edit & manage hotel rooms'
+              : 'Find your perfect stay',
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[600],
+          ),
+        ),
+      ],
+    ),
         ),
         actions: [
           if (!widget.isAdminView)
