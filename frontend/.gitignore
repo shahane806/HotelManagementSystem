@@ -41,3 +41,9 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 .vercel
+# ──────────────────────────────────────────────────────
+# EXCEPTIONS - we WANT to commit build/web
+# ──────────────────────────────────────────────────────
+!build/
+!build/web/
+!build/web/**      # ← this line is very important - keeps everything inside web
