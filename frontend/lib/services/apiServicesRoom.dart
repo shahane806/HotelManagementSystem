@@ -6,6 +6,8 @@ import '../../app/api_constants.dart';
 import '../../models/room_model.dart';
 import '../app/constants.dart';
 import '../models/hotel_room_model.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:typed_data';
 
 class ApiServiceRooms {
   final String baseUrl = ApiConstants.url;
@@ -165,12 +167,27 @@ class ApiServiceRooms {
       'description': description,
       'facilities': facilities.join(','),
     });
+for (var img in images) {
+  if (kIsWeb) {
+    final bytes = await img.readAsBytes(); // ✅ correct
 
-    for (var img in images) {
-      request.files.add(
-        await http.MultipartFile.fromPath('images', img.path),
-      );
-    }
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'images',
+        bytes,
+        filename: img.name,
+      ),
+    );
+  } else {
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'images',
+        img.path,
+      ),
+    );
+  }
+}
+
 
     final response = await request.send();
     if (response.statusCode != 201) {
