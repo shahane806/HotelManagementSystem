@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:frontend/app/api_constants.dart';
 import '../../models/hotel_room_model.dart';
 
 class BookingScreen extends StatefulWidget {
@@ -182,8 +185,10 @@ class _BookingScreenState extends State<BookingScreen> {
 
   @override
   Widget build(BuildContext context) {
+
+
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: const Color.fromARGB(255, 64, 32, 32),
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.white,
@@ -218,7 +223,7 @@ class _BookingScreenState extends State<BookingScreen> {
                     borderRadius: BorderRadius.circular(12),
                     child: widget.room.images.isNotEmpty
                         ? Image.network(
-                            widget.room.images.first,
+                            "${ApiConstants.url}/${widget.room.images.first}",
                             width: 80,
                             height: 80,
                             fit: BoxFit.cover,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/hotel_room_model.dart';
+import '../app/api_constants.dart';
 import 'room_booking_screen.dart';
 
 class RoomDetailScreen extends StatefulWidget {
@@ -101,7 +102,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                     itemCount: widget.room.images.length,
                     onPageChanged: (i) => setState(() => currentImageIndex = i),
                     itemBuilder: (_, index) => Image.network(
-                      widget.room.images[index],
+                     "${ApiConstants.url}/${widget.room.images[index]}",
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => Container(
                         color: Colors.grey[300],

@@ -31,3 +31,7 @@ const port = process.env.PORT || 5000
 app.listen(port,'0.0.0.0',()=>{
    console.log('App is running on port :'+port)
 })
+app.use(
+  "/uploads",
+  express.static(path.join(process.cwd(), "uploads"))
+);
