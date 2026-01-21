@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:frontend/services/socketService.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
@@ -13,15 +13,19 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:universal_html/html.dart' as html;
+
 import 'dart:developer' as developer;
+
 import '../app/constants.dart';
 import '../bloc/BillBloc/bloc.dart';
 import '../bloc/BillBloc/event.dart';
 import '../bloc/BillBloc/state.dart';
 import '../services/apiServicesCheckout.dart';
+import '../services/socketService.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
+
   @override
   State<CheckoutScreen> createState() => _CheckoutScreenState();
 }
@@ -32,9 +36,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   double _grandTotal = 0.0;
   bool _isLoading = true;
   final bool _isGstApplied = true;
+
   final Map<String, bool> _processingBills = {};
   final Map<String, TextEditingController> _mobileControllers = {};
-  final Map<String, String?> _selectedPaymentMethods = {};
+  final Map<String, String> _selectedPaymentMethods = {};
+
   late SocketService socketService;
 
   @override
@@ -42,13 +48,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     super.initState();
     socketService = SocketService();
     socketService.connect();
+
     socketService.socket.on('newBill', _onNewBill);
     socketService.socket.on('billPaid', _onBillPaid);
     socketService.socket.on('orderUpdated', _onOrderUpdated);
     socketService.socket.on('error', _onError);
+
     context.read<BillBloc>().add(FetchBills());
-    developer.log('CheckoutScreen initialized, fetching bills',
-        name: 'CheckoutScreen');
+    developer.log('CheckoutScreen initialized', name: 'Checkout');
   }
 
   @override
@@ -58,175 +65,171 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     socketService.socket.off('orderUpdated', _onOrderUpdated);
     socketService.socket.off('error', _onError);
     socketService.disconnect();
-    _mobileControllers.forEach((_, controller) => controller.dispose());
-    developer.log('CheckoutScreen disposed', name: 'CheckoutScreen');
+
+    for (var controller in _mobileControllers.values) {
+      controller.dispose();
+    }
+
+    developer.log('CheckoutScreen disposed', name: 'Checkout');
     super.dispose();
   }
 
+  // ───────────────────────────────────────────────
+  // Socket Listeners
+  // ───────────────────────────────────────────────
   void _onNewBill(dynamic data) {
-    developer.log('New bill received: $data', name: 'CheckoutScreen');
+    developer.log('New bill: $data', name: 'Checkout');
     context.read<BillBloc>().add(AddBill(Map<String, dynamic>.from(data)));
     context.read<BillBloc>().add(FetchBills());
   }
 
   void _onBillPaid(dynamic data) {
-    developer.log('Bill paid: $data', name: 'CheckoutScreen');
     final billId = data['billId'] as String?;
+    developer.log('Bill paid: $billId', name: 'Checkout');
+
     if (billId != null && mounted) {
       context.read<BillBloc>().add(UpdateBill(
-            billId,
-            data['status'] ?? 'Paid',
-            paymentMethod: data['paymentMethod'],
-          ));
+        billId,
+        data['status'] ?? 'Paid',
+        paymentMethod: data['paymentMethod'],
+      ));
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Payment successful for bill $billId!'),
-          backgroundColor: Colors.green,
+          content: Text('Payment successful for bill $billId'),
+          backgroundColor: Colors.green.shade700,
           behavior: SnackBarBehavior.floating,
         ),
       );
-      setState(() {
-        _processingBills[billId] = false;
-      });
+
+      setState(() => _processingBills[billId] = false);
       context.read<BillBloc>().add(FetchBills());
     }
   }
 
   void _onOrderUpdated(dynamic data) {
-    developer.log('Order updated: $data', name: 'CheckoutScreen');
+    developer.log('Order updated', name: 'Checkout');
     context.read<BillBloc>().add(FetchBills());
   }
 
   void _onError(dynamic data) {
-    developer.log('Socket error received: $data', name: 'CheckoutScreen');
-    final message = data['message'] as String? ?? 'Unknown error';
+    final message = data['message']?.toString() ?? 'Unknown error';
     final billId = data['billId'] as String?;
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
-          backgroundColor: Colors.red,
+          backgroundColor: Colors.red.shade700,
           behavior: SnackBarBehavior.floating,
         ),
       );
+
       if (billId != null) {
-        setState(() {
-          _processingBills[billId] = false;
-        });
+        setState(() => _processingBills[billId] = false);
       }
     }
   }
 
-  void _handlePayment(String billId, String paymentMethod) async {
-    if (_mobileControllers[billId] == null ||
-        _mobileControllers[billId]!.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Please enter a mobile number for bill $billId'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+  // ───────────────────────────────────────────────
+  // Payment Handler
+  // ───────────────────────────────────────────────
+  Future<void> _handlePayment(String billId, String method) async {
+    final controller = _mobileControllers[billId];
+    if (controller == null || controller.text.trim().isEmpty) {
+      _showSnackBar('Please enter mobile number', Colors.red);
       return;
     }
-    final mobile = _mobileControllers[billId]!.text;
+
+    final mobile = controller.text.trim();
     if (!_isValidMobile(mobile)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Invalid mobile number for bill $billId'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      _showSnackBar('Enter a valid 10-digit mobile number', Colors.red);
       return;
     }
+
     setState(() {
       _processingBills[billId] = true;
-      _selectedPaymentMethods[billId] = paymentMethod;
+      _selectedPaymentMethods[billId] = method;
     });
-    final bill = _groupedBills.values
-        .expand((bills) => bills)
-        .firstWhere((b) => b['billId'] == billId);
-    final table = bill['table'] as String;
-    final totalAmount = (bill['totalAmount'] as num).toDouble();
+
+    final bill = _findBillById(billId);
+    if (bill == null) {
+      _showSnackBar('Bill not found', Colors.red);
+      setState(() => _processingBills[billId] = false);
+      return;
+    }
+
     final billData = {
-      'billId': billId ?? 'Unknown',
-      'table': table ?? 'Unknown',
-      'totalAmount': totalAmount ?? 0.0,
-      'orders': bill['orders'] as List<dynamic>? ?? [],
-      'paymentMethod': paymentMethod ?? 'Unknown',
-      'mobile': mobile ?? 'N/A',
+      'billId': billId,
+      'table': bill['table'] ?? 'Unknown',
+      'totalAmount': (bill['totalAmount'] as num?)?.toDouble() ?? 0.0,
+      'orders': bill['orders'] ?? [],
+      'paymentMethod': method,
+      'mobile': mobile,
       'user': bill['user'] ?? {},
-      'isGstApplied': bill['isGstApplied'] as bool? ?? false,
+      'isGstApplied': bill['isGstApplied'] ?? false,
       'status': 'Paid',
     };
+
     try {
-      await Apiservicescheckout.updateBillStatus(billId, 'Paid', paymentMethod);
+      await Apiservicescheckout.updateBillStatus(billId, 'Paid', method);
       socketService.payBill(billData);
-      developer.log('Payment initiated for bill $billId, method $paymentMethod',
-          name: 'CheckoutScreen');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content:
-                Text('Payment successful for bill $billId via $paymentMethod'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        context
-            .read<BillBloc>()
-            .add(UpdateBill(billId, 'Paid', paymentMethod: paymentMethod));
-        // Generate the pdf of the bill here
-        final response = {
-          'payuResponse': {
-            'mode': paymentMethod ?? 'Unknown',
-            'txnid': billId ??
-                'TXN${Random().nextInt(1000000).toString().padLeft(6, '0')}',
-            'status': 'success'
-          }
-        };
-        await generateReceiptPdf(response, bill['orders'] as List<dynamic>,
-            bill['user'], bill['isGstApplied'] as bool);
-        context.read<BillBloc>().add(FetchBills());
-      }
+
+      _showSnackBar('Payment processed via $method', Colors.green);
+
+      // Generate receipt
+      final fakeResponse = {
+        'payuResponse': {
+          'mode': method,
+          'txnid': billId,
+          'status': 'success',
+        }
+      };
+
+      await generateReceiptPdf(
+        fakeResponse,
+        bill['orders'] as List<dynamic>? ?? [],
+        bill['user'],
+        bill['isGstApplied'] as bool? ?? false,
+      );
+
+      context.read<BillBloc>().add(UpdateBill(billId, 'Paid', paymentMethod: method));
+      context.read<BillBloc>().add(FetchBills());
     } catch (e) {
-      developer.log('Error during payment for bill $billId: $e',
-          name: 'CheckoutScreen');
-      if (mounted) {
-        setState(() {
-          _processingBills[billId] = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Payment failed for bill $billId. Please try again.'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+      developer.log('Payment failed: $e', name: 'Checkout');
+      _showSnackBar('Payment failed. Please try again.', Colors.red);
+      setState(() => _processingBills[billId] = false);
     }
   }
 
-  // Sanitize text for plain text output
-  String _sanitizeText(dynamic input) {
-    final String inputString = input?.toString() ?? '';
-    return inputString
-        .replaceAll('&', 'and')
-        .replaceAll('%', 'percent')
-        .replaceAll('\$', 'INR')
-        .replaceAll('#', 'No.')
-        .replaceAll('_', ' ')
-        .replaceAll('{', '')
-        .replaceAll('}', '')
-        .replaceAll('~', '')
-        .replaceAll('^', '')
-        .replaceAll('\\', '');
+  Map<String, dynamic>? _findBillById(String billId) {
+    for (var bills in _groupedBills.values) {
+      for (var bill in bills) {
+        if (bill['billId'] == billId) return bill;
+      }
+    }
+    return null;
   }
 
-  // ========================================================
-  // 1. Build PDF Document (shared for Web & Mobile)
-  // ========================================================
+  bool _isValidMobile(String mobile) => RegExp(r'^\d{10}$').hasMatch(mobile);
+
+  void _showSnackBar(String message, Color color) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: const TextStyle(color: Colors.white)),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
+  // ───────────────────────────────────────────────
+  // PDF Generation (kept mostly same, minor cleanups)
+  // ───────────────────────────────────────────────
+
   Future<pw.Document> _buildPdfDocument(
     dynamic response,
     List<dynamic> orders,
@@ -237,426 +240,114 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final fontData = await rootBundle.load("assets/fonts/NotoSans-Regular.ttf");
     final ttf = pw.Font.ttf(fontData);
 
-    final safeOrders = orders.where((order) => order != null).toList();
-    final double totalPrice = safeOrders.fold(
+    final safeOrders = orders.whereType<Map>().toList();
+
+    final double subTotal = safeOrders.fold(
       0.0,
-      (sum, order) =>
-          sum +
-          ((order is Map && order['total'] is num)
-              ? order['total'].toDouble()
-              : 0.0),
+      (sum, order) => sum + (order['total'] as num? ?? 0).toDouble(),
     );
-    final double gstAmount =
-        isGstApplied ? totalPrice * (AppConstants.gstRate ?? 0.0) : 0.0;
-    final double total = totalPrice + gstAmount;
 
-    final Map<String, String> paymentMethodMap = {
-      'UPI': 'UPI',
-      'DYNAMIC_QR': 'Dynamic QR',
-      'CHALLAN': 'Challan',
-      'ENACH': 'eNACH',
-      'EFTNET': 'NEFT/RTGS',
-      'PAYTM': 'Paytm',
-      'PHONEPE': 'PhonePe',
-      'AMAZONPAY': 'Amazon Pay',
-      'FREECHARGE': 'FreeCharge',
-      'JIOMONEY': 'JioMoney',
-      'OLAMONEY': 'Ola Money',
-      'AIRTELMONEY': 'Airtel Money',
-      'PAYZAPP': 'PayZapp',
-      'CC': 'Credit Card',
-      'DC': 'Debit Card',
-      'MASTERCARD': 'MasterCard',
-      'VISA': 'Visa',
-      'VISA_ELECTRON': 'Visa Electron',
-      'RUPAY': 'RuPay',
-      'AMEX': 'American Express',
-      'DINERS': 'Diners Club',
-      'MAESTRO': 'Maestro',
-      'NB': 'Net Banking',
-      'EMI': 'EMI',
-      'EMI_DC': 'Debit Card EMI',
-      'EMI_CARDLESS': 'Cardless EMI',
-      'LAZYPAY': 'LazyPay',
-      'OLA_POSTPAID': 'Ola Postpaid',
-      'PAYPAL': 'PayPal',
-      'PLUXEE': 'Pluxee (Sodexo Meal Card)',
-      'WALLET': 'Wallet',
-      'CASH': 'Cash',
-      'Cash': 'Cash',
-      'Online': 'Online'
-    };
+    final double gstAmount = isGstApplied ? subTotal * (AppConstants.gstRate ?? 0) : 0;
+    final double grandTotal = subTotal + gstAmount;
 
-    final payuResponse =
-        response is Map && response.containsKey('payuResponse')
-            ? response['payuResponse']
-            : "Unknown";
-    String paymentMethod = 'Unknown';
-    if (payuResponse != null) {
-      if (payuResponse is String) {
-        try {
-          final decoded = jsonDecode(payuResponse) as Map;
-          paymentMethod =
-              paymentMethodMap[decoded['mode']?.toString()] ?? 'Unknown';
-        } catch (e) {
-          developer.log('Error decoding payuResponse string: $e',
-              name: 'CheckoutScreen');
-        }
-      } else if (payuResponse is Map) {
-        paymentMethod =
-            paymentMethodMap[payuResponse['mode']?.toString()] ?? 'Unknown';
-      }
-    }
+    final paymentInfo = _extractPaymentInfo(response);
 
-    final String transactionId =
-        payuResponse is Map && payuResponse['txnid'] is String
-            ? payuResponse['txnid']
-            : 'TXN${Random().nextInt(1000000).toString().padLeft(6, '0')}';
-    final String paymentStatus =
-        payuResponse is Map && payuResponse['status'] is String
-            ? payuResponse['status'].toUpperCase()
-            : 'SUCCESS';
     final String date = DateTime.now().toString().split(' ').first;
-
-    final String userName = user is Map && user['fullName'] != null
-        ? _sanitizeText(user['fullName'])
-        : 'Unknown User';
-    final String userMobile = user is Map && user['mobile'] != null
-        ? _sanitizeText(user['mobile'])
-        : 'N/A';
+    final String userName = _sanitize(user['fullName']) ?? 'Guest';
+    final String userMobile = _sanitize(user['mobile']) ?? 'N/A';
 
     pdf.addPage(
       pw.Page(
-        build: (pw.Context context) => pw.Column(
+        build: (pw.Context ctx) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
+            // Header
             pw.Center(
-              child: pw.Column(
-                children: [
-                  pw.Text(
-                    AppConstants.companyName ?? 'Unknown Company',
-                    style: pw.TextStyle(
-                      fontSize: 24,
-                      fontWeight: pw.FontWeight.bold,
-                      font: ttf,
-                    ),
-                  ),
-                  pw.SizedBox(height: 8),
-                  pw.Text(
-                    AppConstants.companyAddress ?? 'Unknown Address',
-                    style: pw.TextStyle(fontSize: 12, font: ttf),
-                  ),
-                  if (isGstApplied)
-                    pw.Text(
-                      'GSTIN: ${AppConstants.merchantGstNumber ?? 'N/A'}',
-                      style: pw.TextStyle(fontSize: 12, font: ttf),
-                    ),
-                  pw.Text(
-                    'Merchant: $userName',
-                    style: pw.TextStyle(fontSize: 12, font: ttf),
-                  ),
-                  pw.Text(
-                    'Mobile: $userMobile',
-                    style: pw.TextStyle(fontSize: 12, font: ttf),
-                  ),
-                ],
-              ),
-            ),
-            pw.SizedBox(height: 20),
-            pw.Center(
-              child: pw.Column(
-                children: [
-                  pw.Text(
-                    'Payment Receipt',
-                    style: pw.TextStyle(
-                      fontSize: 20,
-                      fontWeight: pw.FontWeight.bold,
-                      font: ttf,
-                    ),
-                  ),
-                  pw.Text(
-                    'Date: $date',
-                    style: pw.TextStyle(fontSize: 12, font: ttf),
-                  ),
-                ],
-              ),
-            ),
-            pw.SizedBox(height: 20),
-            pw.Text(
-              'Customer Details',
-              style: pw.TextStyle(
-                fontSize: 16,
-                fontWeight: pw.FontWeight.bold,
-                font: ttf,
-              ),
-            ),
-            pw.Text(
-              'Name: $userName',
-              style: pw.TextStyle(font: ttf),
-            ),
-            pw.Text(
-              'Mobile: $userMobile',
-              style: pw.TextStyle(font: ttf),
-            ),
-            pw.SizedBox(height: 20),
-            pw.Text(
-              'Order Summary',
-              style: pw.TextStyle(
-                fontSize: 16,
-                fontWeight: pw.FontWeight.bold,
-                font: ttf,
-              ),
-            ),
-            pw.Table(
-              border: pw.TableBorder.all(),
-              children: [
-                pw.TableRow(
-                  decoration: pw.BoxDecoration(color: PdfColors.blue100),
-                  children: [
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(
-                        'Item',
-                        style: pw.TextStyle(
-                          fontWeight: pw.FontWeight.bold,
-                          font: ttf,
-                        ),
-                      ),
-                    ),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(
-                        'Price',
-                        style: pw.TextStyle(
-                          fontWeight: pw.FontWeight.bold,
-                          font: ttf,
-                        ),
-                      ),
-                    ),
-                  ],
+              child: pw.Column(children: [
+                pw.Text(
+                  AppConstants.companyName ?? 'Restaurant',
+                  style: pw.TextStyle(font: ttf, fontSize: 22, fontWeight: pw.FontWeight.bold),
                 ),
-                ...safeOrders.expand((order) {
-                  final items = order is Map && order['items'] is List
-                      ? order['items'] as List
-                      : [];
-                  return items.map((item) {
-                    final menuItem = item is Map ? item : {};
-                    final String itemName = menuItem['name'] != null
-                        ? _sanitizeText(menuItem['name'])
-                        : 'Unknown Item';
-                    final int quantity = (menuItem['quantity'] is num)
-                        ? (menuItem['quantity'] as num).toInt()
-                        : 1;
-                    final num pricePerUnit = (menuItem['price'] is num)
-                        ? menuItem['price'] as num
-                        : 0;
-                    final num price = pricePerUnit * quantity;
-                    final String customization =
-                        menuItem['customization'] != null
-                            ? _sanitizeText(menuItem['customization'])
-                            : '';
-                    final String displayName = customization.isNotEmpty
-                        ? '$itemName [$customization]'
-                        : itemName;
-                    return pw.TableRow(
-                      children: [
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(8),
-                          child: pw.Text(
-                            '$displayName x$quantity',
-                            style: pw.TextStyle(font: ttf),
-                          ),
-                        ),
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(8),
-                          child: pw.Text(
-                            '${AppConstants.rupeeSymbol ?? '₹'}${price.toString()}',
-                            style: pw.TextStyle(font: ttf),
-                          ),
-                        ),
-                      ],
-                    );
-                  });
-                }).toList(),
-                pw.TableRow(
-                  decoration: pw.BoxDecoration(color: PdfColors.teal100),
-                  children: [
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(
-                        'Subtotal',
-                        style: pw.TextStyle(font: ttf),
-                      ),
-                    ),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(
-                        '${AppConstants.rupeeSymbol ?? '₹'}${totalPrice.toString()}',
-                        style: pw.TextStyle(font: ttf),
-                      ),
-                    ),
-                  ],
+                pw.SizedBox(height: 6),
+                pw.Text(
+                  AppConstants.companyAddress ?? '',
+                  style: pw.TextStyle(font: ttf, fontSize: 11),
+                  textAlign: pw.TextAlign.center,
                 ),
                 if (isGstApplied)
-                  pw.TableRow(
-                    children: [
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text(
-                          'GST (${((AppConstants.gstRate ?? 0.0) * 100).toString()}%)',
-                          style: pw.TextStyle(font: ttf),
-                        ),
-                      ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text(
-                          '${AppConstants.rupeeSymbol ?? '₹'}${gstAmount.toString()}',
-                          style: pw.TextStyle(font: ttf),
-                        ),
-                      ),
-                    ],
+                  pw.Text(
+                    'GSTIN: ${AppConstants.merchantGstNumber ?? 'N/A'}',
+                    style: pw.TextStyle(font: ttf, fontSize: 11),
                   ),
-                pw.TableRow(
-                  decoration: pw.BoxDecoration(color: PdfColors.blue100),
-                  children: [
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(
-                        'Total Amount',
-                        style: pw.TextStyle(
-                          fontWeight: pw.FontWeight.bold,
-                          font: ttf,
-                        ),
-                      ),
-                    ),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(
-                        '${AppConstants.rupeeSymbol ?? '₹'}${total.toString()}',
-                        style: pw.TextStyle(
-                          fontWeight: pw.FontWeight.bold,
-                          font: ttf,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                pw.SizedBox(height: 12),
+                pw.Text('Payment Receipt', style: pw.TextStyle(font: ttf, fontSize: 18, fontWeight: pw.FontWeight.bold)),
+                pw.Text('Date: $date', style: pw.TextStyle(font: ttf, fontSize: 11)),
+              ]),
             ),
+
+            pw.SizedBox(height: 24),
+
+            // Customer
+            _pdfSectionTitle('Customer', ttf),
+            pw.Text('Name: $userName', style: pw.TextStyle(font: ttf, fontSize: 12)),
+            pw.Text('Mobile: $userMobile', style: pw.TextStyle(font: ttf, fontSize: 12)),
+
             pw.SizedBox(height: 20),
-            pw.Text(
-              'Payment Details',
-              style: pw.TextStyle(
-                fontSize: 16,
-                fontWeight: pw.FontWeight.bold,
-                font: ttf,
-              ),
-            ),
+
+            // Items
+            _pdfSectionTitle('Items', ttf),
             pw.Table(
-              border: pw.TableBorder.all(),
+              border: pw.TableBorder.all(color: PdfColors.grey300),
               children: [
                 pw.TableRow(
-                  decoration: pw.BoxDecoration(color: PdfColors.blue100),
+                  decoration: pw.BoxDecoration(color: PdfColors.blue50),
                   children: [
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(
-                        'Field',
-                        style: pw.TextStyle(
-                          fontWeight: pw.FontWeight.bold,
-                          font: ttf,
-                        ),
-                      ),
-                    ),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(
-                        'Details',
-                        style: pw.TextStyle(
-                          fontWeight: pw.FontWeight.bold,
-                          font: ttf,
-                        ),
-                      ),
-                    ),
+                    _pdfCell('Item', ttf, bold: true),
+                    _pdfCell('Qty', ttf, bold: true, align: pw.TextAlign.center),
+                    _pdfCell('Price', ttf, bold: true, align: pw.TextAlign.right),
                   ],
                 ),
+                ..._buildItemRows(safeOrders, ttf),
+                pw.TableRow(children: [
+                  _pdfCell('Subtotal', ttf, bold: true),
+                  pw.SizedBox(),
+                  _pdfCell('${AppConstants.rupeeSymbol}$subTotal', ttf, align: pw.TextAlign.right),
+                ]),
+                if (isGstApplied)
+                  pw.TableRow(children: [
+                    _pdfCell('GST (${(AppConstants.gstRate! * 100).toStringAsFixed(1)}%)', ttf),
+                    pw.SizedBox(),
+                    _pdfCell('${AppConstants.rupeeSymbol}${gstAmount.toStringAsFixed(2)}', ttf, align: pw.TextAlign.right),
+                  ]),
                 pw.TableRow(
+                  decoration: pw.BoxDecoration(color: PdfColors.teal50),
                   children: [
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(
-                        'Payment Method',
-                        style: pw.TextStyle(font: ttf),
-                      ),
-                    ),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(
-                        paymentMethod,
-                        style: pw.TextStyle(font: ttf),
-                      ),
-                    ),
-                  ],
-                ),
-                pw.TableRow(
-                  children: [
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(
-                        'Transaction ID',
-                        style: pw.TextStyle(font: ttf),
-                      ),
-                    ),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(
-                        transactionId,
-                        style: pw.TextStyle(font: ttf),
-                      ),
-                    ),
-                  ],
-                ),
-                pw.TableRow(
-                  children: [
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(
-                        'Payment Status',
-                        style: pw.TextStyle(font: ttf),
-                      ),
-                    ),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(
-                        paymentStatus,
-                        style: pw.TextStyle(font: ttf),
-                      ),
-                    ),
+                    _pdfCell('Grand Total', ttf, bold: true),
+                    pw.SizedBox(),
+                    _pdfCell('${AppConstants.rupeeSymbol}${grandTotal.toStringAsFixed(2)}', ttf, bold: true, align: pw.TextAlign.right),
                   ],
                 ),
               ],
             ),
-            pw.SizedBox(height: 20),
+
+            pw.SizedBox(height: 24),
+
+            // Payment
+            _pdfSectionTitle('Payment', ttf),
+            pw.Table(
+              border: pw.TableBorder.all(color: PdfColors.grey300),
+              children: [
+                pw.TableRow(children: [_pdfCell('Method', ttf, bold: true), _pdfCell(paymentInfo.method, ttf)]),
+                pw.TableRow(children: [_pdfCell('Transaction ID', ttf, bold: true), _pdfCell(paymentInfo.txnId, ttf)]),
+                pw.TableRow(children: [_pdfCell('Status', ttf, bold: true), _pdfCell(paymentInfo.status, ttf)]),
+              ],
+            ),
+
+            pw.Spacer(),
             pw.Center(
-              child: pw.Column(
-                children: [
-                  pw.Text(
-                    'Thank you for your purchase!',
-                    style: pw.TextStyle(
-                      fontSize: 14,
-                      fontWeight: pw.FontWeight.bold,
-                      font: ttf,
-                    ),
-                  ),
-                  pw.Text(
-                    'Come visit us again at ${AppConstants.companyName ?? 'Unknown Company'}',
-                    style: pw.TextStyle(
-                      fontSize: 12,
-                      fontStyle: pw.FontStyle.italic,
-                      font: ttf,
-                    ),
-                  ),
-                ],
+              child: pw.Text(
+                'Thank You! Visit Again',
+                style: pw.TextStyle(font: ttf, fontSize: 14, fontStyle: pw.FontStyle.italic),
               ),
             ),
           ],
@@ -667,919 +358,633 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return pdf;
   }
 
-  // ========================================================
-  // 2. Generate Receipt (Web = Print, Mobile = Save + Open)
-  // ========================================================
-  Future<String> generateReceiptPdf(dynamic response, List<dynamic> orders,
-      dynamic user, bool isGstApplied) async {
-    try {
-      final pdf = await _buildPdfDocument(response, orders, user, isGstApplied);
-
-      if (kIsWeb) {
-        // Web: Open Print Dialog
-        await Printing.layoutPdf(
-          onLayout: (_) => pdf.save(),
-          name: 'receipt_${DateTime.now().millisecondsSinceEpoch}.pdf',
-        );
-        _showSnackBar('Receipt sent to printer', Colors.green);
-        return 'printed';
-      } else {
-        // Mobile: Save to device
-        Directory? directory;
-        try {
-          directory = await getApplicationDocumentsDirectory();
-        } catch (_) {
-          directory = await getTemporaryDirectory();
-        }
-        if (!await directory.exists()) {
-          await directory.create(recursive: true);
-        }
-        final file = File(
-            '${directory.path}/receipt_${DateTime.now().millisecondsSinceEpoch}.pdf');
-        await file.writeAsBytes(await pdf.save());
-        developer.log('PDF saved at: ${file.path}', name: 'CheckoutScreen');
-
-        final openResult = await OpenFilex.open(file.path);
-        if (openResult.type != ResultType.done) {
-          _showSnackBar(
-              'Saved at ${file.path} (could not open)', AppConstants.errorColor);
-        } else {
-          _showSnackBar('Receipt opened', Colors.green);
-        }
-        return file.path;
-      }
-    } catch (e, stackTrace) {
-      developer.log('Error generating receipt: $e', stackTrace: stackTrace);
-      _showSnackBar('Failed to generate receipt: $e', AppConstants.errorColor);
-      final receiptContent = await _generateReceiptContent(
-          response, orders, user, isGstApplied,
-          showDialogOnFailure: true);
-      return receiptContent;
-    }
+  pw.Widget _pdfSectionTitle(String title, pw.Font font) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(bottom: 8),
+      child: pw.Text(title, style: pw.TextStyle(font: font, fontSize: 15, fontWeight: pw.FontWeight.bold)),
+    );
   }
-Future<String> _generateReceiptContent(
+
+  pw.Widget _pdfCell(String text, pw.Font font, {bool bold = false, pw.TextAlign align = pw.TextAlign.left}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(8),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(font: font, fontWeight: bold ? pw.FontWeight.bold : null),
+        textAlign: align,
+      ),
+    );
+  }
+
+  List<pw.TableRow> _buildItemRows(List<Map> orders, pw.Font font) {
+    final rows = <pw.TableRow>[];
+
+    for (final order in orders) {
+      final items = (order['items'] as List?)?.whereType<Map>() ?? [];
+      for (final item in items) {
+        final name = _sanitize(item['name']) ?? 'Item';
+        final qty = (item['quantity'] as num?)?.toInt() ?? 1;
+        final price = (item['price'] as num?)?.toDouble() ?? 0.0;
+        final custom = _sanitize(item['customization']) ?? '';
+
+        final displayName = custom.isEmpty ? name : '$name ($custom)';
+
+        rows.add(pw.TableRow(children: [
+          _pdfCell('$displayName', font),
+          _pdfCell('$qty', font, align: pw.TextAlign.center),
+          _pdfCell('${AppConstants.rupeeSymbol}${(price * qty).toStringAsFixed(0)}', font, align: pw.TextAlign.right),
+        ]));
+      }
+    }
+    return rows;
+  }
+
+  ({String method, String txnId, String status}) _extractPaymentInfo(dynamic response) {
+    String method = 'Unknown';
+    String txnId = '—';
+    String status = 'SUCCESS';
+
+    final payu = response is Map ? response['payuResponse'] : null;
+
+    if (payu is Map) {
+      method = payu['mode']?.toString() ?? 'Unknown';
+      txnId = payu['txnid']?.toString() ?? '—';
+      status = (payu['status']?.toString() ?? 'success').toUpperCase();
+    }
+
+    return (method: method, txnId: txnId, status: status);
+  }
+
+  String _sanitize(dynamic val) {
+    final str = val?.toString() ?? '';
+    return str
+        .replaceAll('&', 'and')
+        .replaceAll('%', 'percent')
+        .replaceAll('\$', 'Rs')
+        .replaceAll('#', 'No.')
+        .replaceAll(RegExp(r'[\{\}\~\^\`]'), '');
+  }
+
+  // ───────────────────────────────────────────────
+  // PDF Generation & Save / Print
+  // ───────────────────────────────────────────────
+  Future<String> generateReceiptPdf(
     dynamic response,
     List<dynamic> orders,
     dynamic user,
     bool isGstApplied,
-    {bool showDialogOnFailure = false}) async {
-  try {
-    final safeOrders = orders.where((order) => order != null).toList();
+  ) async {
+    try {
+      final pdf = await _buildPdfDocument(response, orders, user, isGstApplied);
+      final bytes = await pdf.save();
 
-    final double totalPrice = safeOrders.fold(
-      0.0,
-      (sum, order) =>
-          sum +
-          ((order is Map && order['total'] is num)
-              ? order['total'].toDouble()
-              : 0.0),
-    );
+      if (kIsWeb) {
+        await Printing.layoutPdf(
+          onLayout: (_) => bytes,
+          name: 'receipt_${DateTime.now().millisecondsSinceEpoch}.pdf',
+        );
+        _showSnackBar('Receipt ready to print', Colors.green);
+        return 'printed';
+      } else {
+        final dir = await getApplicationDocumentsDirectory();
+        final path = '${dir.path}/receipt_${DateTime.now().millisecondsSinceEpoch}.pdf';
+        final file = File(path);
+        await file.writeAsBytes(bytes);
 
-    final double gstAmount =
-        isGstApplied ? totalPrice * (AppConstants.gstRate ?? 0.0) : 0.0;
-
-    final double total = totalPrice + gstAmount;
-
-    final Map<String, String> paymentMethodMap = {
-      'UPI': 'UPI',
-      'DYNAMIC_QR': 'Dynamic QR',
-      'CHALLAN': 'Challan',
-      'ENACH': 'eNACH',
-      'EFTNET': 'NEFT/RTGS',
-      'PAYTM': 'Paytm',
-      'PHONEPE': 'PhonePe',
-      'AMAZONPAY': 'Amazon Pay',
-      'FREECHARGE': 'FreeCharge',
-      'JIOMONEY': 'JioMoney',
-      'OLAMONEY': 'Ola Money',
-      'AIRTELMONEY': 'Airtel Money',
-      'PAYZAPP': 'PayZapp',
-      'CC': 'Credit Card',
-      'DC': 'Debit Card',
-      'MASTERCARD': 'MasterCard',
-      'VISA': 'Visa',
-      'VISA_ELECTRON': 'Visa Electron',
-      'RUPAY': 'RuPay',
-      'AMEX': 'American Express',
-      'DINERS': 'Diners Club',
-      'MAESTRO': 'Maestro',
-      'NB': 'Net Banking',
-      'EMI': 'EMI',
-      'EMI_DC': 'Debit Card EMI',
-      'EMI_CARDLESS': 'Cardless EMI',
-      'LAZYPAY': 'LazyPay',
-      'OLA_POSTPAID': 'Ola Postpaid',
-      'PAYPAL': 'PayPal',
-      'PLUXEE': 'Pluxee (Sodexo Meal Card)',
-      'WALLET': 'Wallet',
-      'CASH': 'Cash',
-      'Cash': 'Cash',
-      'Online': 'Online'
-    };
-
-    final payuResponse =
-        response is Map && response.containsKey('payuResponse')
-            ? response['payuResponse']
-            : null;
-
-    String paymentMethod = 'Unknown';
-
-    if (payuResponse != null) {
-      if (payuResponse is String) {
-        try {
-          final decoded = jsonDecode(payuResponse) as Map;
-          paymentMethod =
-              paymentMethodMap[decoded['mode']?.toString()] ?? 'Unknown';
-        } catch (e) {
-          developer.log('Error decoding payuResponse string: $e',
-              name: 'CheckoutScreen');
+        final result = await OpenFilex.open(path);
+        if (result.type == ResultType.done) {
+          _showSnackBar('Receipt opened', Colors.green);
+        } else {
+          _showSnackBar('Receipt saved at $path', Colors.blueGrey);
         }
-      } else if (payuResponse is Map) {
-        paymentMethod =
-            paymentMethodMap[payuResponse['mode']?.toString()] ?? 'Unknown';
+        return path;
       }
+    } catch (e, st) {
+      developer.log('PDF generation failed: $e', stackTrace: st, name: 'Checkout');
+      _showSnackBar('Could not generate PDF receipt', Colors.orange);
+      return '';
     }
-
-    final String transactionId =
-        payuResponse is Map && payuResponse['txnid'] is String
-            ? payuResponse['txnid']
-            : 'TXN${Random().nextInt(1000000).toString().padLeft(6, '0')}';
-
-    final String paymentStatus =
-        payuResponse is Map && payuResponse['status'] is String
-            ? payuResponse['status'].toUpperCase()
-            : 'SUCCESS';
-
-    final String date = DateTime.now().toString().split(' ').first;
-
-    final String userName = user is Map && user['fullName'] != null
-        ? _sanitizeText(user['fullName'])
-        : 'Unknown User';
-
-    final String userMobile = user is Map && user['mobile'] != null
-        ? _sanitizeText(user['mobile'])
-        : 'N/A';
-
-    /// -------------------------------
-    /// BUILD RECEIPT LINE BY LINE
-    /// -------------------------------
-    final List<String> lines = [];
-
-    lines.add(_sanitizeText(AppConstants.companyName ?? 'Unknown Company'));
-    lines.add(_sanitizeText(AppConstants.companyAddress ?? 'Unknown Address'));
-
-    if (isGstApplied) {
-      lines.add(
-          'GSTIN: ${_sanitizeText(AppConstants.merchantGstNumber ?? 'N/A')}');
-    }
-
-    lines.add('Merchant: $userName');
-    lines.add('Mobile: $userMobile');
-    lines.add('Payment Receipt');
-    lines.add('Date: $date');
-    lines.add('');
-    lines.add('Customer Details');
-    lines.add('Name: $userName');
-    lines.add('Mobile: $userMobile');
-    lines.add('');
-    lines.add('Order Summary');
-
-    for (final order in safeOrders) {
-      final items =
-          order is Map && order['items'] is List ? order['items'] as List : [];
-
-      for (final item in items) {
-        final menuItem = item is Map ? item : {};
-        final String itemName = menuItem['name'] != null
-            ? _sanitizeText(menuItem['name'])
-            : 'Unknown Item';
-
-        final int quantity = (menuItem['quantity'] is num)
-            ? (menuItem['quantity'] as num).toInt()
-            : 1;
-
-        final num pricePerUnit =
-            (menuItem['price'] is num) ? menuItem['price'] as num : 0;
-
-        final num price = pricePerUnit * quantity;
-
-        final String customization = menuItem['customization'] != null
-            ? _sanitizeText(menuItem['customization'])
-            : '';
-
-        final String displayName =
-            customization.isNotEmpty ? '$itemName [$customization]' : itemName;
-
-        lines.add(
-            '$displayName x$quantity: ${AppConstants.rupeeSymbol ?? '₹'}$price');
-      }
-    }
-
-    lines.add('');
-    lines.add(
-        'Subtotal: ${AppConstants.rupeeSymbol ?? '₹'}$totalPrice');
-
-    if (isGstApplied) {
-      lines.add(
-          'GST (${((AppConstants.gstRate ?? 0.0) * 100)}%): ${AppConstants.rupeeSymbol ?? '₹'}$gstAmount');
-    }
-
-    lines.add(
-        'Total Amount: ${AppConstants.rupeeSymbol ?? '₹'}$total');
-    lines.add('');
-    lines.add('Payment Details');
-    lines.add('Payment Method: $paymentMethod');
-    lines.add('Transaction ID: $transactionId');
-    lines.add('Payment Status: $paymentStatus');
-    lines.add('');
-    lines.add('Thank you for your purchase!');
-    lines.add(
-        'Come visit us again at ${_sanitizeText(AppConstants.companyName ?? 'Unknown Company')}');
-
-    /// -------------------------------
-    /// PAGINATION LOGIC
-    /// -------------------------------
-    const int maxLinesPerPage = 40;
-    final StringBuffer paginatedReceipt = StringBuffer();
-
-    for (int i = 0; i < lines.length; i++) {
-      paginatedReceipt.writeln(lines[i]);
-
-      if ((i + 1) % maxLinesPerPage == 0 && i != lines.length - 1) {
-        paginatedReceipt.writeln('\f'); // PAGE BREAK
-      }
-    }
-
-    final receiptContent = paginatedReceipt.toString();
-
-    if (showDialogOnFailure && mounted) {
-      _showReceiptDialog(receiptContent);
-    }
-
-    return receiptContent;
-  } catch (e, stackTrace) {
-    developer.log(
-        'Error generating receipt content: $e, StackTrace: $stackTrace',
-        name: 'CheckoutScreen');
-
-    _showSnackBar(
-        'Failed to generate receipt content: $e', AppConstants.errorColor);
-
-    return '';
-  }
-}
-
-  bool _isValidMobile(String mobile) {
-    return RegExp(r'^\d{10}$').hasMatch(mobile);
   }
 
-  void _showSnackBar(String message, Color color) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: GoogleFonts.poppins(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: Colors.white,
-          ),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppConstants.borderRadius)),
-        margin: const EdgeInsets.all(AppConstants.paddingSmall),
-        duration: const Duration(seconds: 3),
-      ),
-    );
-  }
-
-  void _showReceiptDialog(String receiptContent) {
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Receipt Details',
-          style: GoogleFonts.poppins(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        content: SingleChildScrollView(
-          child: Text(
-            receiptContent,
-            style: GoogleFonts.poppins(fontSize: 14),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              'Close',
-              style: GoogleFonts.poppins(
-                color: AppConstants.primaryColor,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
+  // ───────────────────────────────────────────────
+  // UI BUILD
+  // ───────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    final isTablet = MediaQuery.of(context).size.width > 600;
+    final isTablet = MediaQuery.sizeOf(context).width > 700;
+
     return BlocListener<BillBloc, BillState>(
       listener: (context, state) {
         if (state.error != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.error!),
-              backgroundColor: Colors.red,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-          developer.log('BillBloc error: ${state.error}',
-              name: 'CheckoutScreen');
+          _showSnackBar(state.error!, Colors.red);
         }
-        setState(() {
-          _isLoading = state.isLoading;
-          if (!state.isLoading) {
-            developer.log('Processing bills: ${state.bills}',
-                name: 'CheckoutScreen');
-            final pendingBills = state.bills.where((bill) {
-              final status = bill['status'] ?? 'Pending';
-              return status == 'Pending';
-            }).toList();
-            developer.log('Pending bills: $pendingBills',
-                name: 'CheckoutScreen');
-            _groupedBills = {};
-            _tableTotals = {};
-            _grandTotal = 0.0;
-            for (var bill in pendingBills) {
-              final table = bill['table'] as String? ?? 'Unknown';
-              _groupedBills.putIfAbsent(table, () => []).add(bill);
-              final billId = bill['billId'] as String? ?? '';
+
+        if (!state.isLoading && state.bills.isNotEmpty) {
+          setState(() {
+            _isLoading = false;
+
+            final pending = state.bills
+                .where((b) => (b['status']?.toString() ?? '').toLowerCase() == 'pending')
+                .toList();
+
+            _groupedBills.clear();
+            _tableTotals.clear();
+            _grandTotal = 0;
+
+            for (final bill in pending) {
+              final table = bill['table']?.toString() ?? 'Other';
+              _groupedBills.putIfAbsent(table, () => []).add(bill.cast<String, dynamic>());
+
+              final billId = bill['billId']?.toString() ?? '';
               _mobileControllers.putIfAbsent(
-                  billId,
-                  () => TextEditingController(
-                      text: bill['user']?['mobile'] ?? ''));
+                billId,
+                () => TextEditingController(text: bill['user']?['mobile']?.toString() ?? ''),
+              );
             }
-            _groupedBills.forEach((table, bills) {
-              double tableTotal = bills.fold(0.0, (sum, bill) {
-                final amount = (bill['totalAmount'] as num?)?.toDouble() ?? 0.0;
-                developer.log('Bill ${bill['billId']} totalAmount: $amount',
-                    name: 'CheckoutScreen');
-                return sum + amount;
-              });
-              _tableTotals[table] = tableTotal;
-              _grandTotal += tableTotal;
-            });
-            developer.log('Grouped bills: $_groupedBills',
-                name: 'CheckoutScreen');
-            developer.log('Table totals: $_tableTotals',
-                name: 'CheckoutScreen');
-            developer.log('Grand total: $_grandTotal', name: 'CheckoutScreen');
-          }
-        });
+
+            for (final entry in _groupedBills.entries) {
+              final total = entry.value.fold<double>(
+                0.0,
+                (sum, b) => sum + (b['totalAmount'] as num? ?? 0).toDouble(),
+              );
+              _tableTotals[entry.key] = total;
+              _grandTotal += total;
+            }
+          });
+        } else if (state.isLoading) {
+          setState(() => _isLoading = true);
+        }
       },
       child: Scaffold(
+        backgroundColor: Colors.grey.shade50,
         appBar: AppBar(
-          title: const Text(
-            'Checkout',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-              fontSize: 20,
-            ),
-          ),
-          backgroundColor: Colors.indigo[700],
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
+          title: const Text('Checkout & Payments'),
+          backgroundColor: Colors.indigo.shade700,
+          foregroundColor: Colors.white,
           actions: [
             IconButton(
-              icon: const Icon(Icons.refresh, color: Colors.white),
+              icon: const Icon(Icons.refresh),
               onPressed: () => context.read<BillBloc>().add(FetchBills()),
-              tooltip: 'Refresh Bills',
+              tooltip: 'Refresh',
             ),
           ],
         ),
-        body: Container(
-          color: Colors.grey[100],
-          child: Padding(
-            padding: EdgeInsets.all(isTablet ? 32 : 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Bill Summary',
-                  style: TextStyle(
-                    fontSize: isTablet ? 28 : 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.indigo[900],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Expanded(
-                  child: BlocBuilder<BillBloc, BillState>(
-                    builder: (context, state) {
-                      if (_isLoading) {
-                        developer.log('Showing loading indicator',
-                            name: 'CheckoutScreen');
-                        return const Center(
-                          child: CircularProgressIndicator(
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.indigo),
-                          ),
-                        );
-                      }
-                      if (_groupedBills.isEmpty) {
-                        developer.log('No pending bills to display',
-                            name: 'CheckoutScreen');
-                        return Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.receipt_long,
-                                  size: 80, color: Colors.grey[400]),
-                              const SizedBox(height: 16),
-                              Text(
-                                'No pending bills for payment',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  color: Colors.grey[600],
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-                      developer.log('Rendering ${_groupedBills.length} tables',
-                          name: 'CheckoutScreen');
-                      return ListView.builder(
-                        itemCount: _groupedBills.length,
-                        itemBuilder: (context, index) {
-                          final table = _groupedBills.keys.elementAt(index);
-                          final bills = _groupedBills[table]!;
-                          final tableTotal = _tableTotals[table] ?? 0.0;
-                          return AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
-                            margin: const EdgeInsets.symmetric(vertical: 8),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: ExpansionTile(
-                              title: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Table: $table',
-                                    style: TextStyle(
-                                      fontSize: isTablet ? 18 : 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.indigo[900],
-                                    ),
-                                  ),
-                                  Text(
-                                    '₹${tableTotal.toStringAsFixed(2)}',
-                                    style: TextStyle(
-                                      fontSize: isTablet ? 18 : 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.green[700],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              iconColor: Colors.indigo[700],
-                              collapsedIconColor: Colors.indigo[400],
-                              children: bills.map((bill) {
-                                final billId = bill['billId'] as String? ?? '';
-                                final isProcessing =
-                                    _processingBills[billId] ?? false;
-                                final totalAmount =
-                                    (bill['totalAmount'] as num?)?.toDouble() ??
-                                        0.0;
-                                final displayTotal =
-                                    (bill['isGstApplied'] == true)
-                                        ? (totalAmount).toStringAsFixed(2)
-                                        : totalAmount.toStringAsFixed(2);
-                                developer.log('Rendering bill $billId',
-                                    name: 'CheckoutScreen');
-                                return Container(
-                                  margin: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey[50],
-                                    borderRadius: BorderRadius.circular(12),
-                                    border:
-                                        Border.all(color: Colors.grey[200]!),
-                                  ),
-                                  child: ExpansionTile(
-                                    title: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Bill ID: ${billId.length > 8 ? billId.substring(0, 8) + '...' : billId}',
-                                          style: TextStyle(
-                                            fontSize: isTablet ? 16 : 14,
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.indigo[900],
-                                          ),
-                                        ),
-                                        Text(
-                                          'Table: ${bill['table'] ?? 'Unknown'}',
-                                          style: TextStyle(
-                                            fontSize: isTablet ? 15 : 13,
-                                            fontWeight: FontWeight.w400,
-                                            color: Colors.grey[700],
-                                          ),
-                                        ),
-                                        Text(
-                                          'User: ${bill['user']?['fullName'] ?? 'Unknown User'}',
-                                          style: TextStyle(
-                                            fontSize: isTablet ? 15 : 13,
-                                            fontWeight: FontWeight.w400,
-                                            color: Colors.grey[700],
-                                          ),
-                                        ),
-                                        Text(
-                                          'Total: ₹$displayTotal',
-                                          style: TextStyle(
-                                            fontSize: isTablet ? 15 : 13,
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.green[700],
-                                          ),
-                                        ),
-                                        Text(
-                                          'Status: ${bill['status'] ?? 'Pending'}',
-                                          style: TextStyle(
-                                            fontSize: isTablet ? 15 : 13,
-                                            fontWeight: FontWeight.w400,
-                                            color: Colors.grey[700],
-                                          ),
-                                        ),
-                                        Text(
-                                          'Payment Method: ${bill['paymentMethod'] ?? 'Not Set'}',
-                                          style: TextStyle(
-                                            fontSize: isTablet ? 15 : 13,
-                                            fontWeight: FontWeight.w400,
-                                            color: Colors.grey[700],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    iconColor: Colors.indigo[700],
-                                    collapsedIconColor: Colors.indigo[400],
-                                    children: [
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 16, vertical: 12),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            _buildInfoRow(
-                                                'Bill ID', billId, isTablet),
-                                            _buildInfoRow(
-                                                'Table',
-                                                bill['table'] ?? 'Unknown',
-                                                isTablet),
-                                            _buildInfoRow(
-                                                'User',
-                                                bill['user']?['fullName'] ??
-                                                    'Unknown User',
-                                                isTablet),
-                                            _buildInfoRow(
-                                                'Email',
-                                                bill['user']?['email'] ?? 'N/A',
-                                                isTablet),
-                                            _buildInfoRow('Total',
-                                                '₹$displayTotal', isTablet,
-                                                color: Colors.green[700]),
-                                            _buildInfoRow(
-                                                'Status',
-                                                bill['status'] ?? 'Pending',
-                                                isTablet),
-                                            _buildInfoRow(
-                                                'Payment Method',
-                                                bill['paymentMethod'] ??
-                                                    'Not Set',
-                                                isTablet),
-                                            const Divider(height: 20),
-                                            Text(
-                                              'Orders:',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: isTablet ? 16 : 14,
-                                                color: Colors.indigo[900],
-                                              ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            ...((bill['orders'] as List?) ?? [])
-                                                .map((order) {
-                                              final orderId =
-                                                  order['orderId'] ?? '';
-                                              final orderTotal =
-                                                  order['total']?.toString() ??
-                                                      '0';
-                                              final orderStatus =
-                                                  order['status'] ?? 'Pending';
-                                              final timestamp =
-                                                  order['timestamp'] ?? '';
-                                              return Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  _buildInfoRow('Order ID',
-                                                      orderId, isTablet),
-                                                  _buildInfoRow('Total',
-                                                      '₹$orderTotal', isTablet),
-                                                  _buildInfoRow('Status',
-                                                      orderStatus, isTablet),
-                                                  _buildInfoRow('Timestamp',
-                                                      timestamp, isTablet),
-                                                  Text(
-                                                    'Items:',
-                                                    style: TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      fontSize:
-                                                          isTablet ? 15 : 13,
-                                                      color: Colors.indigo[900],
-                                                    ),
-                                                  ),
-                                                  ...((order['items']
-                                                              as List?) ??
-                                                          [])
-                                                      .map((item) {
-                                                    final name = item['name'] ??
-                                                        'Unnamed';
-                                                    final qty = item['quantity']
-                                                            ?.toString() ??
-                                                        '1';
-                                                    final price = item['price']
-                                                            ?.toString() ??
-                                                        '0';
-                                                    final customization =
-                                                        item['customization'] ??
-                                                            '';
-                                                    return Padding(
-                                                      padding: const EdgeInsets
-                                                          .symmetric(
-                                                          vertical: 4.0),
-                                                      child: Row(
-                                                        children: [
-                                                          Icon(Icons.fastfood,
-                                                              size: 16,
-                                                              color: Colors
-                                                                  .indigo[400]),
-                                                          const SizedBox(
-                                                              width: 8),
-                                                          Expanded(
-                                                            child: Text(
-                                                              '$name (x$qty) ₹$price ${customization.isNotEmpty ? '[$customization]' : ''}',
-                                                              style: TextStyle(
-                                                                fontSize:
-                                                                    isTablet
-                                                                        ? 14
-                                                                        : 12,
-                                                                color: Colors
-                                                                    .grey[800],
-                                                              ),
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    );
-                                                  }),
-                                                  const SizedBox(height: 8),
-                                                ],
-                                              );
-                                            }),
-                                            const Divider(height: 20),
-                                            TextField(
-                                              controller:
-                                                  _mobileControllers[billId],
-                                              decoration: InputDecoration(
-                                                labelText: 'Mobile Number',
-                                                labelStyle: TextStyle(
-                                                    color: Colors.indigo[700]),
-                                                border: OutlineInputBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(12),
-                                                  borderSide: BorderSide(
-                                                      color:
-                                                          Colors.indigo[200]!),
-                                                ),
-                                                enabledBorder:
-                                                    OutlineInputBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(12),
-                                                  borderSide: BorderSide(
-                                                      color:
-                                                          Colors.indigo[200]!),
-                                                ),
-                                                focusedBorder:
-                                                    OutlineInputBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(12),
-                                                  borderSide: BorderSide(
-                                                      color:
-                                                          Colors.indigo[700]!,
-                                                      width: 2),
-                                                ),
-                                                prefixIcon: Icon(Icons.phone,
-                                                    color: Colors.indigo[400]),
-                                              ),
-                                              keyboardType: TextInputType.phone,
-                                              enabled: !isProcessing,
-                                              style: TextStyle(
-                                                  fontSize: isTablet ? 16 : 14),
-                                            ),
-                                            const SizedBox(height: 16),
-                                            Row(
-                                              children: [
-                                                Expanded(
-                                                  child: ElevatedButton.icon(
-                                                    onPressed: isProcessing
-                                                        ? null
-                                                        : () => _handlePayment(
-                                                            billId, 'Cash'),
-                                                    icon: const Icon(
-                                                        Icons.money,
-                                                        color: Colors.white),
-                                                    label: Text(
-                                                      isProcessing
-                                                          ? 'Processing...'
-                                                          : 'Pay by Cash',
-                                                      style: const TextStyle(
-                                                        color: Colors.white,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                      ),
-                                                    ),
-                                                    style: ElevatedButton
-                                                        .styleFrom(
-                                                      backgroundColor:
-                                                          Colors.blue[600],
-                                                      padding: const EdgeInsets
-                                                          .symmetric(
-                                                          vertical: 16),
-                                                      shape:
-                                                          RoundedRectangleBorder(
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(12),
-                                                      ),
-                                                      elevation: 2,
-                                                    ),
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 12),
-                                                Expanded(
-                                                  child: ElevatedButton.icon(
-                                                    onPressed: isProcessing
-                                                        ? null
-                                                        : () => _handlePayment(
-                                                            billId, 'Online'),
-                                                    icon: const Icon(
-                                                        Icons.credit_card,
-                                                        color: Colors.white),
-                                                    label: Text(
-                                                      isProcessing
-                                                          ? 'Processing...'
-                                                          : 'Pay by Online',
-                                                      style: const TextStyle(
-                                                        color: Colors.white,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                      ),
-                                                    ),
-                                                    style: ElevatedButton
-                                                        .styleFrom(
-                                                      backgroundColor:
-                                                          Colors.green[600],
-                                                      padding: const EdgeInsets
-                                                          .symmetric(
-                                                          vertical: 16),
-                                                      shape:
-                                                          RoundedRectangleBorder(
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(12),
-                                                      ),
-                                                      elevation: 2,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }).toList(),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
-                const Divider(
-                  color: Colors.grey,
-                  height: 32,
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Total Amount:',
-                      style: TextStyle(
-                        fontSize: isTablet ? 22 : 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.indigo[900],
-                      ),
-                    ),
-                    Text(
-                      '₹${_grandTotal.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        fontSize: isTablet ? 22 : 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green[700],
-                      ),
-                    ),
-                  ],
-                ),
-                if (_isGstApplied)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      '(Including GST where applicable)',
-                      style: TextStyle(
-                        fontSize: isTablet ? 15 : 13,
-                        color: Colors.grey[600],
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ),
-                const SizedBox(height: 24),
-              ],
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _groupedBills.isEmpty
+                ? _buildEmptyState()
+                : _buildContent(isTablet),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.receipt_outlined, size: 90, color: Colors.grey.shade400),
+          const SizedBox(height: 24),
+          Text(
+            'No pending bills to settle',
+            style: GoogleFonts.poppins(
+              fontSize: 20,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey.shade700,
             ),
           ),
+          const SizedBox(height: 8),
+          Text(
+            'New orders will appear here automatically',
+            style: GoogleFonts.poppins(fontSize: 15, color: Colors.grey.shade600),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContent(bool isTablet) {
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(isTablet ? 32 : 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Pending Bills',
+            style: GoogleFonts.poppins(
+              fontSize: isTablet ? 28 : 24,
+              fontWeight: FontWeight.w700,
+              color: Colors.indigo.shade900,
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          ..._groupedBills.entries.map((entry) {
+            final table = entry.key;
+            final bills = entry.value;
+            final tableTotal = _tableTotals[table] ?? 0.0;
+
+            return _buildTableGroup(table, bills, tableTotal, isTablet);
+          }),
+
+          const Divider(height: 48, thickness: 1.5),
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Grand Total',
+                style: GoogleFonts.poppins(
+                  fontSize: isTablet ? 24 : 20,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.indigo.shade900,
+                ),
+              ),
+              Text(
+                '₹${_grandTotal.toStringAsFixed(2)}',
+                style: GoogleFonts.poppins(
+                  fontSize: isTablet ? 26 : 22,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.green.shade800,
+                ),
+              ),
+            ],
+          ),
+          if (_isGstApplied)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                '(Inclusive of GST where applicable)',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: Colors.grey.shade700,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+          const SizedBox(height: 40),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTableGroup(String table, List<Map<String, dynamic>> bills, double total, bool isTablet) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 20),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Table $table',
+                  style: GoogleFonts.poppins(
+                    fontSize: isTablet ? 22 : 19,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.indigo.shade800,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '₹${total.toStringAsFixed(2)}',
+                    style: GoogleFonts.poppins(
+                      fontSize: isTablet ? 20 : 18,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.green.shade800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ...bills.map((bill) => _buildBillCard(bill, isTablet)),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildInfoRow(String label, String value, bool isTablet,
-      {Color? color}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            '$label:',
-            style: TextStyle(
-              fontSize: isTablet ? 15 : 13,
-              fontWeight: FontWeight.w600,
-              color: Colors.indigo[900],
+  Widget _buildBillCard(Map<String, dynamic> bill, bool isTablet) {
+    final billId = bill['billId']?.toString() ?? '—';
+    final table = bill['table']?.toString() ?? '?';
+    final userName = bill['user']?['fullName']?.toString() ?? 'Walk-in';
+    final mobile = bill['user']?['mobile']?.toString() ?? '—';
+    final isProcessing = _processingBills[billId] ?? false;
+
+    // Extract and calculate all items
+    final orders = bill['orders'] as List<dynamic>? ?? [];
+    double subTotal = 0.0;
+    final List<Map<String, dynamic>> allItems = [];
+
+    for (final order in orders) {
+      final items = (order['items'] as List<dynamic>?) ?? [];
+      for (final item in items) {
+        if (item is! Map<String, dynamic>) continue;
+
+        final qty = (item['quantity'] as num?)?.toInt() ?? 1;
+        final price = (item['price'] as num?)?.toDouble() ?? 0.0;
+        final itemTotal = qty * price;
+        subTotal += itemTotal;
+
+        allItems.add({
+          'name': item['name']?.toString() ?? 'Unknown item',
+          'customization': item['customization']?.toString() ?? '',
+          'qty': qty,
+          'pricePerUnit': price,
+          'total': itemTotal,
+        });
+      }
+    }
+
+    final gstAmount = bill['isGstApplied'] == true ? subTotal * (AppConstants.gstRate ?? 0.18) : 0.0;
+    final grandTotal = subTotal + gstAmount;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 1,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header – very visible
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.indigo.shade700,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    'TABLE $table',
+                    style: GoogleFonts.poppins(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Bill #$billId',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade800,
+                        ),
+                      ),
+                      Text(
+                        userName,
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: Colors.grey.shade700,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (mobile != '—')
+                        Text(
+                          '• $mobile',
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ),
-          Flexible(
-            child: Text(
-              value,
-              style: TextStyle(
-                fontSize: isTablet ? 15 : 13,
-                color: color ?? Colors.grey[800],
-                fontWeight: FontWeight.w400,
+
+            const Divider(height: 24, thickness: 1.2),
+
+            // Items list – clearest part
+            Text(
+              'Order Items',
+              style: GoogleFonts.poppins(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Colors.indigo.shade800,
               ),
-              textAlign: TextAlign.right,
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+
+            if (allItems.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Text(
+                  'No items found in this bill',
+                  style: GoogleFonts.poppins(color: Colors.grey.shade600),
+                ),
+              )
+            else ...[
+              ...allItems.map((item) {
+                final displayName = item['customization'].toString().isNotEmpty
+                    ? '${item['name']} (${item['customization']})'
+                    : item['name'].toString();
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 44,
+                        child: Text(
+                          '${item['qty']}×',
+                          style: GoogleFonts.poppins(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.indigo.shade600,
+                          ),
+                          textAlign: TextAlign.right,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          displayName,
+                          style: GoogleFonts.poppins(fontSize: 14.5),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        '₹${(item['total'] as double).toStringAsFixed(0)}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+
+            const Divider(height: 20),
+
+            // Totals
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Subtotal',
+                  style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w500),
+                ),
+                Text(
+                  '₹${subTotal.toStringAsFixed(2)}',
+                  style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+
+            if (gstAmount > 0) ...[
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'GST (${(AppConstants.gstRate! * 100).toStringAsFixed(1)}%)',
+                    style: GoogleFonts.poppins(fontSize: 14.5),
+                  ),
+                  Text(
+                    '₹${gstAmount.toStringAsFixed(2)}',
+                    style: GoogleFonts.poppins(fontSize: 14.5),
+                  ),
+                ],
+              ),
+            ],
+
+            const Divider(height: 16),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'To Pay',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.green.shade800,
+                  ),
+                ),
+                Text(
+                  '₹${grandTotal.toStringAsFixed(2)}',
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.green.shade800,
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            // Mobile + Payment buttons
+            Text(
+              'Customer Mobile (for receipt / SMS)',
+              style: GoogleFonts.poppins(fontSize: 13.5, fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _mobileControllers[billId],
+              decoration: InputDecoration(
+                hintText: '10-digit mobile number',
+                prefixIcon: const Icon(Icons.phone, size: 20),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+              ),
+              keyboardType: TextInputType.phone,
+              enabled: !isProcessing,
+            ),
+
+            const SizedBox(height: 20),
+
+            Row(
+              children: [
+                Expanded(
+                  child: _PaymentButton(
+                    label: 'Cash',
+                    icon: Icons.money,
+                    color: Colors.blue.shade700,
+                    isLoading: isProcessing,
+                    onPressed: isProcessing ? null : () => _handlePayment(billId, 'Cash'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _PaymentButton(
+                    label: 'Online / UPI',
+                    icon: Icons.qr_code_scanner,
+                    color: Colors.green.shade700,
+                    isLoading: isProcessing,
+                    onPressed: isProcessing ? null : () => _handlePayment(billId, 'Online'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PaymentButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback? onPressed;
+  final bool isLoading;
+
+  const _PaymentButton({
+    required this.label,
+    required this.icon,
+    required this.color,
+    this.onPressed,
+    this.isLoading = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      icon: isLoading
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+            )
+          : Icon(icon, size: 20),
+      label: Text(
+        isLoading ? 'Processing...' : label,
+        style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 15),
+      ),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: 1.5,
       ),
     );
   }
