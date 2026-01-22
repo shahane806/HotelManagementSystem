@@ -1,6 +1,7 @@
 const { v4: uuidv4 } = require('uuid');
 const bill = require('../Models/billModel');
 const Order = require('../Models/orderModel');
+const { json } = require('express');
 const createBill = async (req, res) => {
   console.log("hei");
   const { table,  orders, totalAmount, isGstApplied } = req.body;
@@ -72,12 +73,11 @@ const updateBillStatus = async (req, res) => {
 
     // 🔥 THIS WAS MISSING
     const orderIds = billToUpdate.orders.map(o => o.orderId);
-
-    await Order.updateMany(
-      { id: { $in: orderIds } },
+    console.log(`Om Shahane : ${orderIds}`);
+    const updatedOrders = await Order.updateMany(
+      { _id: { $in: orderIds } },
       { $set: { bill_status: "Paid" } }
     );
-
     res.status(200).json({ message: 'Bill and orders updated successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Failed to update bill status' });

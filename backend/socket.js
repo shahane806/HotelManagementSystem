@@ -38,13 +38,16 @@ socket.on('fetchOrders', async () => {
         $lte: end,
       },
     });
-
-    socket.emit('ordersFetched', orders);
+  console.log("Orders : "+orders)
+  let o = orders.filter(e=>e.bill_status=="Pending")
+    socket.emit('ordersFetched', o);
   } catch (e) {
     console.error(e);
     socket.emit('ordersFetched', []);
   }
 });
+
+
 
 
   // Handle placeOrder event
