@@ -69,13 +69,13 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
       }
 
       context.read<OrdersBloc>().add(UpdateOrderStatus(orderId, status));
-      context.read<OrdersBloc>().add(FetchRecentOrders());
+      context.read<OrdersBloc>().add(const FetchRecentOrders());
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<TablesBloc>().add(FetchTables());
       context.read<MenusBloc>().add(FetchMenus());
-      context.read<OrdersBloc>().add(FetchRecentOrders());
+      context.read<OrdersBloc>().add(const FetchRecentOrders());
 
     });
   }

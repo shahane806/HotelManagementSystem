@@ -18,6 +18,12 @@ const orderSchema = new mongoose.Schema({
     default:"Pending",
     required: true,
   },
+  bill_status:{
+    type:String,
+    enum:["Pending","Paid"],
+    default:["Pending"],
+    required: false,
+  },
   createdAt: { type: Date, default: Date.now },
 });
 
