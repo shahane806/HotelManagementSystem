@@ -21,7 +21,7 @@ const orderSchema = new mongoose.Schema({
   bill_status:{
     type:String,
     enum:["Pending","Paid"],
-    default:["Pending"],
+    default:"Pending",
     required: false,
   },
   createdAt: { type: Date, default: Date.now },

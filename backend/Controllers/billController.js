@@ -56,34 +56,31 @@ const getAllBills = async (req, res) => {
   }
 };
 const updateBillStatus = async (req, res) => {
-  console.log("Updating bill status");
   const { billId, status, paymentMethod } = req.body;
-  console.log("Request body:", req.body);
 
   try {
-    if (!billId || !status) {
-      console.log("Missing required fields: billId or status");
-      return res.status(400).json({ message: 'Missing required fields: billId and status are required' });
-    }
-
     const billToUpdate = await bill.findOne({ billId });
     if (!billToUpdate) {
-      console.log("Bill not found:", billId);
       return res.status(404).json({ message: 'Bill not found' });
     }
 
     billToUpdate.status = status;
-    if (paymentMethod) {
-      billToUpdate.paymentMethod = paymentMethod;
-    }
+    billToUpdate.paymentMethod = paymentMethod;
     billToUpdate.updatedAt = new Date();
-
     await billToUpdate.save();
 
-    res.status(200).json({ message: 'Bill status updated successfully', billId, status });
+    // 🔥 THIS WAS MISSING
+    const orderIds = billToUpdate.orders.map(o => o.orderId);
+
+    await Order.updateMany(
+      { id: { $in: orderIds } },
+      { $set: { bill_status: "Paid" } }
+    );
+
+    res.status(200).json({ message: 'Bill and orders updated successfully' });
   } catch (error) {
-    console.error('Error updating bill status:', error);
-    res.status(500).json({ message: 'Failed to update bill status', error: error.message });
+    res.status(500).json({ message: 'Failed to update bill status' });
   }
 };
+
 module.exports = {createBill,getAllBills,updateBillStatus}
