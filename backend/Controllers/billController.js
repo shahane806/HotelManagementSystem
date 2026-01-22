@@ -1,5 +1,6 @@
 const { v4: uuidv4 } = require('uuid');
 const bill = require('../Models/billModel');
+const Order = require('../Models/orderModel');
 const createBill = async (req, res) => {
   console.log("hei");
   const { table,  orders, totalAmount, isGstApplied } = req.body;
