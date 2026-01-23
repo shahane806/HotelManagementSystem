@@ -10,9 +10,9 @@ class ApiConstants {
   static String get url {
     if (kIsWeb) {
       // 🌐 Running in browser
-      return "http://localhost:3001";
+      // return "http://localhost:3001";
       // or your hosted API endpoint:
-      // return "https://hotelmanagementsystem-ysx7.onrender.com";
+      return "https://hotelmanagementsystem-ysx7.onrender.com";
     }
 
     // 📱 Native (mobile/desktop)
@@ -28,9 +28,9 @@ class ApiConstants {
   static String get socketUrl {
     if (kIsWeb) {
       // 🌐 WebSocket URL for browser
-      return "ws://localhost:3000";
+      // return "ws://localhost:3000";
       // Or hosted socket endpoint:
-      // return "https://hotelmanagementsystem-socket.onrender.com";
+      return "https://hotelmanagementsystem-socket.onrender.com";
     }
 
     // 📱 Native
