@@ -3,7 +3,7 @@ const { loginController , forgotPasswordController, resetPasswordController } = 
 const {  authenticate } = require("../Middlewere/authMiddlewere");
 const { utilityController, utilityItemController, getNamedUtilities, deleteUtilityItemController } = require("../Controllers/utilityController");
 const { addMenuItemController, deleteMenuItemController } = require("../Controllers/utilityController");
-const { createBill, getAllBills, updateBillStatus } = require("../Controllers/billController");
+const { createBill, getAllBills, updateBillStatus, getAnalytics, generateReport } = require("../Controllers/billController");
 const { getAllCustomers, createCustomer, deleteCustomer, updateCustomer } = require("../Controllers/customerController");
 const { createOrder } = require("../Controllers/razorpayController");
 const { getAllStaff, createStaff, deleteStaff, updateStaff } = require("../Controllers/staffController");
@@ -86,7 +86,7 @@ router.delete("/DeleteRoomById/:id", authenticate, deleteRoom);
 
 
 
-
-
+router.get('/bills/analytics', authenticate,getAnalytics);
+router.post('/bills/report', authenticate, generateReport);
 
 module.exports = router;

@@ -2,17 +2,17 @@ require("dotenv").config();
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const Staff = require("../Models/staffModel");
-// const nodemailer = require("nodemailer");
+const nodemailer = require("nodemailer");
 
-// const transporter = nodemailer.createTransport({
-//   host: "smtp.gmail.com",
-//   port: 587,
-//   secure: false,
-//   auth: {
-//     user: process.env.EMAIL_USER,
-//     pass: process.env.EMAIL_PASS,
-//   },
-// });
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
 
 const JWT_SECRET = process.env.SECRET_KEY;
 const JWT_EXPIRES_IN = "7d";
@@ -153,7 +153,6 @@ const forgotPasswordController = async (req, res) => {
   }
 };
 
-// ===== FORGOT PASSWORD =====
 // const forgotPasswordController = async (req, res) => {
 //   try {
 //     const { email } = req.body;
@@ -238,79 +237,79 @@ const forgotPasswordController = async (req, res) => {
 // };
 
 // ===== RESET PASSWORD =====
-// const resetPasswordController = async (req, res) => {
-//   try {
-//     const { token } = req.params;
-//     const { password, confirmPassword } = req.body;
-
-//     if (!password || password.length < 8) return res.status(400).json({ success: false, message: "Password must be at least 8 characters" });
-//     if (password !== confirmPassword) return res.status(400).json({ success: false, message: "Passwords do not match" });
-
-//     const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
-
-//     const user = await Staff.findOne({ resetPasswordToken: hashedToken, resetPasswordExpires: { $gt: Date.now() } });
-//     if (!user) return res.status(400).json({ success: false, message: "Token invalid or expired" });
-
-//     user.password = await bcrypt.hash(password, 12);
-//     user.resetPasswordToken = undefined;
-//     user.resetPasswordExpires = undefined;
-//     await user.save();
-
-//     return res.status(200).json({ success: true, message: "Password reset successful" });
-//   } catch (error) {
-//     console.error("Reset Password Error:", error);
-//     return res.status(500).json({ success: false, message: "Server error" });
-//   }
-// };
 const resetPasswordController = async (req, res) => {
   try {
     const { token } = req.params;
     const { password, confirmPassword } = req.body;
 
-    if (!password || password.length < 8) {
-      return res.status(400).json({
-        success: false,
-        message: "Password must be at least 8 characters",
-      });
-    }
+    if (!password || password.length < 8) return res.status(400).json({ success: false, message: "Password must be at least 8 characters" });
+    if (password !== confirmPassword) return res.status(400).json({ success: false, message: "Passwords do not match" });
 
-    if (password !== confirmPassword) {
-      return res.status(400).json({
-        success: false,
-        message: "Passwords do not match",
-      });
-    }
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
-    // 🔐 Verify JWT
-    let decoded;
-    try {
-      decoded = jwt.verify(token, JWT_SECRET);
-    } catch (err) {
-      return res.status(400).json({
-        success: false,
-        message: "Token invalid or expired",
-      });
-    }
-
-    const user = await Staff.findById(decoded.userId);
-    if (!user) {
-      return res.status(400).json({
-        success: false,
-        message: "User not found",
-      });
-    }
+    const user = await Staff.findOne({ resetPasswordToken: hashedToken, resetPasswordExpires: { $gt: Date.now() } });
+    if (!user) return res.status(400).json({ success: false, message: "Token invalid or expired" });
 
     user.password = await bcrypt.hash(password, 12);
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
     await user.save();
 
-    return res.status(200).json({
-      success: true,
-      message: "Password reset successful",
-    });
+    return res.status(200).json({ success: true, message: "Password reset successful" });
   } catch (error) {
     console.error("Reset Password Error:", error);
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
+// const resetPasswordController = async (req, res) => {
+//   try {
+//     const { token } = req.params;
+//     const { password, confirmPassword } = req.body;
+
+//     if (!password || password.length < 8) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Password must be at least 8 characters",
+//       });
+//     }
+
+//     if (password !== confirmPassword) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Passwords do not match",
+//       });
+//     }
+
+//     // 🔐 Verify JWT
+//     let decoded;
+//     try {
+//       decoded = jwt.verify(token, JWT_SECRET);
+//     } catch (err) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Token invalid or expired",
+//       });
+//     }
+
+//     const user = await Staff.findById(decoded.userId);
+//     if (!user) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "User not found",
+//       });
+//     }
+
+//     user.password = await bcrypt.hash(password, 12);
+//     await user.save();
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "Password reset successful",
+//     });
+//   } catch (error) {
+//     console.error("Reset Password Error:", error);
+//     return res.status(500).json({ success: false, message: "Server error" });
+//   }
+// };
 
 module.exports = { loginController, forgotPasswordController, resetPasswordController };

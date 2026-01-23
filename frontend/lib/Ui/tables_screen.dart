@@ -111,7 +111,6 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
         (sum, order) => sum + order.total.toDouble(),
       ),
       orders: orders,
-      // user: _user,
       isGstApplied: true,
     );
     print("Om Shahane : Proceed to payment ");

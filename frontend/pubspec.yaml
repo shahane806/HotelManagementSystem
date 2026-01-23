@@ -60,6 +60,8 @@ dependencies:
   js: ^0.6.7
   shared_preferences: ^2.5.3
   image_picker: ^1.2.1
+  fl_chart: ^0.68.0
+  vector_math: ^2.1.4
 dev_dependencies:
   flutter_test:
     sdk: flutter

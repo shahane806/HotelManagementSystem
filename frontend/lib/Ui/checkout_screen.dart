@@ -23,6 +23,462 @@ import '../bloc/BillBloc/state.dart';
 import '../services/apiServicesCheckout.dart';
 import '../services/socketService.dart';
 
+// ───────────────────────────────────────────────
+// Professional Analytics Dashboard (Dribbble-inspired)
+// ───────────────────────────────────────────────
+import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
+
+class AnalyticsScreen extends StatefulWidget {
+  const AnalyticsScreen({super.key});
+
+  @override
+  State<AnalyticsScreen> createState() => _AnalyticsScreenState();
+}
+
+class _AnalyticsScreenState extends State<AnalyticsScreen> {
+  Map<String, dynamic>? dashboardData;
+  bool isLoading = true;
+  String? errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchDashboardData();
+  }
+
+  Future<void> fetchDashboardData() async {
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+    });
+
+    try {
+      final data = await Apiservicescheckout.getAnalytics();
+      
+      // Debug: Log the FULL raw data received from backend
+      developer.log('RAW ANALYTICS DATA RECEIVED:', name: 'Analytics');
+      developer.log(jsonEncode(data), name: 'Analytics');
+
+      setState(() {
+        dashboardData = data;
+        isLoading = false;
+      });
+    } catch (e) {
+      developer.log('Analytics fetch error: $e', name: 'Analytics');
+      setState(() {
+        errorMessage = e.toString().replaceFirst('Exception: ', '');
+        isLoading = false;
+      });
+    }
+  }
+
+  Future<void> generateAndSaveReport() async {
+    if (dashboardData == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No data available to export')),
+      );
+      return;
+    }
+
+    try {
+      final today = dashboardData!['today'] ?? {};
+      final month = dashboardData!['month'] ?? {};
+      final recent = dashboardData!['recentBills'] as List<dynamic>? ?? [];
+      final pending = dashboardData!['pendingCount'] as int? ?? 0;
+
+      // Debug log before generating CSV
+      developer.log('Generating CSV with ${recent.length} recent bills', name: 'Analytics');
+
+      final rows = [
+        ['Period', 'Total (₹)', 'Cash (₹)', 'Online (₹)', 'Bill Count'],
+        [
+          'Today',
+          (today['total'] as num?)?.toStringAsFixed(2) ?? '0.00',
+          (today['cash'] as num?)?.toStringAsFixed(2) ?? '0.00',
+          (today['online'] as num?)?.toStringAsFixed(2) ?? '0.00',
+          (today['billCount'] as num?)?.toString() ?? '0',
+        ],
+        [
+          'This Month',
+          (month['total'] as num?)?.toStringAsFixed(2) ?? '0.00',
+          (month['cash'] as num?)?.toStringAsFixed(2) ?? '0.00',
+          (month['online'] as num?)?.toStringAsFixed(2) ?? '0.00',
+          (month['billCount'] as num?)?.toString() ?? '0',
+        ],
+        ['Pending Bills', '', '', '', pending.toString()],
+        [],
+        ['Recent Paid Bills'],
+        ['Bill ID', 'Table', 'Amount (₹)', 'Method', 'Date', 'Mobile'],
+      ];
+
+      // Add recent bills rows
+      for (var b in recent) {
+        rows.add([
+          b['billId']?.toString() ?? '',
+          b['table']?.toString() ?? 'N/A',
+          (b['amount'] as num?)?.toStringAsFixed(2) ?? '0.00',
+          b['paymentMethod']?.toString() ?? 'Unknown',
+          b['date'] != null
+              ? DateFormat('dd-MMM-yy HH:mm').format(DateTime.tryParse(b['date'].toString()) ?? DateTime.now())
+              : 'N/A',
+          b['mobile']?.toString() ?? 'N/A',
+        ]);
+      }
+
+      final csv = rows.map((e) => e.join(',')).join('\n');
+      final fileName = 'analytics_report_${DateTime.now().toIso8601String().split('T')[0]}.csv';
+
+      if (kIsWeb) {
+        final blob = html.Blob([csv], 'text/csv');
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        final anchor = html.AnchorElement(href: url)
+          ..setAttribute('download', fileName)
+          ..click();
+        html.Url.revokeObjectUrl(url);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Report downloaded: $fileName')),
+        );
+      } else {
+        final dir = await getApplicationDocumentsDirectory();
+        final path = '${dir.path}/$fileName';
+        final file = File(path);
+        await file.writeAsString(csv);
+
+        final result = await OpenFilex.open(path);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.type == ResultType.done ? 'Report opened' : 'Report saved at $path'),
+          ),
+        );
+      }
+    } catch (e) {
+      developer.log('Report generation error: $e', name: 'Analytics');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to generate report: $e')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isTablet = MediaQuery.of(context).size.width > 700;
+    final padding = isTablet ? 32.0 : 16.0;
+
+    return Scaffold(
+      backgroundColor: Colors.grey.shade50,
+      appBar: AppBar(
+        title: Text('Admin Dashboard', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        backgroundColor: Colors.indigo.shade700,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Refresh Dashboard',
+            onPressed: fetchDashboardData,
+          ),
+          IconButton(
+            icon: const Icon(Icons.download_rounded),
+            tooltip: 'Download Report (CSV)',
+            onPressed: generateAndSaveReport,
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator(color: Colors.indigo))
+          : errorMessage != null
+              ? RefreshIndicator(
+                  onRefresh: fetchDashboardData,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Padding(
+                      padding: EdgeInsets.all(padding),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.error_outline_rounded, size: 80, color: Colors.red.shade400),
+                          const SizedBox(height: 24),
+                          Text(
+                            'Failed to Load Dashboard',
+                            style: GoogleFonts.poppins(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.red.shade700,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            errorMessage!,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey.shade700),
+                          ),
+                          const SizedBox(height: 32),
+                          ElevatedButton.icon(
+                            onPressed: fetchDashboardData,
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Retry'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.indigo.shade700,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: fetchDashboardData,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.all(padding),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header
+                        Text(
+                          'Overview',
+                          style: GoogleFonts.poppins(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.indigo.shade900,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Sales Cards
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: _buildCard(
+                                'Today Sales',
+                                (dashboardData?['today']?['total'] as num?)?.toDouble() ?? 0.0,
+                                (dashboardData?['today']?['billCount'] as num?)?.toInt() ?? 0,
+                                Colors.teal,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: _buildCard(
+                                'Monthly Sales',
+                                (dashboardData?['month']?['total'] as num?)?.toDouble() ?? 0.0,
+                                (dashboardData?['month']?['billCount'] as num?)?.toInt() ?? 0,
+                                Colors.deepPurple,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // Pending Count
+                        Text(
+                          'Pending Bills: ${(dashboardData?['pendingCount'] as num?)?.toInt() ?? 0}',
+                          style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w500),
+                        ),
+
+                        const SizedBox(height: 32),
+
+                        // Payment Breakdown Title
+                        Text(
+                          'Payment Breakdown',
+                          style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Pie Charts
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(child: _buildPie('Today', dashboardData?['today'] ?? {})),
+                            const SizedBox(width: 16),
+                            Expanded(child: _buildPie('This Month', dashboardData?['month'] ?? {})),
+                          ],
+                        ),
+
+                        const SizedBox(height: 40),
+
+                        // Recent Bills Title
+                        Text(
+                          'Recent Paid Bills',
+                          style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Recent Bills List
+                        Card(
+                          elevation: 4,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              children: [
+                                if ((dashboardData?['recentBills'] as List?)?.isEmpty ?? true)
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 32),
+                                    child: Text(
+                                      'No recent paid bills yet',
+                                      style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey.shade600),
+                                    ),
+                                  )
+                                else
+                                  ...(dashboardData!['recentBills'] as List<dynamic>).map((b) {
+                                    final billId = b['billId']?.toString() ?? 'N/A';
+                                    final amount = (b['amount'] as num?)?.toStringAsFixed(2) ?? '0.00';
+                                    final mobile = b['mobile']?.toString() ?? 'N/A';
+                                    final table = b['table']?.toString() ?? '?';
+                                    final method = b['paymentMethod']?.toString() ?? 'Unknown';
+                                    final dateStr = b['date'] != null
+                                        ? DateFormat('dd MMM HH:mm').format(DateTime.tryParse(b['date']) ?? DateTime.now())
+                                        : 'N/A';
+
+                                    return ListTile(
+                                      leading: CircleAvatar(
+                                        backgroundColor: Colors.indigo.shade100,
+                                        child: Text(table, style: const TextStyle(color: Colors.indigo)),
+                                      ),
+                                      title: Text(
+                                        'Bill #$billId • ₹$amount',
+                                        style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+                                      ),
+                                      subtitle: Text(
+                                        '$mobile • Table $table • $method',
+                                        style: GoogleFonts.poppins(color: Colors.grey.shade700),
+                                      ),
+                                      trailing: Text(
+                                        dateStr,
+                                        style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade600),
+                                      ),
+                                    );
+                                  }).toList(),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 40),
+
+                        // Export Button
+                        Center(
+                          child: ElevatedButton.icon(
+                            onPressed: generateAndSaveReport,
+                            icon: const Icon(Icons.download_rounded),
+                            label: const Text('Export Full Report (CSV)'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.indigo.shade700,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 4,
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 80),
+                      ],
+                    ),
+                  ),
+                ),
+    );
+  }
+
+  Widget _buildCard(String title, double amount, int count, Color color) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: GoogleFonts.poppins(fontSize: 16, color: color),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '₹${amount.toStringAsFixed(2)}',
+              style: GoogleFonts.poppins(
+                fontSize: 32,
+                fontWeight: FontWeight.w700,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '$count Bills',
+              style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade700),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPie(String title, Map<String, dynamic> data) {
+    final cash = (data['cash'] as num?)?.toDouble() ?? 0.0;
+    final online = (data['online'] as num?)?.toDouble() ?? 0.0;
+    final total = cash + online;
+
+    if (total == 0) {
+      return SizedBox(
+        height: 200,
+        child: Center(child: Text('No payments yet', style: GoogleFonts.poppins(color: Colors.grey))),
+      );
+    }
+
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              title,
+              style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 180,
+              child: PieChart(
+                PieChartData(
+                  sections: [
+                    PieChartSectionData(
+                      value: cash,
+                      title: 'Cash\n${((cash / total) * 100).toStringAsFixed(0)}%',
+                      color: Colors.blue.shade600,
+                      radius: 80,
+                      titleStyle: const TextStyle(color: Colors.white, fontSize: 12),
+                    ),
+                    PieChartSectionData(
+                      value: online,
+                      title: 'Online\n${((online / total) * 100).toStringAsFixed(0)}%',
+                      color: Colors.green.shade600,
+                      radius: 80,
+                      titleStyle: const TextStyle(color: Colors.white, fontSize: 12),
+                    ),
+                  ],
+                  centerSpaceRadius: 50,
+                  sectionsSpace: 4,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ───────────────────────────────────────────────
+// Main Checkout Screen (AppBar already updated)
+// ───────────────────────────────────────────────
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
 
@@ -142,6 +598,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
 
     final mobile = controller.text.trim();
+    print("Hello : ${mobile}");
     if (!_isValidMobile(mobile)) {
       _showSnackBar('Enter a valid 10-digit mobile number', Colors.red);
       return;
@@ -172,7 +629,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     };
 
     try {
-      await Apiservicescheckout.updateBillStatus(billId, 'Paid', method);
+      await Apiservicescheckout.updateBillStatus(billId, 'Paid', method, mobile);
       socketService.payBill(billData);
 
       _showSnackBar('Payment processed via $method', Colors.green);
@@ -190,6 +647,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         fakeResponse,
         bill['orders'] as List<dynamic>? ?? [],
         bill['user'],
+        mobile,
         bill['isGstApplied'] as bool? ?? false,
       );
 
@@ -227,13 +685,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   // ───────────────────────────────────────────────
-  // PDF Generation (kept mostly same, minor cleanups)
+  // PDF Generation (unchanged)
   // ───────────────────────────────────────────────
 
   Future<pw.Document> _buildPdfDocument(
     dynamic response,
     List<dynamic> orders,
     dynamic user,
+    String? mobile,
     bool isGstApplied,
   ) async {
     final pdf = pw.Document();
@@ -254,14 +713,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     final String date = DateTime.now().toString().split(' ').first;
     final String userName = _sanitize(user['fullName']) ?? 'Guest';
-    final String userMobile = _sanitize(user['mobile']) ?? 'N/A';
+    final String userMobile = _sanitize(mobile) ?? 'N/A';
 
     pdf.addPage(
       pw.Page(
         build: (pw.Context ctx) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            // Header
             pw.Center(
               child: pw.Column(children: [
                 pw.Text(
@@ -284,17 +742,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 pw.Text('Date: $date', style: pw.TextStyle(font: ttf, fontSize: 11)),
               ]),
             ),
-
             pw.SizedBox(height: 24),
-
-            // Customer
             _pdfSectionTitle('Customer', ttf),
             pw.Text('Name: $userName', style: pw.TextStyle(font: ttf, fontSize: 12)),
             pw.Text('Mobile: $userMobile', style: pw.TextStyle(font: ttf, fontSize: 12)),
-
             pw.SizedBox(height: 20),
-
-            // Items
             _pdfSectionTitle('Items', ttf),
             pw.Table(
               border: pw.TableBorder.all(color: PdfColors.grey300),
@@ -329,10 +781,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 ),
               ],
             ),
-
             pw.SizedBox(height: 24),
-
-            // Payment
             _pdfSectionTitle('Payment', ttf),
             pw.Table(
               border: pw.TableBorder.all(color: PdfColors.grey300),
@@ -342,7 +791,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 pw.TableRow(children: [_pdfCell('Status', ttf, bold: true), _pdfCell(paymentInfo.status, ttf)]),
               ],
             ),
-
             pw.Spacer(),
             pw.Center(
               child: pw.Text(
@@ -425,17 +873,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         .replaceAll(RegExp(r'[\{\}\~\^\`]'), '');
   }
 
-  // ───────────────────────────────────────────────
-  // PDF Generation & Save / Print
-  // ───────────────────────────────────────────────
   Future<String> generateReceiptPdf(
     dynamic response,
     List<dynamic> orders,
     dynamic user,
+    String? mobile,
     bool isGstApplied,
   ) async {
     try {
-      final pdf = await _buildPdfDocument(response, orders, user, isGstApplied);
+      final pdf = await _buildPdfDocument(response, orders, user, mobile!,isGstApplied);
       final bytes = await pdf.save();
 
       if (kIsWeb) {
@@ -466,9 +912,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
-  // ───────────────────────────────────────────────
-  // UI BUILD
-  // ───────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final isTablet = MediaQuery.sizeOf(context).width > 700;
@@ -521,12 +964,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           title: const Text('Checkout & Payments'),
           backgroundColor: Colors.indigo.shade700,
           foregroundColor: Colors.white,
+          elevation: 2,
           actions: [
             IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: () => context.read<BillBloc>().add(FetchBills()),
-              tooltip: 'Refresh',
+              icon: const Icon(Icons.analytics_rounded),
+              tooltip: 'View Sales & Collection Analytics',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AnalyticsScreen()),
+                );
+              },
             ),
+            IconButton(
+              icon: const Icon(Icons.refresh_rounded),
+              tooltip: 'Refresh Bills List',
+              onPressed: () => context.read<BillBloc>().add(FetchBills()),
+            ),
+            const SizedBox(width: 8),
           ],
         ),
         body: _isLoading
