@@ -353,75 +353,125 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Card(
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Filter Report',
-                                  style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
-                                ),
-                                const SizedBox(height: 12),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: OutlinedButton.icon(
-                                        onPressed: pickDateRange,
-                                        icon: const Icon(Icons.calendar_month),
-                                        label: Text(
-                                          selectedRange == null
-                                              ? 'Select Date Range'
-                                              : '${DateFormat('dd MMM yy').format(selectedRange!.start)} — '
-                                                  '${DateFormat('dd MMM yy').format(selectedRange!.end)}',
-                                        ),
-                                      ),
-                                    ),
-                                    if (selectedRange != null) ...[
-                                      const SizedBox(width: 8),
-                                      IconButton(
-                                        icon: const Icon(Icons.clear, color: Colors.red),
-                                        onPressed: () {
-                                          setState(() {
-                                            selectedRange = null;
-                                            reportData = null;
-                                          });
-                                        },
-                                        tooltip: 'Clear date filter',
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  children: ['All', 'Cash', 'Online'].map((f) {
-                                    return ChoiceChip(
-                                      label: Text(f),
-                                      selected: paymentFilter == f,
-                                      selectedColor: Colors.indigo.shade100,
-                                      onSelected: (selected) {
-                                        if (selected) {
-                                          setState(() {
-                                            paymentFilter = f;
-                                          });
-                                          if (selectedRange != null) {
-                                            fetchReportData();
-                                          }
-                                        }
-                                      },
-                                    );
-                                  }).toList(),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                      Card(
+  elevation: 4,
+  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+  child: Padding(
+    padding: const EdgeInsets.all(16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Title remains the same
+        Text(
+          hasFilteredData ? 'Filtered Paid Bills' : 'Recent Paid Bills',
+          style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 12),
 
+        // ────────────────────────────────────────────────
+        // Scrollable list with fixed height when many bills
+        // ────────────────────────────────────────────────
+        SizedBox(
+          height: 400, // Adjust this height based on your design (e.g., 350–500)
+          child: billsList.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 40),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.search_off_rounded,
+                          size: 64,
+                          color: Colors.grey.shade400,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          hasFilteredData
+                              ? 'No paid bills found in selected range & filter'
+                              : 'No recent paid bills yet',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            color: Colors.grey.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        if (hasFilteredData) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            'Try changing date range or payment filter',
+                            style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade600),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                )
+              : SingleChildScrollView(
+                  child: Column(
+                    children: billsList.map((b) {
+                      final billId = b['billId']?.toString() ?? 'N/A';
+                      final amount = (b['amount'] as num? ?? b['totalAmount'] as num?)?.toStringAsFixed(2) ?? '0.00';
+
+                      final mobile = b['mobile']?.toString() ??
+                          b['user']?['mobile']?.toString() ??
+                          'N/A';
+
+                      final table = b['table']?.toString() ?? '?';
+                      final method = b['paymentMethod']?.toString() ?? 'Unknown';
+                      final dateRaw = b['date'] ?? b['updatedAt'];
+                      final dateStr = dateRaw != null
+                          ? DateFormat('dd MMM HH:mm').format(
+                              DateTime.tryParse(dateRaw.toString()) ?? DateTime.now())
+                          : 'N/A';
+
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: Colors.indigo.shade100,
+                          child: Text(table, style: const TextStyle(color: Colors.indigo)),
+                        ),
+                        title: Text(
+                          'Bill #$billId • ₹$amount',
+                          style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+                        ),
+                        subtitle: Text(
+                          '$mobile • Table $table • $method',
+                          style: GoogleFonts.poppins(color: Colors.grey.shade700),
+                        ),
+                        trailing: Text(
+                          dateStr,
+                          style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade600),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                      );
+                    }).toList(),
+                  ),
+                ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // Export button (moved inside or keep outside as you prefer)
+        if (billsList.isNotEmpty)
+          Center(
+            child: ElevatedButton.icon(
+              onPressed: generateAndSaveReport,
+              icon: const Icon(Icons.download_rounded),
+              label: const Text('Export Report (CSV)'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.indigo.shade700,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 4,
+              ),
+            ),
+          ),
+      ],
+    ),
+  ),
+),
                         const SizedBox(height: 24),
 
                         Text(
