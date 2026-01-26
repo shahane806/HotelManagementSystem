@@ -125,8 +125,7 @@ const getAnalytics = async (req, res) => {
       .find({ status: "Paid" })
       .sort({ updatedAt: -1 })
       .limit(10)
-      .select("billId table totalAmount paymentMethod updatedAt user.mobile");
-
+      .select("billId table totalAmount paymentMethod updatedAt user");
     const responseData = {
       success: true,
       data: {
@@ -220,7 +219,7 @@ const updateBillStatus = async (req, res) => {
     });
   }
 };
- const generateReport = async (req, res) => {
+const generateReport = async (req, res) => {
   const { startDate, endDate, paymentMethod } = req.body;
 
   try {
@@ -248,7 +247,11 @@ const updateBillStatus = async (req, res) => {
       query.paymentMethod = { $regex: new RegExp(`^${paymentMethod}$`, 'i') };
     }
 
-    const reports = await bill.find(query).select('billId table totalAmount paymentMethod updatedAt');
+    const reports = await bill
+      .find(query)
+      .select('billId table totalAmount paymentMethod updatedAt user')  // ← THIS IS THE FIX
+      .sort({ updatedAt: -1 });
+    console.log(`Om Shahane : ${reports}` )
 
     const total = reports.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
     const cash = reports
@@ -264,7 +267,14 @@ const updateBillStatus = async (req, res) => {
         cash,
         online,
         billCount: reports.length,
-        bills: reports,
+        bills: reports.map((b) => ({
+          billId: b.billId,
+          table: b.table,
+          amount: b.totalAmount,
+          paymentMethod: b.paymentMethod || "Unknown",
+          date: b.updatedAt.toISOString(),
+          mobile: b.user?.mobile || "N/A",   // ← now mobile will come
+        })),
       },
     });
   } catch (error) {

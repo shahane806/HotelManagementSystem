@@ -28,7 +28,6 @@ import '../services/socketService.dart';
 // ───────────────────────────────────────────────
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
-
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
 
@@ -38,8 +37,12 @@ class AnalyticsScreen extends StatefulWidget {
 
 class _AnalyticsScreenState extends State<AnalyticsScreen> {
   Map<String, dynamic>? dashboardData;
+  Map<String, dynamic>? reportData;
   bool isLoading = true;
   String? errorMessage;
+
+  DateTimeRange? selectedRange;
+  String paymentFilter = 'All';
 
   @override
   void initState() {
@@ -55,26 +58,61 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
     try {
       final data = await Apiservicescheckout.getAnalytics();
-      
-      // Debug: Log the FULL raw data received from backend
-      developer.log('RAW ANALYTICS DATA RECEIVED:', name: 'Analytics');
+
+      developer.log('DASHBOARD RAW DATA:', name: 'Analytics');
       developer.log(jsonEncode(data), name: 'Analytics');
 
-      setState(() {
-        dashboardData = data;
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          dashboardData = data;
+          isLoading = false;
+        });
+      }
     } catch (e) {
-      developer.log('Analytics fetch error: $e', name: 'Analytics');
-      setState(() {
-        errorMessage = e.toString().replaceFirst('Exception: ', '');
-        isLoading = false;
-      });
+      developer.log('Dashboard fetch error: $e', name: 'Analytics');
+      if (mounted) {
+        setState(() {
+          errorMessage = e.toString().replaceFirst('Exception: ', '');
+          isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> fetchReportData() async {
+    if (selectedRange == null) {
+      setState(() => reportData = null);
+      return;
+    }
+
+    try {
+      final data = await Apiservicescheckout.generatePaymentReport(
+        startDate: selectedRange!.start.toString(),
+        endDate: selectedRange!.end.toString(),
+        paymentMethod: paymentFilter == 'All' ? null : paymentFilter,
+      );
+
+      developer.log('FILTERED REPORT RAW DATA:', name: 'AnalyticsReport');
+      developer.log(jsonEncode(data), name: 'AnalyticsReport');
+
+      if (mounted) {
+        setState(() {
+          reportData = data;
+        });
+      }
+    } catch (e) {
+      developer.log('Report fetch error: $e', name: 'AnalyticsReport');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load filtered report: $e')),
+        );
+      }
     }
   }
 
   Future<void> generateAndSaveReport() async {
-    if (dashboardData == null) {
+    final dataSource = reportData ?? dashboardData;
+    if (dataSource == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No data available to export')),
       );
@@ -82,52 +120,92 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     }
 
     try {
-      final today = dashboardData!['today'] ?? {};
-      final month = dashboardData!['month'] ?? {};
-      final recent = dashboardData!['recentBills'] as List<dynamic>? ?? [];
-      final pending = dashboardData!['pendingCount'] as int? ?? 0;
+      final rows = <List<String>>[];
 
-      // Debug log before generating CSV
-      developer.log('Generating CSV with ${recent.length} recent bills', name: 'Analytics');
+      rows.add(['Report Generated:', DateTime.now().toString()]);
+      if (selectedRange != null) {
+        rows.add([
+          'Date Range',
+          DateFormat('dd-MMM-yyyy').format(selectedRange!.start),
+          'to',
+          DateFormat('dd-MMM-yyyy').format(selectedRange!.end),
+        ]);
+      } else {
+        rows.add(['Date Range', 'All available data']);
+      }
+      rows.add(['Payment Filter', paymentFilter]);
+      rows.add([]);
 
-      final rows = [
-        ['Period', 'Total (₹)', 'Cash (₹)', 'Online (₹)', 'Bill Count'],
-        [
+      rows.add(['Summary', 'Total (₹)', 'Bill Count']);
+      if (reportData != null) {
+        rows.add([
+          'Filtered Period',
+          (reportData!['total'] as num?)?.toStringAsFixed(2) ?? '0.00',
+          reportData!['billCount']?.toString() ?? '0',
+        ]);
+        rows.add([
+          'Cash',
+          (reportData!['cash'] as num?)?.toStringAsFixed(2) ?? '0.00',
+          '',
+        ]);
+        rows.add([
+          'Online',
+          (reportData!['online'] as num?)?.toStringAsFixed(2) ?? '0.00',
+          '',
+        ]);
+      } else {
+        final today = dataSource['today'] ?? {};
+        final month = dataSource['month'] ?? {};
+        rows.add([
           'Today',
           (today['total'] as num?)?.toStringAsFixed(2) ?? '0.00',
-          (today['cash'] as num?)?.toStringAsFixed(2) ?? '0.00',
-          (today['online'] as num?)?.toStringAsFixed(2) ?? '0.00',
           (today['billCount'] as num?)?.toString() ?? '0',
-        ],
-        [
+        ]);
+        rows.add([
           'This Month',
           (month['total'] as num?)?.toStringAsFixed(2) ?? '0.00',
-          (month['cash'] as num?)?.toStringAsFixed(2) ?? '0.00',
-          (month['online'] as num?)?.toStringAsFixed(2) ?? '0.00',
           (month['billCount'] as num?)?.toString() ?? '0',
-        ],
-        ['Pending Bills', '', '', '', pending.toString()],
-        [],
-        ['Recent Paid Bills'],
-        ['Bill ID', 'Table', 'Amount (₹)', 'Method', 'Date', 'Mobile'],
-      ];
+        ]);
+      }
 
-      // Add recent bills rows
-      for (var b in recent) {
+      rows.add([]);
+      rows.add(['Pending Bills', '', (dataSource['pendingCount'] ?? 0).toString()]);
+      rows.add([]);
+
+      final bills = (reportData?['bills'] as List<dynamic>?) ??
+          (dataSource['recentBills'] as List<dynamic>?) ??
+          [];
+
+      rows.add([
+        reportData != null ? 'Filtered Paid Bills' : 'Recent Paid Bills'
+      ]);
+      rows.add(['Bill ID', 'Table', 'Amount (₹)', 'Method', 'Date', 'Mobile']);
+
+      for (var b in bills) {
+        final dateStr = b['date'] != null
+            ? DateFormat('dd-MMM-yy HH:mm').format(
+                DateTime.tryParse(b['date'].toString()) ?? DateTime.now())
+            : 'N/A';
+
+        // ────────────────────────────────────────────────
+        // Robust mobile parsing – handles both structures
+        // ────────────────────────────────────────────────
+        final mobile = b['mobile']?.toString() ??
+            b['user']?['mobile']?.toString() ??
+            'N/A';
         rows.add([
-          b['billId']?.toString() ?? '',
+          b['billId']?.toString() ?? 'N/A',
           b['table']?.toString() ?? 'N/A',
-          (b['amount'] as num?)?.toStringAsFixed(2) ?? '0.00',
+          (b['amount'] as num? ?? b['totalAmount'] as num?)?.toStringAsFixed(2) ?? '0.00',
           b['paymentMethod']?.toString() ?? 'Unknown',
-          b['date'] != null
-              ? DateFormat('dd-MMM-yy HH:mm').format(DateTime.tryParse(b['date'].toString()) ?? DateTime.now())
-              : 'N/A',
-          b['mobile']?.toString() ?? 'N/A',
+          dateStr,
+          mobile,
         ]);
       }
 
       final csv = rows.map((e) => e.join(',')).join('\n');
-      final fileName = 'analytics_report_${DateTime.now().toIso8601String().split('T')[0]}.csv';
+      final fileName =
+          'analytics_report_${DateTime.now().toIso8601String().split('T')[0]}.csv';
 
       if (kIsWeb) {
         final blob = html.Blob([csv], 'text/csv');
@@ -153,10 +231,41 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         );
       }
     } catch (e) {
-      developer.log('Report generation error: $e', name: 'Analytics');
+      developer.log('CSV generation error: $e', name: 'Analytics');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to generate report: $e')),
+        SnackBar(content: Text('Failed to export report: $e')),
       );
+    }
+  }
+
+  Future<void> pickDateRange() async {
+    final now = DateTime.now();
+    final initialStart = selectedRange?.start ?? now.subtract(const Duration(days: 30));
+    final initialEnd = selectedRange?.end ?? now;
+
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2023),
+      lastDate: now,
+      initialDateRange: DateTimeRange(start: initialStart, end: initialEnd),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Colors.indigo,
+              onPrimary: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null && mounted) {
+      setState(() {
+        selectedRange = picked;
+      });
+      await fetchReportData();
     }
   }
 
@@ -164,6 +273,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   Widget build(BuildContext context) {
     final isTablet = MediaQuery.of(context).size.width > 700;
     final padding = isTablet ? 32.0 : 16.0;
+
+    final billsList = (reportData?['bills'] as List<dynamic>?)?.isNotEmpty == true
+        ? reportData!['bills']
+        : (dashboardData?['recentBills'] as List<dynamic>?) ?? [];
+
+    final hasFilteredData = reportData != null;
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
@@ -238,7 +353,77 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Header
+                        Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Filter Report',
+                                  style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: OutlinedButton.icon(
+                                        onPressed: pickDateRange,
+                                        icon: const Icon(Icons.calendar_month),
+                                        label: Text(
+                                          selectedRange == null
+                                              ? 'Select Date Range'
+                                              : '${DateFormat('dd MMM yy').format(selectedRange!.start)} — '
+                                                  '${DateFormat('dd MMM yy').format(selectedRange!.end)}',
+                                        ),
+                                      ),
+                                    ),
+                                    if (selectedRange != null) ...[
+                                      const SizedBox(width: 8),
+                                      IconButton(
+                                        icon: const Icon(Icons.clear, color: Colors.red),
+                                        onPressed: () {
+                                          setState(() {
+                                            selectedRange = null;
+                                            reportData = null;
+                                          });
+                                        },
+                                        tooltip: 'Clear date filter',
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: ['All', 'Cash', 'Online'].map((f) {
+                                    return ChoiceChip(
+                                      label: Text(f),
+                                      selected: paymentFilter == f,
+                                      selectedColor: Colors.indigo.shade100,
+                                      onSelected: (selected) {
+                                        if (selected) {
+                                          setState(() {
+                                            paymentFilter = f;
+                                          });
+                                          if (selectedRange != null) {
+                                            fetchReportData();
+                                          }
+                                        }
+                                      },
+                                    );
+                                  }).toList(),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 24),
+
                         Text(
                           'Overview',
                           style: GoogleFonts.poppins(
@@ -249,7 +434,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         ),
                         const SizedBox(height: 24),
 
-                        // Sales Cards
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -275,7 +459,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
                         const SizedBox(height: 24),
 
-                        // Pending Count
                         Text(
                           'Pending Bills: ${(dashboardData?['pendingCount'] as num?)?.toInt() ?? 0}',
                           style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w500),
@@ -283,14 +466,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
                         const SizedBox(height: 32),
 
-                        // Payment Breakdown Title
                         Text(
                           'Payment Breakdown',
                           style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(height: 16),
 
-                        // Pie Charts
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -302,14 +483,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
                         const SizedBox(height: 40),
 
-                        // Recent Bills Title
                         Text(
-                          'Recent Paid Bills',
+                          hasFilteredData ? 'Filtered Paid Bills' : 'Recent Paid Bills',
                           style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(height: 12),
 
-                        // Recent Bills List
                         Card(
                           elevation: 4,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -317,23 +496,57 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                             padding: const EdgeInsets.all(16),
                             child: Column(
                               children: [
-                                if ((dashboardData?['recentBills'] as List?)?.isEmpty ?? true)
+                                if (billsList.isEmpty)
                                   Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 32),
-                                    child: Text(
-                                      'No recent paid bills yet',
-                                      style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey.shade600),
+                                    padding: const EdgeInsets.symmetric(vertical: 40),
+                                    child: Column(
+                                      children: [
+                                        Icon(
+                                          Icons.search_off_rounded,
+                                          size: 64,
+                                          color: Colors.grey.shade400,
+                                        ),
+                                        const SizedBox(height: 16),
+                                        Text(
+                                          hasFilteredData
+                                              ? 'No paid bills found in selected range & filter'
+                                              : 'No recent paid bills yet',
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 16,
+                                            color: Colors.grey.shade700,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                        if (hasFilteredData) ...[
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            'Try changing date range or payment filter',
+                                            style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade600),
+                                          ),
+                                        ],
+                                      ],
                                     ),
                                   )
                                 else
-                                  ...(dashboardData!['recentBills'] as List<dynamic>).map((b) {
+                                  ...billsList.map((b) {
                                     final billId = b['billId']?.toString() ?? 'N/A';
-                                    final amount = (b['amount'] as num?)?.toStringAsFixed(2) ?? '0.00';
-                                    final mobile = b['mobile']?.toString() ?? 'N/A';
+                                    final amount = (b['amount'] as num? ?? b['totalAmount'] as num?)?.toStringAsFixed(2) ?? '0.00';
+
+                                    // ────────────────────────────────────────────────
+                                    // Mobile now comes from backend as 'mobile'
+                                    // But we keep fallback for safety
+                                    // ────────────────────────────────────────────────
+                                    final mobile = b['mobile']?.toString() ??
+                                        b['user']?['mobile']?.toString() ??
+                                        'N/A';
+
                                     final table = b['table']?.toString() ?? '?';
                                     final method = b['paymentMethod']?.toString() ?? 'Unknown';
-                                    final dateStr = b['date'] != null
-                                        ? DateFormat('dd MMM HH:mm').format(DateTime.tryParse(b['date']) ?? DateTime.now())
+                                    final dateRaw = b['date'] ?? b['updatedAt'];
+                                    final dateStr = dateRaw != null
+                                        ? DateFormat('dd MMM HH:mm').format(
+                                            DateTime.tryParse(dateRaw.toString()) ?? DateTime.now())
                                         : 'N/A';
 
                                     return ListTile(
@@ -362,12 +575,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
                         const SizedBox(height: 40),
 
-                        // Export Button
                         Center(
                           child: ElevatedButton.icon(
                             onPressed: generateAndSaveReport,
                             icon: const Icon(Icons.download_rounded),
-                            label: const Text('Export Full Report (CSV)'),
+                            label: const Text('Export Report (CSV)'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.indigo.shade700,
                               foregroundColor: Colors.white,
@@ -443,9 +655,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               title,
               style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 40),
             SizedBox(
-              height: 180,
+              height: 250,
               child: PieChart(
                 PieChartData(
                   sections: [
@@ -475,6 +687,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 }
+
 
 // ───────────────────────────────────────────────
 // Main Checkout Screen (AppBar already updated)

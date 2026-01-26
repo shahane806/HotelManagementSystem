@@ -93,7 +93,42 @@ static Future<Map<String, dynamic>> getAnalytics() async {
       throw Exception('Failed to store bill: $e');
     }
   }
+  // Custom payment report for selected date range + optional payment method filter
+  static Future<Map<String, dynamic>> getPaymentReport({
+    required DateTime startDate,
+    required DateTime endDate,
+    String? paymentMethod, // 'Cash', 'Online' or null for all
+  }) async {
+    try {
+      final token = AppConstants.pref?.getString('token');
+      final response = await http.post(
+        Uri.parse('$baseUrl/bills/report'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'startDate': startDate.toIso8601String().split('T')[0],
+          'endDate': endDate.toIso8601String().split('T')[0],
+          if (paymentMethod != null) 'paymentMethod': paymentMethod,
+        }),
+      );
 
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          return data['data'];
+        } else {
+          throw Exception(data['message'] ?? 'Failed to fetch report');
+        }
+      } else {
+        throw Exception('Server error: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      developer.log('Error fetching payment report: $e');
+      throw Exception('Failed to fetch payment report: $e');
+    }
+  }
   static Future<void> updateBillStatus(String billId, String status, String? paymentMethod,String? mobile,) async {
     try {
       final fullUrl = '$baseUrl/updateBillStatus';
