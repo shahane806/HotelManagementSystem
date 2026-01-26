@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
-
+import 'package:excel/excel.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,7 +15,6 @@ import 'package:printing/printing.dart';
 import 'package:universal_html/html.dart' as html;
 
 import 'dart:developer' as developer;
-
 import '../app/constants.dart';
 import '../bloc/BillBloc/bloc.dart';
 import '../bloc/BillBloc/event.dart';
@@ -111,75 +110,152 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   Future<void> generateAndSaveReport() async {
-    final dataSource = reportData ?? dashboardData;
-    if (dataSource == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No data available to export')),
+  final dataSource = reportData ?? dashboardData;
+  if (dataSource == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('No data available to export')),
+    );
+    return;
+  }
+
+  try {
+    final excel = Excel.createExcel();
+    final sheet = excel.sheets.values.first;
+
+    sheet.cell(CellIndex.indexByString('A1')).value = TextCellValue('Report Generated: ${DateTime.now()}');
+    sheet.cell(CellIndex.indexByString('A1')).cellStyle = CellStyle(
+      bold: true,
+      fontFamily: getFontFamily(FontFamily.Calibri),
+      fontSize: 14,
+    );
+
+    int row = 3;
+
+    // Date Range
+    if (selectedRange != null) {
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value =
+          TextCellValue('Date Range');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).value =
+          TextCellValue(DateFormat('dd-MMM-yyyy').format(selectedRange!.start));
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row)).value =
+          TextCellValue('to');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: row)).value =
+          TextCellValue(DateFormat('dd-MMM-yyyy').format(selectedRange!.end));
+    } else {
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value =
+          TextCellValue('Date Range');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).value =
+          TextCellValue('All available data');
+    }
+    row += 2;
+
+    // Payment Filter
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value =
+        TextCellValue('Payment Filter');
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).value =
+        TextCellValue(paymentFilter);
+    row += 2;
+
+    // ─── Summary Section ─────────────────────────────────────────
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value =
+        TextCellValue('Summary');
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).cellStyle = CellStyle(
+      bold: true,
+      fontSize: 13,
+      backgroundColorHex: ExcelColor.fromHexString('FFD9EAD3'),  // ← FIXED
+    );
+    row++;
+
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value =
+        TextCellValue('Category');
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).value =
+        TextCellValue('Total (₹)');
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row)).value =
+        TextCellValue('Bill Count');
+
+    for (var col in [0, 1, 2]) {
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: row)).cellStyle = CellStyle(
+        bold: true,
+        horizontalAlign: HorizontalAlign.Center,
+        backgroundColorHex: ExcelColor.fromHexString('FFE0F2F1'),  // ← FIXED
       );
-      return;
+    }
+    row++;
+
+    if (reportData != null) {
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value =
+          TextCellValue('Filtered Period');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).value =
+          TextCellValue((reportData!['total'] as num?)?.toStringAsFixed(2) ?? '0.00');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row)).value =
+          TextCellValue(reportData!['billCount']?.toString() ?? '0');
+      row++;
+
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value =
+          TextCellValue('Cash');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).value =
+          TextCellValue((reportData!['cash'] as num?)?.toStringAsFixed(2) ?? '0.00');
+      row++;
+
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value =
+          TextCellValue('Online');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).value =
+          TextCellValue((reportData!['online'] as num?)?.toStringAsFixed(2) ?? '0.00');
+      row++;
+    } else {
+      final today = dataSource['today'] ?? {};
+      final month = dataSource['month'] ?? {};
+
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value =
+          TextCellValue('Today');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).value =
+          TextCellValue((today['total'] as num?)?.toStringAsFixed(2) ?? '0.00');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row)).value =
+          TextCellValue((today['billCount'] as num?)?.toString() ?? '0');
+      row++;
+
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value =
+          TextCellValue('This Month');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).value =
+          TextCellValue((month['total'] as num?)?.toStringAsFixed(2) ?? '0.00');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row)).value =
+          TextCellValue((month['billCount'] as num?)?.toString() ?? '0');
+      row++;
     }
 
-    try {
-      final rows = <List<String>>[];
+    row += 2;
 
-      rows.add(['Report Generated:', DateTime.now().toString()]);
-      if (selectedRange != null) {
-        rows.add([
-          'Date Range',
-          DateFormat('dd-MMM-yyyy').format(selectedRange!.start),
-          'to',
-          DateFormat('dd-MMM-yyyy').format(selectedRange!.end),
-        ]);
-      } else {
-        rows.add(['Date Range', 'All available data']);
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value =
+        TextCellValue('Pending Bills');
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row)).value =
+        TextCellValue((dataSource['pendingCount'] ?? 0).toString());
+    row += 3;
+
+    final bills = (reportData?['bills'] as List<dynamic>?) ??
+        (dataSource['recentBills'] as List<dynamic>?) ??
+        [];
+
+    if (bills.isNotEmpty) {
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value =
+          TextCellValue(reportData != null ? 'Filtered Paid Bills' : 'Recent Paid Bills');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).cellStyle = CellStyle(
+        bold: true,
+        fontSize: 13,
+      );
+      row++;
+
+      final headers = ['Bill ID', 'Table', 'Amount (₹)', 'Method', 'Date', 'Mobile'];
+      for (int i = 0; i < headers.length; i++) {
+        final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: row));
+        cell.value = TextCellValue(headers[i]);
+        cell.cellStyle = CellStyle(
+          bold: true,
+          horizontalAlign: HorizontalAlign.Center,
+          backgroundColorHex: ExcelColor.fromHexString('FFBBDEFB'),  // ← FIXED
+          textWrapping: TextWrapping.WrapText,
+        );
       }
-      rows.add(['Payment Filter', paymentFilter]);
-      rows.add([]);
-
-      rows.add(['Summary', 'Total (₹)', 'Bill Count']);
-      if (reportData != null) {
-        rows.add([
-          'Filtered Period',
-          (reportData!['total'] as num?)?.toStringAsFixed(2) ?? '0.00',
-          reportData!['billCount']?.toString() ?? '0',
-        ]);
-        rows.add([
-          'Cash',
-          (reportData!['cash'] as num?)?.toStringAsFixed(2) ?? '0.00',
-          '',
-        ]);
-        rows.add([
-          'Online',
-          (reportData!['online'] as num?)?.toStringAsFixed(2) ?? '0.00',
-          '',
-        ]);
-      } else {
-        final today = dataSource['today'] ?? {};
-        final month = dataSource['month'] ?? {};
-        rows.add([
-          'Today',
-          (today['total'] as num?)?.toStringAsFixed(2) ?? '0.00',
-          (today['billCount'] as num?)?.toString() ?? '0',
-        ]);
-        rows.add([
-          'This Month',
-          (month['total'] as num?)?.toStringAsFixed(2) ?? '0.00',
-          (month['billCount'] as num?)?.toString() ?? '0',
-        ]);
-      }
-
-      rows.add([]);
-      rows.add(['Pending Bills', '', (dataSource['pendingCount'] ?? 0).toString()]);
-      rows.add([]);
-
-      final bills = (reportData?['bills'] as List<dynamic>?) ??
-          (dataSource['recentBills'] as List<dynamic>?) ??
-          [];
-
-      rows.add([
-        reportData != null ? 'Filtered Paid Bills' : 'Recent Paid Bills'
-      ]);
-      rows.add(['Bill ID', 'Table', 'Amount (₹)', 'Method', 'Date', 'Mobile']);
+      row++;
 
       for (var b in bills) {
         final dateStr = b['date'] != null
@@ -187,57 +263,71 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 DateTime.tryParse(b['date'].toString()) ?? DateTime.now())
             : 'N/A';
 
-        // ────────────────────────────────────────────────
-        // Robust mobile parsing – handles both structures
-        // ────────────────────────────────────────────────
         final mobile = b['mobile']?.toString() ??
             b['user']?['mobile']?.toString() ??
             'N/A';
-        rows.add([
+
+        final amountStr = (b['amount'] as num? ?? b['totalAmount'] as num?)?.toStringAsFixed(2) ?? '0.00';
+
+        final rowData = [
           b['billId']?.toString() ?? 'N/A',
           b['table']?.toString() ?? 'N/A',
-          (b['amount'] as num? ?? b['totalAmount'] as num?)?.toStringAsFixed(2) ?? '0.00',
+          amountStr,
           b['paymentMethod']?.toString() ?? 'Unknown',
           dateStr,
           mobile,
-        ]);
+        ];
+
+        for (int i = 0; i < rowData.length; i++) {
+          final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: row));
+          cell.value = TextCellValue(rowData[i]);
+          cell.cellStyle = CellStyle(
+            horizontalAlign: i == 2 ? HorizontalAlign.Right : HorizontalAlign.Left,
+          );
+        }
+        row++;
       }
+    }
 
-      final csv = rows.map((e) => e.join(',')).join('\n');
-      final fileName =
-          'analytics_report_${DateTime.now().toIso8601String().split('T')[0]}.csv';
+    for (int i = 0; i < 6; i++) {
+      sheet.setColumnWidth(i, 18);
+    }
 
-      if (kIsWeb) {
-        final blob = html.Blob([csv], 'text/csv');
-        final url = html.Url.createObjectUrlFromBlob(blob);
-        final anchor = html.AnchorElement(href: url)
-          ..setAttribute('download', fileName)
-          ..click();
-        html.Url.revokeObjectUrl(url);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Report downloaded: $fileName')),
-        );
-      } else {
-        final dir = await getApplicationDocumentsDirectory();
-        final path = '${dir.path}/$fileName';
-        final file = File(path);
-        await file.writeAsString(csv);
+    final bytes = excel.save();
 
-        final result = await OpenFilex.open(path);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result.type == ResultType.done ? 'Report opened' : 'Report saved at $path'),
-          ),
-        );
-      }
-    } catch (e) {
-      developer.log('CSV generation error: $e', name: 'Analytics');
+    final fileName =
+        'analytics_report_${DateTime.now().toIso8601String().split('T')[0]}.xlsx';
+
+    if (kIsWeb) {
+      final blob = html.Blob([bytes], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      final anchor = html.AnchorElement(href: url)
+        ..setAttribute('download', fileName)
+        ..click();
+      html.Url.revokeObjectUrl(url);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to export report: $e')),
+        SnackBar(content: Text('Excel report downloaded: $fileName')),
+      );
+    } else {
+      final dir = await getApplicationDocumentsDirectory();
+      final path = '${dir.path}/$fileName';
+      final file = File(path);
+      await file.writeAsBytes(bytes!);
+
+      final result = await OpenFilex.open(path);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.type == ResultType.done ? 'Excel report opened' : 'Saved at $path'),
+        ),
       );
     }
+  } catch (e, stack) {
+    developer.log('Excel generation error: $e', name: 'Analytics', error: e, stackTrace: stack);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Failed to export Excel report: $e')),
+    );
   }
-
+}
   Future<void> pickDateRange() async {
     final now = DateTime.now();
     final initialStart = selectedRange?.start ?? now.subtract(const Duration(days: 30));
@@ -288,15 +378,22 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Refresh Dashboard',
-            onPressed: fetchDashboardData,
+          SizedBox(
+            width: 48,
+            child: IconButton(
+              
+              icon: const Icon(Icons.refresh_rounded),
+              // tooltip: 'Refresh Dashboard',
+              onPressed: fetchDashboardData,
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.download_rounded),
-            tooltip: 'Download Report (CSV)',
-            onPressed: generateAndSaveReport,
+          SizedBox(
+            width: 48,
+            child: IconButton(
+              icon: const Icon(Icons.download_rounded),
+              // tooltip: 'Download Report (CSV)',
+              onPressed: generateAndSaveReport,
+            ),
           ),
           const SizedBox(width: 8),
         ],
@@ -353,125 +450,75 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                      Card(
-  elevation: 4,
-  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-  child: Padding(
-    padding: const EdgeInsets.all(16),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Title remains the same
-        Text(
-          hasFilteredData ? 'Filtered Paid Bills' : 'Recent Paid Bills',
-          style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 12),
-
-        // ────────────────────────────────────────────────
-        // Scrollable list with fixed height when many bills
-        // ────────────────────────────────────────────────
-        SizedBox(
-          height: 400, // Adjust this height based on your design (e.g., 350–500)
-          child: billsList.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 40),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.search_off_rounded,
-                          size: 64,
-                          color: Colors.grey.shade400,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          hasFilteredData
-                              ? 'No paid bills found in selected range & filter'
-                              : 'No recent paid bills yet',
-                          style: GoogleFonts.poppins(
-                            fontSize: 16,
-                            color: Colors.grey.shade700,
-                            fontWeight: FontWeight.w500,
+                        Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Filter Report',
+                                  style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: OutlinedButton.icon(
+                                        onPressed: pickDateRange,
+                                        icon: const Icon(Icons.calendar_month),
+                                        label: Text(
+                                          selectedRange == null
+                                              ? 'Select Date Range'
+                                              : '${DateFormat('dd MMM yy').format(selectedRange!.start)} — '
+                                                  '${DateFormat('dd MMM yy').format(selectedRange!.end)}',
+                                        ),
+                                      ),
+                                    ),
+                                    if (selectedRange != null) ...[
+                                      const SizedBox(width: 8),
+                                      IconButton(
+                                        icon: const Icon(Icons.clear, color: Colors.red),
+                                        onPressed: () {
+                                          setState(() {
+                                            selectedRange = null;
+                                            reportData = null;
+                                          });
+                                        },
+                                        // tooltip: 'Clear date filter',
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: ['All', 'Cash', 'Online'].map((f) {
+                                    return ChoiceChip(
+                                      label: Text(f),
+                                      selected: paymentFilter == f,
+                                      selectedColor: Colors.indigo.shade100,
+                                      onSelected: (selected) {
+                                        if (selected) {
+                                          setState(() {
+                                            paymentFilter = f;
+                                          });
+                                          if (selectedRange != null) {
+                                            fetchReportData();
+                                          }
+                                        }
+                                      },
+                                    );
+                                  }).toList(),
+                                ),
+                              ],
+                            ),
                           ),
-                          textAlign: TextAlign.center,
                         ),
-                        if (hasFilteredData) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            'Try changing date range or payment filter',
-                            style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade600),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                )
-              : SingleChildScrollView(
-                  child: Column(
-                    children: billsList.map((b) {
-                      final billId = b['billId']?.toString() ?? 'N/A';
-                      final amount = (b['amount'] as num? ?? b['totalAmount'] as num?)?.toStringAsFixed(2) ?? '0.00';
 
-                      final mobile = b['mobile']?.toString() ??
-                          b['user']?['mobile']?.toString() ??
-                          'N/A';
-
-                      final table = b['table']?.toString() ?? '?';
-                      final method = b['paymentMethod']?.toString() ?? 'Unknown';
-                      final dateRaw = b['date'] ?? b['updatedAt'];
-                      final dateStr = dateRaw != null
-                          ? DateFormat('dd MMM HH:mm').format(
-                              DateTime.tryParse(dateRaw.toString()) ?? DateTime.now())
-                          : 'N/A';
-
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Colors.indigo.shade100,
-                          child: Text(table, style: const TextStyle(color: Colors.indigo)),
-                        ),
-                        title: Text(
-                          'Bill #$billId • ₹$amount',
-                          style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
-                        ),
-                        subtitle: Text(
-                          '$mobile • Table $table • $method',
-                          style: GoogleFonts.poppins(color: Colors.grey.shade700),
-                        ),
-                        trailing: Text(
-                          dateStr,
-                          style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade600),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 4),
-                      );
-                    }).toList(),
-                  ),
-                ),
-        ),
-
-        const SizedBox(height: 16),
-
-        // Export button (moved inside or keep outside as you prefer)
-        if (billsList.isNotEmpty)
-          Center(
-            child: ElevatedButton.icon(
-              onPressed: generateAndSaveReport,
-              icon: const Icon(Icons.download_rounded),
-              label: const Text('Export Report (CSV)'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.indigo.shade700,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                elevation: 4,
-              ),
-            ),
-          ),
-      ],
-    ),
-  ),
-),
                         const SizedBox(height: 24),
 
                         Text(
@@ -533,114 +580,131 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
                         const SizedBox(height: 40),
 
-                        Text(
-                          hasFilteredData ? 'Filtered Paid Bills' : 'Recent Paid Bills',
-                          style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600),
-                        ),
+                       
                         const SizedBox(height: 12),
 
+                        // ────────────────────────────────────────────────
+                        // FIXED PAID BILLS SECTION – ONLY THIS PART CHANGED
+                        // ────────────────────────────────────────────────
                         Card(
                           elevation: 4,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                           child: Padding(
                             padding: const EdgeInsets.all(16),
                             child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                if (billsList.isEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 40),
-                                    child: Column(
-                                      children: [
-                                        Icon(
-                                          Icons.search_off_rounded,
-                                          size: 64,
-                                          color: Colors.grey.shade400,
-                                        ),
-                                        const SizedBox(height: 16),
-                                        Text(
-                                          hasFilteredData
-                                              ? 'No paid bills found in selected range & filter'
-                                              : 'No recent paid bills yet',
-                                          style: GoogleFonts.poppins(
-                                            fontSize: 16,
-                                            color: Colors.grey.shade700,
-                                            fontWeight: FontWeight.w500,
+                                Text(
+                                  hasFilteredData ? 'Filtered Paid Bills' : 'Recent Paid Bills',
+                                  style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
+                                ),
+                                const SizedBox(height: 12),
+
+                                SizedBox(
+                                  height: 400, // you can adjust this value
+                                  child: billsList.isEmpty
+                                      ? Center(
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(vertical: 40),
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  Icons.search_off_rounded,
+                                                  size: 64,
+                                                  color: Colors.grey.shade400,
+                                                ),
+                                                const SizedBox(height: 16),
+                                                Text(
+                                                  hasFilteredData
+                                                      ? 'No paid bills found in selected range & filter'
+                                                      : 'No recent paid bills yet',
+                                                  style: GoogleFonts.poppins(
+                                                    fontSize: 16,
+                                                    color: Colors.grey.shade700,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                                if (hasFilteredData) ...[
+                                                  const SizedBox(height: 8),
+                                                  Text(
+                                                    'Try changing date range or payment filter',
+                                                    style: GoogleFonts.poppins(
+                                                        fontSize: 14, color: Colors.grey.shade600),
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
                                           ),
-                                          textAlign: TextAlign.center,
+                                        )
+                                      : ListView.builder(
+                                          itemCount: billsList.length,
+                                          itemBuilder: (context, index) {
+                                            final b = billsList[index];
+                                            final billId = b['billId']?.toString() ?? 'N/A';
+                                            final amount = (b['amount'] as num? ?? b['totalAmount'] as num?)
+                                                    ?.toStringAsFixed(2) ??
+                                                '0.00';
+
+                                            final mobile = b['mobile']?.toString() ??
+                                                b['user']?['mobile']?.toString() ??
+                                                'N/A';
+
+                                            final table = b['table']?.toString() ?? '?';
+                                            final method = b['paymentMethod']?.toString() ?? 'Unknown';
+                                            final dateRaw = b['date'] ?? b['updatedAt'];
+                                            final dateStr = dateRaw != null
+                                                ? DateFormat('dd MMM HH:mm').format(
+                                                    DateTime.tryParse(dateRaw.toString()) ?? DateTime.now())
+                                                : 'N/A';
+
+                                            return ListTile(
+                                              leading: CircleAvatar(
+                                                backgroundColor: Colors.indigo.shade100,
+                                                child: Text(table, style: const TextStyle(color: Colors.indigo)),
+                                              ),
+                                              title: Text(
+                                                'Bill #$billId • ₹$amount',
+                                                style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+                                              ),
+                                              subtitle: Text(
+                                                '$mobile • Table $table • $method',
+                                                style: GoogleFonts.poppins(color: Colors.grey.shade700),
+                                              ),
+                                              trailing: Text(
+                                                dateStr,
+                                                style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade600),
+                                              ),
+                                              contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                                            );
+                                          },
                                         ),
-                                        if (hasFilteredData) ...[
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            'Try changing date range or payment filter',
-                                            style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade600),
-                                          ),
-                                        ],
-                                      ],
+                                ),
+
+                                const SizedBox(height: 16),
+
+                                if (billsList.isNotEmpty)
+                                  Center(
+                                    child: ElevatedButton.icon(
+                                      onPressed: generateAndSaveReport,
+                                      icon: const Icon(Icons.download_rounded),
+                                      label: const Text('Export Report (CSV)'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.indigo.shade700,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                        elevation: 4,
+                                      ),
                                     ),
-                                  )
-                                else
-                                  ...billsList.map((b) {
-                                    final billId = b['billId']?.toString() ?? 'N/A';
-                                    final amount = (b['amount'] as num? ?? b['totalAmount'] as num?)?.toStringAsFixed(2) ?? '0.00';
-
-                                    // ────────────────────────────────────────────────
-                                    // Mobile now comes from backend as 'mobile'
-                                    // But we keep fallback for safety
-                                    // ────────────────────────────────────────────────
-                                    final mobile = b['mobile']?.toString() ??
-                                        b['user']?['mobile']?.toString() ??
-                                        'N/A';
-
-                                    final table = b['table']?.toString() ?? '?';
-                                    final method = b['paymentMethod']?.toString() ?? 'Unknown';
-                                    final dateRaw = b['date'] ?? b['updatedAt'];
-                                    final dateStr = dateRaw != null
-                                        ? DateFormat('dd MMM HH:mm').format(
-                                            DateTime.tryParse(dateRaw.toString()) ?? DateTime.now())
-                                        : 'N/A';
-
-                                    return ListTile(
-                                      leading: CircleAvatar(
-                                        backgroundColor: Colors.indigo.shade100,
-                                        child: Text(table, style: const TextStyle(color: Colors.indigo)),
-                                      ),
-                                      title: Text(
-                                        'Bill #$billId • ₹$amount',
-                                        style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
-                                      ),
-                                      subtitle: Text(
-                                        '$mobile • Table $table • $method',
-                                        style: GoogleFonts.poppins(color: Colors.grey.shade700),
-                                      ),
-                                      trailing: Text(
-                                        dateStr,
-                                        style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade600),
-                                      ),
-                                    );
-                                  }).toList(),
+                                  ),
                               ],
                             ),
                           ),
                         ),
 
-                        const SizedBox(height: 40),
-
-                        Center(
-                          child: ElevatedButton.icon(
-                            onPressed: generateAndSaveReport,
-                            icon: const Icon(Icons.download_rounded),
-                            label: const Text('Export Report (CSV)'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.indigo.shade700,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              elevation: 4,
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 80),
+                       
                       ],
                     ),
                   ),
@@ -737,7 +801,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 }
-
 
 // ───────────────────────────────────────────────
 // Main Checkout Screen (AppBar already updated)
@@ -1229,20 +1292,36 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           foregroundColor: Colors.white,
           elevation: 2,
           actions: [
-            IconButton(
-              icon: const Icon(Icons.analytics_rounded),
-              tooltip: 'View Sales & Collection Analytics',
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const AnalyticsScreen()),
-                );
-              },
+            SizedBox(
+              width: 48,
+              child: IconButton(
+                icon: const Icon(Icons.analytics_rounded),
+                // tooltip: 'View Sales & Collection Analytics',
+                onPressed: () {
+  Navigator.push(
+    context,
+    PageRouteBuilder(
+      pageBuilder: (context, animation, secondaryAnimation) => const AnalyticsScreen(),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        // Use a simple fade or no animation to avoid FractionalTranslation issues
+        return FadeTransition(
+          opacity: animation,
+          child: child,
+        );
+      },
+      transitionDuration: const Duration(milliseconds: 300),
+    ),
+  );
+},
+              ),
             ),
-            IconButton(
-              icon: const Icon(Icons.refresh_rounded),
-              tooltip: 'Refresh Bills List',
-              onPressed: () => context.read<BillBloc>().add(FetchBills()),
+            SizedBox(
+              width: 48,
+              child: IconButton(
+                icon: const Icon(Icons.refresh_rounded),
+                // tooltip: 'Refresh Bills List',
+                onPressed: () => context.read<BillBloc>().add(FetchBills()),
+              ),
             ),
             const SizedBox(width: 8),
           ],
