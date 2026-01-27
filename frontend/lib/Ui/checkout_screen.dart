@@ -27,6 +27,13 @@ import '../services/socketService.dart';
 // ───────────────────────────────────────────────
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+import 'dart:typed_data';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:share_plus/share_plus.dart';
+import 'package:whatsapp_share_plus/whatsapp_share_plus.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
 
@@ -47,6 +54,90 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   void initState() {
     super.initState();
     fetchDashboardData();
+  }
+
+  Future<Uint8List> _generateBillPdf(Map<String, dynamic> bill) async {
+    final pdf = pw.Document();
+
+    final billId = bill['billId']?.toString() ?? 'N/A';
+    final amount = (bill['amount'] as num? ?? bill['totalAmount'] as num?)
+            ?.toStringAsFixed(2) ??
+        '0.00';
+    final table = bill['table']?.toString() ?? 'N/A';
+    final method = bill['paymentMethod']?.toString() ?? 'N/A';
+    final mobile = bill['mobile']?.toString() ??
+        bill['user']?['mobile']?.toString() ??
+        'N/A';
+
+    final dateRaw = bill['date'] ?? bill['updatedAt'];
+    final dateStr = dateRaw != null
+        ? DateFormat('dd MMM yyyy HH:mm')
+            .format(DateTime.tryParse(dateRaw.toString()) ?? DateTime.now())
+        : 'N/A';
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        build: (_) => pw.Padding(
+          padding: const pw.EdgeInsets.all(24),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text('Bill Receipt',
+                  style: pw.TextStyle(
+                      fontSize: 24, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 20),
+              _pdfRow('Bill ID', billId),
+              _pdfRow('Date', dateStr),
+              _pdfRow('Table', table),
+              _pdfRow('Payment Method', method),
+              _pdfRow('Mobile', mobile),
+              pw.Divider(height: 30),
+              pw.Text('Total Amount',
+                  style: pw.TextStyle(
+                      fontSize: 18, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 6),
+              pw.Text('₹ $amount',
+                  style: pw.TextStyle(
+                      fontSize: 22, fontWeight: pw.FontWeight.bold)),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    return pdf.save();
+  }
+
+  pw.Widget _pdfRow(String label, String value) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 6),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: [
+          pw.Text(label),
+          pw.Text(value, style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _shareBillOnWhatsApp(Map<String, dynamic> bill) async {
+    final pdfBytes = await _generateBillPdf(bill);
+    final fileName = 'bill_${bill['billId']}.pdf';
+
+    if (kIsWeb) {
+      await Share.shareXFiles([
+        XFile.fromData(pdfBytes, name: fileName, mimeType: 'application/pdf')
+      ]);
+    } else {
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/$fileName');
+      await file.writeAsBytes(pdfBytes);
+      await Share.shareXFiles([
+        XFile.fromData(pdfBytes, name: fileName, mimeType: 'application/pdf')
+      ]);
+    }
   }
 
   Future<void> fetchDashboardData() async {
@@ -110,227 +201,299 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   Future<void> generateAndSaveReport() async {
-  final dataSource = reportData ?? dashboardData;
-  if (dataSource == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('No data available to export')),
-    );
-    return;
-  }
-
-  try {
-    final excel = Excel.createExcel();
-    final sheet = excel.sheets.values.first;
-
-    sheet.cell(CellIndex.indexByString('A1')).value = TextCellValue('Report Generated: ${DateTime.now()}');
-    sheet.cell(CellIndex.indexByString('A1')).cellStyle = CellStyle(
-      bold: true,
-      fontFamily: getFontFamily(FontFamily.Calibri),
-      fontSize: 14,
-    );
-
-    int row = 3;
-
-    // Date Range
-    if (selectedRange != null) {
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value =
-          TextCellValue('Date Range');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).value =
-          TextCellValue(DateFormat('dd-MMM-yyyy').format(selectedRange!.start));
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row)).value =
-          TextCellValue('to');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: row)).value =
-          TextCellValue(DateFormat('dd-MMM-yyyy').format(selectedRange!.end));
-    } else {
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value =
-          TextCellValue('Date Range');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).value =
-          TextCellValue('All available data');
-    }
-    row += 2;
-
-    // Payment Filter
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value =
-        TextCellValue('Payment Filter');
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).value =
-        TextCellValue(paymentFilter);
-    row += 2;
-
-    // ─── Summary Section ─────────────────────────────────────────
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value =
-        TextCellValue('Summary');
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).cellStyle = CellStyle(
-      bold: true,
-      fontSize: 13,
-      backgroundColorHex: ExcelColor.fromHexString('FFD9EAD3'),  // ← FIXED
-    );
-    row++;
-
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value =
-        TextCellValue('Category');
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).value =
-        TextCellValue('Total (₹)');
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row)).value =
-        TextCellValue('Bill Count');
-
-    for (var col in [0, 1, 2]) {
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: row)).cellStyle = CellStyle(
-        bold: true,
-        horizontalAlign: HorizontalAlign.Center,
-        backgroundColorHex: ExcelColor.fromHexString('FFE0F2F1'),  // ← FIXED
+    final dataSource = reportData ?? dashboardData;
+    if (dataSource == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No data available to export')),
       );
-    }
-    row++;
-
-    if (reportData != null) {
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value =
-          TextCellValue('Filtered Period');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).value =
-          TextCellValue((reportData!['total'] as num?)?.toStringAsFixed(2) ?? '0.00');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row)).value =
-          TextCellValue(reportData!['billCount']?.toString() ?? '0');
-      row++;
-
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value =
-          TextCellValue('Cash');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).value =
-          TextCellValue((reportData!['cash'] as num?)?.toStringAsFixed(2) ?? '0.00');
-      row++;
-
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value =
-          TextCellValue('Online');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).value =
-          TextCellValue((reportData!['online'] as num?)?.toStringAsFixed(2) ?? '0.00');
-      row++;
-    } else {
-      final today = dataSource['today'] ?? {};
-      final month = dataSource['month'] ?? {};
-
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value =
-          TextCellValue('Today');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).value =
-          TextCellValue((today['total'] as num?)?.toStringAsFixed(2) ?? '0.00');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row)).value =
-          TextCellValue((today['billCount'] as num?)?.toString() ?? '0');
-      row++;
-
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value =
-          TextCellValue('This Month');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).value =
-          TextCellValue((month['total'] as num?)?.toStringAsFixed(2) ?? '0.00');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row)).value =
-          TextCellValue((month['billCount'] as num?)?.toString() ?? '0');
-      row++;
+      return;
     }
 
-    row += 2;
+    try {
+      final excel = Excel.createExcel();
+      final sheet = excel.sheets.values.first;
 
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value =
-        TextCellValue('Pending Bills');
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row)).value =
-        TextCellValue((dataSource['pendingCount'] ?? 0).toString());
-    row += 3;
+      sheet.cell(CellIndex.indexByString('A1')).value =
+          TextCellValue('Report Generated: ${DateTime.now()}');
+      sheet.cell(CellIndex.indexByString('A1')).cellStyle = CellStyle(
+        bold: true,
+        fontFamily: getFontFamily(FontFamily.Calibri),
+        fontSize: 14,
+      );
 
-    final bills = (reportData?['bills'] as List<dynamic>?) ??
-        (dataSource['recentBills'] as List<dynamic>?) ??
-        [];
+      int row = 3;
 
-    if (bills.isNotEmpty) {
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value =
-          TextCellValue(reportData != null ? 'Filtered Paid Bills' : 'Recent Paid Bills');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).cellStyle = CellStyle(
+      // Date Range
+      if (selectedRange != null) {
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
+            .value = TextCellValue('Date Range');
+        sheet
+                .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row))
+                .value =
+            TextCellValue(
+                DateFormat('dd-MMM-yyyy').format(selectedRange!.start));
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row))
+            .value = TextCellValue('to');
+        sheet
+                .cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: row))
+                .value =
+            TextCellValue(DateFormat('dd-MMM-yyyy').format(selectedRange!.end));
+      } else {
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
+            .value = TextCellValue('Date Range');
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row))
+            .value = TextCellValue('All available data');
+      }
+      row += 2;
+
+      // Payment Filter
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
+          .value = TextCellValue('Payment Filter');
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row))
+          .value = TextCellValue(paymentFilter);
+      row += 2;
+
+      // ─── Summary Section ─────────────────────────────────────────
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
+          .value = TextCellValue('Summary');
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
+          .cellStyle = CellStyle(
         bold: true,
         fontSize: 13,
+        backgroundColorHex: ExcelColor.fromHexString('FFD9EAD3'), // ← FIXED
       );
       row++;
 
-      final headers = ['Bill ID', 'Table', 'Amount (₹)', 'Method', 'Date', 'Mobile'];
-      for (int i = 0; i < headers.length; i++) {
-        final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: row));
-        cell.value = TextCellValue(headers[i]);
-        cell.cellStyle = CellStyle(
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
+          .value = TextCellValue('Category');
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row))
+          .value = TextCellValue('Total (₹)');
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row))
+          .value = TextCellValue('Bill Count');
+
+      for (var col in [0, 1, 2]) {
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: row))
+            .cellStyle = CellStyle(
           bold: true,
           horizontalAlign: HorizontalAlign.Center,
-          backgroundColorHex: ExcelColor.fromHexString('FFBBDEFB'),  // ← FIXED
-          textWrapping: TextWrapping.WrapText,
+          backgroundColorHex: ExcelColor.fromHexString('FFE0F2F1'), // ← FIXED
         );
       }
       row++;
 
-      for (var b in bills) {
-        final dateStr = b['date'] != null
-            ? DateFormat('dd-MMM-yy HH:mm').format(
-                DateTime.tryParse(b['date'].toString()) ?? DateTime.now())
-            : 'N/A';
+      if (reportData != null) {
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
+            .value = TextCellValue('Filtered Period');
+        sheet
+                .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row))
+                .value =
+            TextCellValue(
+                (reportData!['total'] as num?)?.toStringAsFixed(2) ?? '0.00');
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row))
+            .value = TextCellValue(reportData!['billCount']?.toString() ?? '0');
+        row++;
 
-        final mobile = b['mobile']?.toString() ??
-            b['user']?['mobile']?.toString() ??
-            'N/A';
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
+            .value = TextCellValue('Cash');
+        sheet
+                .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row))
+                .value =
+            TextCellValue(
+                (reportData!['cash'] as num?)?.toStringAsFixed(2) ?? '0.00');
+        row++;
 
-        final amountStr = (b['amount'] as num? ?? b['totalAmount'] as num?)?.toStringAsFixed(2) ?? '0.00';
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
+            .value = TextCellValue('Online');
+        sheet
+                .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row))
+                .value =
+            TextCellValue(
+                (reportData!['online'] as num?)?.toStringAsFixed(2) ?? '0.00');
+        row++;
+      } else {
+        final today = dataSource['today'] ?? {};
+        final month = dataSource['month'] ?? {};
 
-        final rowData = [
-          b['billId']?.toString() ?? 'N/A',
-          b['table']?.toString() ?? 'N/A',
-          amountStr,
-          b['paymentMethod']?.toString() ?? 'Unknown',
-          dateStr,
-          mobile,
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
+            .value = TextCellValue('Today');
+        sheet
+                .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row))
+                .value =
+            TextCellValue(
+                (today['total'] as num?)?.toStringAsFixed(2) ?? '0.00');
+        sheet
+                .cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row))
+                .value =
+            TextCellValue((today['billCount'] as num?)?.toString() ?? '0');
+        row++;
+
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
+            .value = TextCellValue('This Month');
+        sheet
+                .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row))
+                .value =
+            TextCellValue(
+                (month['total'] as num?)?.toStringAsFixed(2) ?? '0.00');
+        sheet
+                .cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row))
+                .value =
+            TextCellValue((month['billCount'] as num?)?.toString() ?? '0');
+        row++;
+      }
+
+      row += 2;
+
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
+          .value = TextCellValue('Pending Bills');
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row))
+          .value = TextCellValue((dataSource['pendingCount'] ?? 0).toString());
+      row += 3;
+
+      final bills = (reportData?['bills'] as List<dynamic>?) ??
+          (dataSource['recentBills'] as List<dynamic>?) ??
+          [];
+
+      if (bills.isNotEmpty) {
+        sheet
+                .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
+                .value =
+            TextCellValue(reportData != null
+                ? 'Filtered Paid Bills'
+                : 'Recent Paid Bills');
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
+            .cellStyle = CellStyle(
+          bold: true,
+          fontSize: 13,
+        );
+        row++;
+
+        final headers = [
+          'Bill ID',
+          'Table',
+          'Amount (₹)',
+          'Method',
+          'Date',
+          'Mobile'
         ];
-
-        for (int i = 0; i < rowData.length; i++) {
-          final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: row));
-          cell.value = TextCellValue(rowData[i]);
+        for (int i = 0; i < headers.length; i++) {
+          final cell = sheet
+              .cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: row));
+          cell.value = TextCellValue(headers[i]);
           cell.cellStyle = CellStyle(
-            horizontalAlign: i == 2 ? HorizontalAlign.Right : HorizontalAlign.Left,
+            bold: true,
+            horizontalAlign: HorizontalAlign.Center,
+            backgroundColorHex: ExcelColor.fromHexString('FFBBDEFB'), // ← FIXED
+            textWrapping: TextWrapping.WrapText,
           );
         }
         row++;
+
+        for (var b in bills) {
+          final dateStr = b['date'] != null
+              ? DateFormat('dd-MMM-yy HH:mm').format(
+                  DateTime.tryParse(b['date'].toString()) ?? DateTime.now())
+              : 'N/A';
+
+          final mobile = b['mobile']?.toString() ??
+              b['user']?['mobile']?.toString() ??
+              'N/A';
+
+          final amountStr = (b['amount'] as num? ?? b['totalAmount'] as num?)
+                  ?.toStringAsFixed(2) ??
+              '0.00';
+
+          final rowData = [
+            b['billId']?.toString() ?? 'N/A',
+            b['table']?.toString() ?? 'N/A',
+            amountStr,
+            b['paymentMethod']?.toString() ?? 'Unknown',
+            dateStr,
+            mobile,
+          ];
+
+          for (int i = 0; i < rowData.length; i++) {
+            final cell = sheet.cell(
+                CellIndex.indexByColumnRow(columnIndex: i, rowIndex: row));
+            cell.value = TextCellValue(rowData[i]);
+            cell.cellStyle = CellStyle(
+              horizontalAlign:
+                  i == 2 ? HorizontalAlign.Right : HorizontalAlign.Left,
+            );
+          }
+          row++;
+        }
       }
-    }
 
-    for (int i = 0; i < 6; i++) {
-      sheet.setColumnWidth(i, 18);
-    }
+      for (int i = 0; i < 6; i++) {
+        sheet.setColumnWidth(i, 18);
+      }
 
-    final bytes = excel.save();
+      final bytes = excel.save();
 
-    final fileName =
-        'analytics_report_${DateTime.now().toIso8601String().split('T')[0]}.xlsx';
+      final fileName =
+          'analytics_report_${DateTime.now().toIso8601String().split('T')[0]}.xlsx';
 
-    if (kIsWeb) {
-      final blob = html.Blob([bytes], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      final url = html.Url.createObjectUrlFromBlob(blob);
-      final anchor = html.AnchorElement(href: url)
-        ..setAttribute('download', fileName)
-        ..click();
-      html.Url.revokeObjectUrl(url);
+      if (kIsWeb) {
+        final blob = html.Blob([
+          bytes
+        ], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        final anchor = html.AnchorElement(href: url)
+          ..setAttribute('download', fileName)
+          ..click();
+        html.Url.revokeObjectUrl(url);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Excel report downloaded: $fileName')),
+        );
+      } else {
+        final dir = await getApplicationDocumentsDirectory();
+        final path = '${dir.path}/$fileName';
+        final file = File(path);
+        await file.writeAsBytes(bytes!);
+
+        final result = await OpenFilex.open(path);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.type == ResultType.done
+                ? 'Excel report opened'
+                : 'Saved at $path'),
+          ),
+        );
+      }
+    } catch (e, stack) {
+      developer.log('Excel generation error: $e',
+          name: 'Analytics', error: e, stackTrace: stack);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Excel report downloaded: $fileName')),
-      );
-    } else {
-      final dir = await getApplicationDocumentsDirectory();
-      final path = '${dir.path}/$fileName';
-      final file = File(path);
-      await file.writeAsBytes(bytes!);
-
-      final result = await OpenFilex.open(path);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result.type == ResultType.done ? 'Excel report opened' : 'Saved at $path'),
-        ),
+        SnackBar(content: Text('Failed to export Excel report: $e')),
       );
     }
-  } catch (e, stack) {
-    developer.log('Excel generation error: $e', name: 'Analytics', error: e, stackTrace: stack);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Failed to export Excel report: $e')),
-    );
   }
-}
+
   Future<void> pickDateRange() async {
     final now = DateTime.now();
-    final initialStart = selectedRange?.start ?? now.subtract(const Duration(days: 30));
+    final initialStart =
+        selectedRange?.start ?? now.subtract(const Duration(days: 30));
     final initialEnd = selectedRange?.end ?? now;
 
     final picked = await showDateRangePicker(
@@ -364,16 +527,18 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     final isTablet = MediaQuery.of(context).size.width > 700;
     final padding = isTablet ? 32.0 : 16.0;
 
-    final billsList = (reportData?['bills'] as List<dynamic>?)?.isNotEmpty == true
-        ? reportData!['bills']
-        : (dashboardData?['recentBills'] as List<dynamic>?) ?? [];
+    final billsList =
+        (reportData?['bills'] as List<dynamic>?)?.isNotEmpty == true
+            ? reportData!['bills']
+            : (dashboardData?['recentBills'] as List<dynamic>?) ?? [];
 
     final hasFilteredData = reportData != null;
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: Text('Admin Dashboard', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        title: Text('Admin Dashboard',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
         backgroundColor: Colors.indigo.shade700,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -381,7 +546,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           SizedBox(
             width: 48,
             child: IconButton(
-              
               icon: const Icon(Icons.refresh_rounded),
               // tooltip: 'Refresh Dashboard',
               onPressed: fetchDashboardData,
@@ -410,7 +574,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.error_outline_rounded, size: 80, color: Colors.red.shade400),
+                          Icon(Icons.error_outline_rounded,
+                              size: 80, color: Colors.red.shade400),
                           const SizedBox(height: 24),
                           Text(
                             'Failed to Load Dashboard',
@@ -424,7 +589,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                           Text(
                             errorMessage!,
                             textAlign: TextAlign.center,
-                            style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey.shade700),
+                            style: GoogleFonts.poppins(
+                                fontSize: 16, color: Colors.grey.shade700),
                           ),
                           const SizedBox(height: 32),
                           ElevatedButton.icon(
@@ -434,7 +600,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.indigo.shade700,
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 32, vertical: 16),
                             ),
                           ),
                         ],
@@ -452,7 +619,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       children: [
                         Card(
                           elevation: 2,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
                           child: Padding(
                             padding: const EdgeInsets.all(16),
                             child: Column(
@@ -460,7 +628,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                               children: [
                                 Text(
                                   'Filter Report',
-                                  style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
+                                  style: GoogleFonts.poppins(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600),
                                 ),
                                 const SizedBox(height: 12),
                                 Row(
@@ -480,7 +650,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                     if (selectedRange != null) ...[
                                       const SizedBox(width: 8),
                                       IconButton(
-                                        icon: const Icon(Icons.clear, color: Colors.red),
+                                        icon: const Icon(Icons.clear,
+                                            color: Colors.red),
                                         onPressed: () {
                                           setState(() {
                                             selectedRange = null;
@@ -537,8 +708,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                             Expanded(
                               child: _buildCard(
                                 'Today Sales',
-                                (dashboardData?['today']?['total'] as num?)?.toDouble() ?? 0.0,
-                                (dashboardData?['today']?['billCount'] as num?)?.toInt() ?? 0,
+                                (dashboardData?['today']?['total'] as num?)
+                                        ?.toDouble() ??
+                                    0.0,
+                                (dashboardData?['today']?['billCount'] as num?)
+                                        ?.toInt() ??
+                                    0,
                                 Colors.teal,
                               ),
                             ),
@@ -546,8 +721,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                             Expanded(
                               child: _buildCard(
                                 'Monthly Sales',
-                                (dashboardData?['month']?['total'] as num?)?.toDouble() ?? 0.0,
-                                (dashboardData?['month']?['billCount'] as num?)?.toInt() ?? 0,
+                                (dashboardData?['month']?['total'] as num?)
+                                        ?.toDouble() ??
+                                    0.0,
+                                (dashboardData?['month']?['billCount'] as num?)
+                                        ?.toInt() ??
+                                    0,
                                 Colors.deepPurple,
                               ),
                             ),
@@ -558,29 +737,34 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
                         Text(
                           'Pending Bills: ${(dashboardData?['pendingCount'] as num?)?.toInt() ?? 0}',
-                          style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w500),
+                          style: GoogleFonts.poppins(
+                              fontSize: 18, fontWeight: FontWeight.w500),
                         ),
 
                         const SizedBox(height: 32),
 
                         Text(
                           'Payment Breakdown',
-                          style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600),
+                          style: GoogleFonts.poppins(
+                              fontSize: 20, fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(height: 16),
 
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(child: _buildPie('Today', dashboardData?['today'] ?? {})),
+                            Expanded(
+                                child: _buildPie(
+                                    'Today', dashboardData?['today'] ?? {})),
                             const SizedBox(width: 16),
-                            Expanded(child: _buildPie('This Month', dashboardData?['month'] ?? {})),
+                            Expanded(
+                                child: _buildPie('This Month',
+                                    dashboardData?['month'] ?? {})),
                           ],
                         ),
 
                         const SizedBox(height: 40),
 
-                       
                         const SizedBox(height: 12),
 
                         // ────────────────────────────────────────────────
@@ -588,24 +772,29 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         // ────────────────────────────────────────────────
                         Card(
                           elevation: 4,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
                           child: Padding(
                             padding: const EdgeInsets.all(16),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  hasFilteredData ? 'Filtered Paid Bills' : 'Recent Paid Bills',
-                                  style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
+                                  hasFilteredData
+                                      ? 'Filtered Paid Bills'
+                                      : 'Recent Paid Bills',
+                                  style: GoogleFonts.poppins(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600),
                                 ),
                                 const SizedBox(height: 12),
-
                                 SizedBox(
                                   height: 400, // you can adjust this value
                                   child: billsList.isEmpty
                                       ? Center(
                                           child: Padding(
-                                            padding: const EdgeInsets.symmetric(vertical: 40),
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 40),
                                             child: Column(
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
@@ -631,7 +820,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                                   Text(
                                                     'Try changing date range or payment filter',
                                                     style: GoogleFonts.poppins(
-                                                        fontSize: 14, color: Colors.grey.shade600),
+                                                        fontSize: 14,
+                                                        color: Colors
+                                                            .grey.shade600),
                                                   ),
                                                 ],
                                               ],
@@ -642,48 +833,140 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                           itemCount: billsList.length,
                                           itemBuilder: (context, index) {
                                             final b = billsList[index];
-                                            final billId = b['billId']?.toString() ?? 'N/A';
-                                            final amount = (b['amount'] as num? ?? b['totalAmount'] as num?)
-                                                    ?.toStringAsFixed(2) ??
-                                                '0.00';
+                                            final billId =
+                                                b['billId']?.toString() ??
+                                                    'N/A';
+                                            final amount =
+                                                (b['amount'] as num? ??
+                                                            b['totalAmount']
+                                                                as num?)
+                                                        ?.toStringAsFixed(2) ??
+                                                    '0.00';
 
-                                            final mobile = b['mobile']?.toString() ??
-                                                b['user']?['mobile']?.toString() ??
-                                                'N/A';
+                                            final mobile =
+                                                b['mobile']?.toString() ??
+                                                    b['user']?['mobile']
+                                                        ?.toString() ??
+                                                    'N/A';
 
-                                            final table = b['table']?.toString() ?? '?';
-                                            final method = b['paymentMethod']?.toString() ?? 'Unknown';
-                                            final dateRaw = b['date'] ?? b['updatedAt'];
+                                            final table =
+                                                b['table']?.toString() ?? '?';
+                                            final method = b['paymentMethod']
+                                                    ?.toString() ??
+                                                'Unknown';
+                                            final dateRaw =
+                                                b['date'] ?? b['updatedAt'];
                                             final dateStr = dateRaw != null
-                                                ? DateFormat('dd MMM HH:mm').format(
-                                                    DateTime.tryParse(dateRaw.toString()) ?? DateTime.now())
+                                                ? DateFormat('dd MMM HH:mm')
+                                                    .format(DateTime.tryParse(
+                                                            dateRaw
+                                                                .toString()) ??
+                                                        DateTime.now())
                                                 : 'N/A';
 
                                             return ListTile(
                                               leading: CircleAvatar(
-                                                backgroundColor: Colors.indigo.shade100,
-                                                child: Text(table, style: const TextStyle(color: Colors.indigo)),
+                                                backgroundColor:
+                                                    Colors.indigo.shade100,
+                                                child: Text(table,
+                                                    style: const TextStyle(
+                                                        color: Colors.indigo)),
                                               ),
                                               title: Text(
                                                 'Bill #$billId • ₹$amount',
-                                                style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+                                                style: GoogleFonts.poppins(
+                                                    fontWeight:
+                                                        FontWeight.w500),
                                               ),
                                               subtitle: Text(
                                                 '$mobile • Table $table • $method',
-                                                style: GoogleFonts.poppins(color: Colors.grey.shade700),
+                                                style: GoogleFonts.poppins(
+                                                    color:
+                                                        Colors.grey.shade700),
                                               ),
-                                              trailing: Text(
-                                                dateStr,
-                                                style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade600),
+                                              trailing: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  // PDF Share Button
+                                                  IconButton(
+                                                    icon: const Icon(
+                                                        Icons.picture_as_pdf,
+                                                        color: Colors.red),
+                                                    tooltip: 'Share PDF',
+                                                    onPressed: () async {
+                                                      final pdfBytes =
+                                                          await _generateBillPdf(
+                                                              b); // your PDF generator
+                                                      final fileName =
+                                                          'bill_$billId.pdf';
+
+                                                      if (kIsWeb) {
+                                                        await Share
+                                                            .shareXFiles([
+                                                          XFile.fromData(
+                                                            pdfBytes,
+                                                            name: fileName,
+                                                            mimeType:
+                                                                'application/pdf',
+                                                          )
+                                                        ]);
+                                                      } else {
+                                                        final dir =
+                                                            await getTemporaryDirectory();
+                                                        final file = File(
+                                                            '${dir.path}/$fileName');
+                                                        await file.writeAsBytes(
+                                                            pdfBytes);
+
+                                                        await Share
+                                                            .shareXFiles([
+                                                          XFile(file.path,
+                                                              name: fileName,
+                                                              mimeType:
+                                                                  'application/pdf')
+                                                        ]);
+                                                      }
+                                                    },
+                                                  ),
+                                                  // WhatsApp Share Button
+                                                  IconButton(
+                                                    icon: const FaIcon(
+                                                        FontAwesomeIcons
+                                                            .whatsapp,
+                                                        color: Colors.green),
+                                                    tooltip:
+                                                        'Share via WhatsApp',
+                                                    onPressed: () async {
+                                                      final pdfBytes =
+                                                          await _generateBillPdf(
+                                                              b);
+                                                      final fileName =
+                                                          'bill_$billId.pdf';
+                                                      final dir =
+                                                          await getTemporaryDirectory();
+                                                      final file = File(
+                                                          '${dir.path}/$fileName');
+                                                      await file.writeAsBytes(
+                                                          pdfBytes);
+
+                                                      await Share.shareXFiles([
+                                                        XFile(file.path,
+                                                            name: fileName,
+                                                            mimeType:
+                                                                'application/pdf')
+                                                      ]);
+                                                    },
+                                                  ),
+                                                ],
                                               ),
-                                              contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                                              contentPadding:
+                                                  const EdgeInsets.symmetric(
+                                                      vertical: 4),
                                             );
                                           },
                                         ),
                                 ),
-
                                 const SizedBox(height: 16),
-
                                 if (billsList.isNotEmpty)
                                   Center(
                                     child: ElevatedButton.icon(
@@ -693,8 +976,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.indigo.shade700,
                                         foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 32, vertical: 16),
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12)),
                                         elevation: 4,
                                       ),
                                     ),
@@ -703,8 +989,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                             ),
                           ),
                         ),
-
-                       
                       ],
                     ),
                   ),
@@ -737,7 +1021,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             const SizedBox(height: 8),
             Text(
               '$count Bills',
-              style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade700),
+              style: GoogleFonts.poppins(
+                  fontSize: 14, color: Colors.grey.shade700),
             ),
           ],
         ),
@@ -753,7 +1038,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     if (total == 0) {
       return SizedBox(
         height: 200,
-        child: Center(child: Text('No payments yet', style: GoogleFonts.poppins(color: Colors.grey))),
+        child: Center(
+            child: Text('No payments yet',
+                style: GoogleFonts.poppins(color: Colors.grey))),
       );
     }
 
@@ -767,7 +1054,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           children: [
             Text(
               title,
-              style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600),
+              style: GoogleFonts.poppins(
+                  fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 40),
             SizedBox(
@@ -777,17 +1065,21 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   sections: [
                     PieChartSectionData(
                       value: cash,
-                      title: 'Cash\n${((cash / total) * 100).toStringAsFixed(0)}%',
+                      title:
+                          'Cash\n${((cash / total) * 100).toStringAsFixed(0)}%',
                       color: Colors.blue.shade600,
                       radius: 80,
-                      titleStyle: const TextStyle(color: Colors.white, fontSize: 12),
+                      titleStyle:
+                          const TextStyle(color: Colors.white, fontSize: 12),
                     ),
                     PieChartSectionData(
                       value: online,
-                      title: 'Online\n${((online / total) * 100).toStringAsFixed(0)}%',
+                      title:
+                          'Online\n${((online / total) * 100).toStringAsFixed(0)}%',
                       color: Colors.green.shade600,
                       radius: 80,
-                      titleStyle: const TextStyle(color: Colors.white, fontSize: 12),
+                      titleStyle:
+                          const TextStyle(color: Colors.white, fontSize: 12),
                     ),
                   ],
                   centerSpaceRadius: 50,
@@ -871,10 +1163,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     if (billId != null && mounted) {
       context.read<BillBloc>().add(UpdateBill(
-        billId,
-        data['status'] ?? 'Paid',
-        paymentMethod: data['paymentMethod'],
-      ));
+            billId,
+            data['status'] ?? 'Paid',
+            paymentMethod: data['paymentMethod'],
+          ));
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -955,7 +1247,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     };
 
     try {
-      await Apiservicescheckout.updateBillStatus(billId, 'Paid', method, mobile);
+      await Apiservicescheckout.updateBillStatus(
+          billId, 'Paid', method, mobile);
       socketService.payBill(billData);
 
       _showSnackBar('Payment processed via $method', Colors.green);
@@ -977,7 +1270,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         bill['isGstApplied'] as bool? ?? false,
       );
 
-      context.read<BillBloc>().add(UpdateBill(billId, 'Paid', paymentMethod: method));
+      context
+          .read<BillBloc>()
+          .add(UpdateBill(billId, 'Paid', paymentMethod: method));
       context.read<BillBloc>().add(FetchBills());
     } catch (e) {
       developer.log('Payment failed: $e', name: 'Checkout');
@@ -1013,7 +1308,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   // ───────────────────────────────────────────────
   // PDF Generation (unchanged)
   // ───────────────────────────────────────────────
-
   Future<pw.Document> _buildPdfDocument(
     dynamic response,
     List<dynamic> orders,
@@ -1032,7 +1326,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       (sum, order) => sum + (order['total'] as num? ?? 0).toDouble(),
     );
 
-    final double gstAmount = isGstApplied ? subTotal * (AppConstants.gstRate ?? 0) : 0;
+    final double gstAmount =
+        isGstApplied ? subTotal * (AppConstants.gstRate ?? 0) : 0;
     final double grandTotal = subTotal + gstAmount;
 
     final paymentInfo = _extractPaymentInfo(response);
@@ -1041,91 +1336,137 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final String userName = _sanitize(user['fullName']) ?? 'Guest';
     final String userMobile = _sanitize(mobile) ?? 'N/A';
 
+    // Build item rows once (same as before)
+    final itemRows = _buildItemRows(safeOrders, ttf);
+
     pdf.addPage(
-      pw.Page(
-        build: (pw.Context ctx) => pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.Center(
-              child: pw.Column(children: [
-                pw.Text(
-                  AppConstants.companyName ?? 'Restaurant',
-                  style: pw.TextStyle(font: ttf, fontSize: 22, fontWeight: pw.FontWeight.bold),
-                ),
-                pw.SizedBox(height: 6),
-                pw.Text(
-                  AppConstants.companyAddress ?? '',
-                  style: pw.TextStyle(font: ttf, fontSize: 11),
-                  textAlign: pw.TextAlign.center,
-                ),
-                if (isGstApplied)
-                  pw.Text(
-                    'GSTIN: ${AppConstants.merchantGstNumber ?? 'N/A'}',
-                    style: pw.TextStyle(font: ttf, fontSize: 11),
-                  ),
-                pw.SizedBox(height: 12),
-                pw.Text('Payment Receipt', style: pw.TextStyle(font: ttf, fontSize: 18, fontWeight: pw.FontWeight.bold)),
-                pw.Text('Date: $date', style: pw.TextStyle(font: ttf, fontSize: 11)),
-              ]),
-            ),
-            pw.SizedBox(height: 24),
-            _pdfSectionTitle('Customer', ttf),
-            pw.Text('Name: $userName', style: pw.TextStyle(font: ttf, fontSize: 12)),
-            pw.Text('Mobile: $userMobile', style: pw.TextStyle(font: ttf, fontSize: 12)),
-            pw.SizedBox(height: 20),
-            _pdfSectionTitle('Items', ttf),
-            pw.Table(
-              border: pw.TableBorder.all(color: PdfColors.grey300),
-              children: [
-                pw.TableRow(
-                  decoration: pw.BoxDecoration(color: PdfColors.blue50),
-                  children: [
-                    _pdfCell('Item', ttf, bold: true),
-                    _pdfCell('Qty', ttf, bold: true, align: pw.TextAlign.center),
-                    _pdfCell('Price', ttf, bold: true, align: pw.TextAlign.right),
-                  ],
-                ),
-                ..._buildItemRows(safeOrders, ttf),
-                pw.TableRow(children: [
-                  _pdfCell('Subtotal', ttf, bold: true),
-                  pw.SizedBox(),
-                  _pdfCell('${AppConstants.rupeeSymbol}$subTotal', ttf, align: pw.TextAlign.right),
-                ]),
-                if (isGstApplied)
-                  pw.TableRow(children: [
-                    _pdfCell('GST (${(AppConstants.gstRate! * 100).toStringAsFixed(1)}%)', ttf),
-                    pw.SizedBox(),
-                    _pdfCell('${AppConstants.rupeeSymbol}${gstAmount.toStringAsFixed(2)}', ttf, align: pw.TextAlign.right),
-                  ]),
-                pw.TableRow(
-                  decoration: pw.BoxDecoration(color: PdfColors.teal50),
-                  children: [
-                    _pdfCell('Grand Total', ttf, bold: true),
-                    pw.SizedBox(),
-                    _pdfCell('${AppConstants.rupeeSymbol}${grandTotal.toStringAsFixed(2)}', ttf, bold: true, align: pw.TextAlign.right),
-                  ],
-                ),
-              ],
-            ),
-            pw.SizedBox(height: 24),
-            _pdfSectionTitle('Payment', ttf),
-            pw.Table(
-              border: pw.TableBorder.all(color: PdfColors.grey300),
-              children: [
-                pw.TableRow(children: [_pdfCell('Method', ttf, bold: true), _pdfCell(paymentInfo.method, ttf)]),
-                pw.TableRow(children: [_pdfCell('Transaction ID', ttf, bold: true), _pdfCell(paymentInfo.txnId, ttf)]),
-                pw.TableRow(children: [_pdfCell('Status', ttf, bold: true), _pdfCell(paymentInfo.status, ttf)]),
-              ],
-            ),
-            pw.Spacer(),
-            pw.Center(
-              child: pw.Text(
-                'Thank You! Visit Again',
-                style: pw.TextStyle(font: ttf, fontSize: 14, fontStyle: pw.FontStyle.italic),
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        build: (pw.Context context) => [
+          // Header - appears only on first page
+          pw.Center(
+            child: pw.Column(children: [
+              pw.Text(
+                AppConstants.companyName ?? 'Restaurant',
+                style: pw.TextStyle(
+                    font: ttf, fontSize: 22, fontWeight: pw.FontWeight.bold),
               ),
+              pw.SizedBox(height: 6),
+              pw.Text(
+                AppConstants.companyAddress ?? '',
+                style: pw.TextStyle(font: ttf, fontSize: 11),
+                textAlign: pw.TextAlign.center,
+              ),
+              if (isGstApplied)
+                pw.Text(
+                  'GSTIN: ${AppConstants.merchantGstNumber ?? 'N/A'}',
+                  style: pw.TextStyle(font: ttf, fontSize: 11),
+                ),
+              pw.SizedBox(height: 12),
+              pw.Text('Payment Receipt',
+                  style: pw.TextStyle(
+                      font: ttf, fontSize: 18, fontWeight: pw.FontWeight.bold)),
+              pw.Text('Date: $date',
+                  style: pw.TextStyle(font: ttf, fontSize: 11)),
+            ]),
+          ),
+          pw.SizedBox(height: 24),
+
+          // Customer info
+          _pdfSectionTitle('Customer', ttf),
+          pw.Text('Name: $userName',
+              style: pw.TextStyle(font: ttf, fontSize: 12)),
+          pw.Text('Mobile: $userMobile',
+              style: pw.TextStyle(font: ttf, fontSize: 12)),
+          pw.SizedBox(height: 20),
+
+          // Items section title
+          _pdfSectionTitle('Items', ttf),
+
+          // Items table - will automatically split across pages if too long
+          pw.Table(
+            border: pw.TableBorder.all(color: PdfColors.grey300),
+            children: [
+              // Header row
+              pw.TableRow(
+                decoration: pw.BoxDecoration(color: PdfColors.blue50),
+                children: [
+                  _pdfCell('Item', ttf, bold: true),
+                  _pdfCell('Qty', ttf, bold: true, align: pw.TextAlign.center),
+                  _pdfCell('Price', ttf, bold: true, align: pw.TextAlign.right),
+                ],
+              ),
+              // All item rows
+              ...itemRows,
+              // Subtotal
+              pw.TableRow(children: [
+                _pdfCell('Subtotal', ttf, bold: true),
+                pw.SizedBox(),
+                _pdfCell('${AppConstants.rupeeSymbol}$subTotal', ttf,
+                    align: pw.TextAlign.right),
+              ]),
+              // GST
+              if (isGstApplied)
+                pw.TableRow(children: [
+                  _pdfCell(
+                      'GST (${(AppConstants.gstRate! * 100).toStringAsFixed(1)}%)',
+                      ttf),
+                  pw.SizedBox(),
+                  _pdfCell(
+                      '${AppConstants.rupeeSymbol}${gstAmount.toStringAsFixed(2)}',
+                      ttf,
+                      align: pw.TextAlign.right),
+                ]),
+              // Grand Total
+              pw.TableRow(
+                decoration: pw.BoxDecoration(color: PdfColors.teal50),
+                children: [
+                  _pdfCell('Grand Total', ttf, bold: true),
+                  pw.SizedBox(),
+                  _pdfCell(
+                      '${AppConstants.rupeeSymbol}${grandTotal.toStringAsFixed(2)}',
+                      ttf,
+                      bold: true,
+                      align: pw.TextAlign.right),
+                ],
+              ),
+            ],
+          ),
+
+          pw.SizedBox(height: 24),
+
+          // Payment section
+          _pdfSectionTitle('Payment', ttf),
+          pw.Table(
+            border: pw.TableBorder.all(color: PdfColors.grey300),
+            children: [
+              pw.TableRow(children: [
+                _pdfCell('Method', ttf, bold: true),
+                _pdfCell(paymentInfo.method, ttf)
+              ]),
+              pw.TableRow(children: [
+                _pdfCell('Transaction ID', ttf, bold: true),
+                _pdfCell(paymentInfo.txnId, ttf)
+              ]),
+              pw.TableRow(children: [
+                _pdfCell('Status', ttf, bold: true),
+                _pdfCell(paymentInfo.status, ttf)
+              ]),
+            ],
+          ),
+
+          pw.Spacer(),
+
+          // Footer
+          pw.Center(
+            child: pw.Text(
+              'Thank You! Visit Again',
+              style: pw.TextStyle(
+                  font: ttf, fontSize: 14, fontStyle: pw.FontStyle.italic),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
 
@@ -1135,16 +1476,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   pw.Widget _pdfSectionTitle(String title, pw.Font font) {
     return pw.Padding(
       padding: const pw.EdgeInsets.only(bottom: 8),
-      child: pw.Text(title, style: pw.TextStyle(font: font, fontSize: 15, fontWeight: pw.FontWeight.bold)),
+      child: pw.Text(title,
+          style: pw.TextStyle(
+              font: font, fontSize: 15, fontWeight: pw.FontWeight.bold)),
     );
   }
 
-  pw.Widget _pdfCell(String text, pw.Font font, {bool bold = false, pw.TextAlign align = pw.TextAlign.left}) {
+  pw.Widget _pdfCell(String text, pw.Font font,
+      {bool bold = false, pw.TextAlign align = pw.TextAlign.left}) {
     return pw.Padding(
       padding: const pw.EdgeInsets.all(8),
       child: pw.Text(
         text,
-        style: pw.TextStyle(font: font, fontWeight: bold ? pw.FontWeight.bold : null),
+        style: pw.TextStyle(
+            font: font, fontWeight: bold ? pw.FontWeight.bold : null),
         textAlign: align,
       ),
     );
@@ -1166,14 +1511,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         rows.add(pw.TableRow(children: [
           _pdfCell('$displayName', font),
           _pdfCell('$qty', font, align: pw.TextAlign.center),
-          _pdfCell('${AppConstants.rupeeSymbol}${(price * qty).toStringAsFixed(0)}', font, align: pw.TextAlign.right),
+          _pdfCell(
+              '${AppConstants.rupeeSymbol}${(price * qty).toStringAsFixed(0)}',
+              font,
+              align: pw.TextAlign.right),
         ]));
       }
     }
     return rows;
   }
 
-  ({String method, String txnId, String status}) _extractPaymentInfo(dynamic response) {
+  ({String method, String txnId, String status}) _extractPaymentInfo(
+      dynamic response) {
     String method = 'Unknown';
     String txnId = '—';
     String status = 'SUCCESS';
@@ -1207,7 +1556,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     bool isGstApplied,
   ) async {
     try {
-      final pdf = await _buildPdfDocument(response, orders, user, mobile!,isGstApplied);
+      final pdf = await _buildPdfDocument(
+          response, orders, user, mobile!, isGstApplied);
       final bytes = await pdf.save();
 
       if (kIsWeb) {
@@ -1219,7 +1569,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         return 'printed';
       } else {
         final dir = await getApplicationDocumentsDirectory();
-        final path = '${dir.path}/receipt_${DateTime.now().millisecondsSinceEpoch}.pdf';
+        final path =
+            '${dir.path}/receipt_${DateTime.now().millisecondsSinceEpoch}.pdf';
         final file = File(path);
         await file.writeAsBytes(bytes);
 
@@ -1232,7 +1583,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         return path;
       }
     } catch (e, st) {
-      developer.log('PDF generation failed: $e', stackTrace: st, name: 'Checkout');
+      developer.log('PDF generation failed: $e',
+          stackTrace: st, name: 'Checkout');
       _showSnackBar('Could not generate PDF receipt', Colors.orange);
       return '';
     }
@@ -1253,7 +1605,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             _isLoading = false;
 
             final pending = state.bills
-                .where((b) => (b['status']?.toString() ?? '').toLowerCase() == 'pending')
+                .where((b) =>
+                    (b['status']?.toString() ?? '').toLowerCase() == 'pending')
                 .toList();
 
             _groupedBills.clear();
@@ -1262,12 +1615,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
             for (final bill in pending) {
               final table = bill['table']?.toString() ?? 'Other';
-              _groupedBills.putIfAbsent(table, () => []).add(bill.cast<String, dynamic>());
+              _groupedBills
+                  .putIfAbsent(table, () => [])
+                  .add(bill.cast<String, dynamic>());
 
               final billId = bill['billId']?.toString() ?? '';
               _mobileControllers.putIfAbsent(
                 billId,
-                () => TextEditingController(text: bill['user']?['mobile']?.toString() ?? ''),
+                () => TextEditingController(
+                    text: bill['user']?['mobile']?.toString() ?? ''),
               );
             }
 
@@ -1298,21 +1654,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 icon: const Icon(Icons.analytics_rounded),
                 // tooltip: 'View Sales & Collection Analytics',
                 onPressed: () {
-  Navigator.push(
-    context,
-    PageRouteBuilder(
-      pageBuilder: (context, animation, secondaryAnimation) => const AnalyticsScreen(),
-      transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        // Use a simple fade or no animation to avoid FractionalTranslation issues
-        return FadeTransition(
-          opacity: animation,
-          child: child,
-        );
-      },
-      transitionDuration: const Duration(milliseconds: 300),
-    ),
-  );
-},
+                  Navigator.push(
+                    context,
+                    PageRouteBuilder(
+                      pageBuilder: (context, animation, secondaryAnimation) =>
+                          const AnalyticsScreen(),
+                      transitionsBuilder:
+                          (context, animation, secondaryAnimation, child) {
+                        // Use a simple fade or no animation to avoid FractionalTranslation issues
+                        return FadeTransition(
+                          opacity: animation,
+                          child: child,
+                        );
+                      },
+                      transitionDuration: const Duration(milliseconds: 300),
+                    ),
+                  );
+                },
               ),
             ),
             SizedBox(
@@ -1353,7 +1711,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           const SizedBox(height: 8),
           Text(
             'New orders will appear here automatically',
-            style: GoogleFonts.poppins(fontSize: 15, color: Colors.grey.shade600),
+            style:
+                GoogleFonts.poppins(fontSize: 15, color: Colors.grey.shade600),
           ),
         ],
       ),
@@ -1375,7 +1734,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             ),
           ),
           const SizedBox(height: 20),
-
           ..._groupedBills.entries.map((entry) {
             final table = entry.key;
             final bills = entry.value;
@@ -1383,9 +1741,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
             return _buildTableGroup(table, bills, tableTotal, isTablet);
           }),
-
           const Divider(height: 48, thickness: 1.5),
-
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -1425,7 +1781,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
-  Widget _buildTableGroup(String table, List<Map<String, dynamic>> bills, double total, bool isTablet) {
+  Widget _buildTableGroup(String table, List<Map<String, dynamic>> bills,
+      double total, bool isTablet) {
     return Card(
       margin: const EdgeInsets.only(bottom: 20),
       elevation: 2,
@@ -1447,7 +1804,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
                     color: Colors.green.shade50,
                     borderRadius: BorderRadius.circular(12),
@@ -1503,7 +1861,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       }
     }
 
-    final gstAmount = bill['isGstApplied'] == true ? subTotal * (AppConstants.gstRate ?? 0.18) : 0.0;
+    final gstAmount = bill['isGstApplied'] == true
+        ? subTotal * (AppConstants.gstRate ?? 0.18)
+        : 0.0;
     final grandTotal = subTotal + gstAmount;
 
     return Card(
@@ -1521,7 +1881,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: Colors.indigo.shade700,
                     borderRadius: BorderRadius.circular(10),
@@ -1644,11 +2005,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               children: [
                 Text(
                   'Subtotal',
-                  style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w500),
+                  style: GoogleFonts.poppins(
+                      fontSize: 15, fontWeight: FontWeight.w500),
                 ),
                 Text(
                   '₹${subTotal.toStringAsFixed(2)}',
-                  style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w500),
+                  style: GoogleFonts.poppins(
+                      fontSize: 15, fontWeight: FontWeight.w500),
                 ),
               ],
             ),
@@ -1699,7 +2062,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             // Mobile + Payment buttons
             Text(
               'Customer Mobile (for receipt / SMS)',
-              style: GoogleFonts.poppins(fontSize: 13.5, fontWeight: FontWeight.w500),
+              style: GoogleFonts.poppins(
+                  fontSize: 13.5, fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 8),
             TextField(
@@ -1707,8 +2071,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               decoration: InputDecoration(
                 hintText: '10-digit mobile number',
                 prefixIcon: const Icon(Icons.phone, size: 20),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                contentPadding:
+                    const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
               ),
               keyboardType: TextInputType.phone,
               enabled: !isProcessing,
@@ -1724,7 +2090,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     icon: Icons.money,
                     color: Colors.blue.shade700,
                     isLoading: isProcessing,
-                    onPressed: isProcessing ? null : () => _handlePayment(billId, 'Cash'),
+                    onPressed: isProcessing
+                        ? null
+                        : () => _handlePayment(billId, 'Cash'),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1734,7 +2102,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     icon: Icons.qr_code_scanner,
                     color: Colors.green.shade700,
                     isLoading: isProcessing,
-                    onPressed: isProcessing ? null : () => _handlePayment(billId, 'Online'),
+                    onPressed: isProcessing
+                        ? null
+                        : () => _handlePayment(billId, 'Online'),
                   ),
                 ),
               ],
@@ -1769,7 +2139,8 @@ class _PaymentButton extends StatelessWidget {
           ? const SizedBox(
               width: 18,
               height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+              child: CircularProgressIndicator(
+                  strokeWidth: 2.5, color: Colors.white),
             )
           : Icon(icon, size: 20),
       label: Text(

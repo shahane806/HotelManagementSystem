@@ -44,6 +44,14 @@ app.*.map.json
 # ──────────────────────────────────────────────────────
 # EXCEPTIONS - we WANT to commit build/web
 # ──────────────────────────────────────────────────────
-!build/
+
+
+# Ignore everything inside build
+build/*
+
+# But keep the web build
 !build/web/
-!build/web/**      # ← this line is very important - keeps everything inside web
+!build/web/**
+
+# Ignore everything else inside build except web
+build/**
