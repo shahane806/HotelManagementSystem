@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:frontend/services/socketService.dart';
@@ -14,15 +16,30 @@ class KitchenDashboardView extends StatefulWidget {
 }
 
 class _KitchenDashboardViewState extends State<KitchenDashboardView> {
-  @override
-  void initState() {
-    super.initState();
-    context.read<KitchenDashboardBloc>().add(InitializeDashboard());
-    SocketService().socket.on("ordersFetched", (_) {
-  if (!mounted) return;
-  context.read<KitchenDashboardBloc>().add(RefreshDashboard());
-});
+ @override
+void initState() {
+  super.initState();
 
+  // Delay attachment + initial load until AFTER the first frame is built
+  // This ensures context.read() can find the real BLoC instance
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    final bloc = context.read<KitchenDashboardBloc>();
+    
+    // Attach the correct bloc instance
+    SocketService().attachBloc(bloc);
+    
+    // Debug confirmation (remove later if you want)
+    print("SocketService → Bloc attached successfully: ${bloc != null ? 'YES' : 'NO'}");
+    
+    // Trigger initial data load
+    bloc.add(InitializeDashboard());
+  });
+}
+  @override
+  void dispose() {
+    // Optional: You can detach the bloc reference if you have multiple screens
+    // SocketService().attachBloc(null);
+    super.dispose();
   }
 
   @override
@@ -31,7 +48,7 @@ class _KitchenDashboardViewState extends State<KitchenDashboardView> {
     final screenWidth = mediaQuery.size.width;
     final isTablet = screenWidth > 600;
     final isDesktop = screenWidth > 1200;
-    
+
     return BlocBuilder<KitchenDashboardBloc, KitchenDashboardState>(
       builder: (context, state) {
         print("Om Shahane : Kitchen Updated");

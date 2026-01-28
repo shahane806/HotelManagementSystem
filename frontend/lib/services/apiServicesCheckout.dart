@@ -57,6 +57,7 @@ static Future<Map<String, dynamic>> getAnalytics() async {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
+      print("Analytics Data : ${data}");
       if (data['success'] == true) {
         return data['data'];
       } else {
@@ -129,85 +130,118 @@ static Future<Map<String, dynamic>> getAnalytics() async {
       throw Exception('Failed to fetch payment report: $e');
     }
   }
-  static Future<void> updateBillStatus(String billId, String status, String? paymentMethod,String? mobile,) async {
-    try {
-      final fullUrl = '$baseUrl/updateBillStatus';
-      developer.log('Attempting POST request to: $fullUrl', name: 'ApiServiceTables');
-      final token = AppConstants.pref?.getString('token');
-      final response = await http.post(
-        Uri.parse(fullUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization':'Bearer $token'
-        },
-        body: jsonEncode({
-          'billId': billId,
-          'status': status,
-          if (paymentMethod != null) 'paymentMethod': paymentMethod,
-          if (mobile != null && mobile.isNotEmpty) 'mobile': mobile,
-        }),
-      );
+  static Future<void> updateBillStatus(
+  String billId,
+  String status,
+  String? paymentMethod,
+  String? mobile,
+  Map<String, dynamic>? transaction, // new param for transaction info
+) async {
+  try {
+    final fullUrl = '$baseUrl/updateBillStatus';
+    developer.log('Attempting POST request to: $fullUrl', name: 'ApiServiceTables');
+    final token = AppConstants.pref?.getString('token');
+    print("TransactionId : ${transaction?.entries.first?.value['txnid']}");
+    final body = {
+      'billId': billId,
+      'status': status,
+      if (paymentMethod != null) 'paymentMethod': paymentMethod,
+      if (mobile != null && mobile.isNotEmpty) 'mobile': mobile,
+      if (transaction != null) 'transaction': transaction?.entries.first?.value['txnid'], // include transaction in request
+    };
+    print("Body : ${body}");
+    final response = await http.post(
+      Uri.parse(fullUrl),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(body),
+    );
 
-      developer.log("Response status: ${response.statusCode}", name: 'ApiServiceTables');
-      developer.log("Response body: ${response.body}", name: 'ApiServiceTables');
+    developer.log("Response status: ${response.statusCode}", name: 'ApiServiceTables');
+    developer.log("Response body: ${response.body}", name: 'ApiServiceTables');
 
-      if (response.statusCode == 200) {
-      } else {
-        throw Exception(
-            'Failed to update bill status: ${response.statusCode} - ${response.body}');
-      }
-    } catch (e) {
-      developer.log("Error in updateBillStatus: $e", name: 'ApiServiceTables');
-      throw Exception('Failed to update bill status: $e');
+    if (response.statusCode != 200) {
+      throw Exception(
+          'Failed to update bill status: ${response.statusCode} - ${response.body}');
     }
+  } catch (e) {
+    developer.log("Error in updateBillStatus: $e", name: 'ApiServiceTables');
+    throw Exception('Failed to update bill status: $e');
   }
+}
 
-  // ───────────────────────────────────────────────
-  // Generate Payment Report (Custom Date Range)
-  // ───────────────────────────────────────────────
-  static Future<Map<String, dynamic>> generatePaymentReport({
-    required String startDate, // Format: YYYY-MM-DD
-    required String endDate,   // Format: YYYY-MM-DD
-    String? paymentMethod,     // Optional: 'Cash' or 'Online'
-  }) async {
-    try {
-      final token = AppConstants.pref?.getString('token');
-      if (token == null) {
-        throw Exception('No authentication token found');
-      }
 
-      final fullUrl = '$baseUrl/bills/report';
-      developer.log('POST → $fullUrl (range: $startDate to $endDate)', name: 'ApiServiceReport');
-
-      final response = await http.post(
-        Uri.parse(fullUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({
-          'startDate': startDate,
-          'endDate': endDate,
-          if (paymentMethod != null) 'paymentMethod': paymentMethod,
-        }),
-      );
-
-      developer.log('Report Status: ${response.statusCode}', name: 'ApiServiceReport');
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['success'] == true) {
-          developer.log('Report generated successfully', name: 'ApiServiceReport');
-          return data['data'] ?? {};
-        } else {
-          throw Exception(data['message'] ?? 'Failed to generate report');
-        }
-      } else {
-        throw Exception('Server error: ${response.statusCode} - ${response.body}');
-      }
-    } catch (e) {
-      developer.log('Error generating report: $e', name: 'ApiServiceReport');
-      throw Exception('Failed to generate payment report: $e');
+ // ───────────────────────────────────────────────
+// Generate Payment Report (Custom Date Range + Filters)
+// ───────────────────────────────────────────────
+static Future<Map<String, dynamic>> generatePaymentReport({
+  required String startDate,     // Format: YYYY-MM-DD
+  required String endDate,       // Format: YYYY-MM-DD
+  String? paymentMethod,         // Optional: 'Cash' or 'Online'
+  String? mobile,                // NEW: Optional 10-digit mobile number
+}) async {
+  try {
+    final token = AppConstants.pref?.getString('token');
+    if (token == null) {
+      throw Exception('No authentication token found');
     }
+
+    final fullUrl = '$baseUrl/bills/report';
+    
+    // Improved logging - shows all active filters
+    developer.log(
+      'POST → $fullUrl | '
+      'range: $startDate to $endDate | '
+      'method: ${paymentMethod ?? "All"} | '
+      'mobile: ${mobile ?? "None"}',
+      name: 'ApiServiceReport',
+    );
+
+    final response = await http.post(
+      Uri.parse(fullUrl),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'startDate': startDate,
+        'endDate': endDate,
+        if (paymentMethod != null && paymentMethod.isNotEmpty) 
+          'paymentMethod': paymentMethod,
+        if (mobile != null && mobile.trim().isNotEmpty && mobile.length >= 10)
+          'mobile': mobile.trim(),
+      }),
+    );
+
+    developer.log('Report Response Status: ${response.statusCode}', name: 'ApiServiceReport');
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      
+      if (data['success'] == true) {
+        developer.log('Report generated successfully • ${data['data']?['billCount'] ?? "?"} bills found', 
+            name: 'ApiServiceReport');
+        return data['data'] ?? {};
+      } else {
+        throw Exception(data['message'] ?? 'Failed to generate report');
+      }
+    } else {
+      final errorBody = response.body.length > 300 
+          ? '${response.body.substring(0, 300)}...' 
+          : response.body;
+      throw Exception('Server error: ${response.statusCode} - $errorBody');
+    }
+  } catch (e, stackTrace) {
+    developer.log(
+      'Error generating report: $e',
+      name: 'ApiServiceReport',
+      error: e,
+      stackTrace: stackTrace,
+    );
+    throw Exception('Failed to generate payment report: $e');
   }
+}
+
 }

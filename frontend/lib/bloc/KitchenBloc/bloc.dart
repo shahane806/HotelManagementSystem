@@ -25,22 +25,27 @@ class KitchenDashboardBloc
     InitializeDashboard event,
     Emitter<KitchenDashboardState> emit,
   ) async {
+    // Connect to socket (if not already connected)
     socketService.connect();
-    _setupSocketListeners();
+
+    // Load initial orders
     await _fetchOrders(emit);
   }
 
-  /* ---------------- SOCKET EVENTS ---------------- */
+  /* ---------------- SOCKET EVENTS (handled via SocketService) ---------------- */
 
   void _onAddNewOrder(
     AddNewOrder event,
     Emitter<KitchenDashboardState> emit,
   ) {
-    final exists =
-        state.orders.any((o) => o['id'].toString() == event.order['id'].toString());
+    // Prevent duplicate orders
+    final exists = state.orders.any(
+      (o) => o['id']?.toString() == event.order['id']?.toString(),
+    );
 
     if (exists) return;
 
+    // Add new order at the top
     final updatedOrders = List<Map<String, dynamic>>.from(state.orders)
       ..insert(0, event.order);
 
@@ -51,14 +56,21 @@ class KitchenDashboardBloc
     UpdateOrderStatusEvent event,
     Emitter<KitchenDashboardState> emit,
   ) {
+    // Update only the matching order
     final updatedOrders = state.orders.map((order) {
-      if (order['id'].toString() == event.orderId) {
-        return {...order, 'status': event.status};
+      if (order['id']?.toString() == event.orderId ||
+          order['_id']?.toString() == event.orderId) {
+        return {
+          ...order,
+          'status': event.status,
+        };
       }
       return order;
     }).toList();
 
+    // Also send the update to the server (if this came from UI action)
     socketService.updateOrderStatus(event.orderId, event.status);
+
     emit(state.copyWith(orders: updatedOrders));
   }
 
@@ -71,7 +83,7 @@ class KitchenDashboardBloc
     emit(state.copyWith(selectedStatusFilter: event.filter));
   }
 
-  /* ---------------- REFRESH ---------------- */
+  /* ---------------- REFRESH (manual or reconnect) ---------------- */
 
   Future<void> _onRefreshDashboard(
     RefreshDashboard event,
@@ -80,7 +92,7 @@ class KitchenDashboardBloc
     await _fetchOrders(emit);
   }
 
-  /* ---------------- FETCH ORDERS ---------------- */
+  /* ---------------- FETCH ORDERS (initial & manual refresh) ---------------- */
 
   Future<void> _fetchOrders(Emitter<KitchenDashboardState> emit) async {
     try {
@@ -89,35 +101,10 @@ class KitchenDashboardBloc
       if (orders.isNotEmpty && orders.every(_isValidOrder)) {
         emit(state.copyWith(orders: orders));
       }
-    } catch (_) {
-      // Keep existing state if fetch fails
+    } catch (e) {
+      // Keep current state on failure (don't crash UI)
+      // Optionally log error: print('Fetch orders failed: $e');
     }
-  }
-
-  /* ---------------- SOCKET LISTENERS ---------------- */
-
-  void _setupSocketListeners() {
-    socketService.socket.on('newOrder', (data) {
-      final order = Map<String, dynamic>.from(data);
-      if (_isValidOrder(order)) {
-        add(AddNewOrder(order));
-      }
-    });
-
-    socketService.socket.on('orderUpdated', (data) {
-      final update = Map<String, dynamic>.from(data);
-      if (update.containsKey('orderId') &&
-          update.containsKey('status')) {
-        add(UpdateOrderStatusEvent(
-          update['orderId'].toString(),
-          update['status'],
-        ));
-      }
-    });
-
-    socketService.socket.on('connect', (_) {
-      add(RefreshDashboard());
-    });
   }
 
   /* ---------------- VALIDATION ---------------- */
@@ -133,7 +120,8 @@ class KitchenDashboardBloc
 
   @override
   Future<void> close() {
-    socketService.disconnect();
+    // Optional: only disconnect if you want to fully close socket when bloc dies
+    // socketService.disconnect();
     return super.close();
   }
 }

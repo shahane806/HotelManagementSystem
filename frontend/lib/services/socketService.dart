@@ -44,39 +44,40 @@ class SocketService {
     socket.onDisconnect((_) => _attemptReconnect());
     socket.onConnectError((_) => _attemptReconnect());
 
-    socket.on('newOrder', (data) {
-      if (bloc == null) return;
-      try {
-        bloc!.add(AddNewOrder(Map<String, dynamic>.from(data)));
-      } catch (_) {}
-    });
+   socket.on('newOrder', (data) {
+  if (bloc == null) {
+    print("[SocketService] ERROR: bloc is null when newOrder arrived");
+    return;
+  }
+  try {
+    bloc!.add(AddNewOrder(Map<String, dynamic>.from(data)));
+    print("[SocketService] → newOrder event sent to bloc");
+  } catch (e) {
+    print("[SocketService] newOrder processing error: $e");
+  }
+});
 
-    socket.on('orderUpdated', (data) {
-      if (bloc == null) return;
-      try {
-        final update = Map<String, dynamic>.from(data);
-        if (!_isValidUpdate(update)) return;
+socket.on('orderUpdated', (data) {
+  if (bloc == null) {
+    print("[SocketService] ERROR: bloc is null when orderUpdated arrived");
+    return;
+  }
+  try {
+    final update = Map<String, dynamic>.from(data);
+    if (!_isValidUpdate(update)) return;
 
-        bloc!.add(
-          UpdateOrderStatusEvent(
-            update['orderId'].toString(),
-            update['status'],
-          ),
-        );
-      } catch (_) {}
-    });
-
-    socket.on('ordersFetched', (data) {
-      if (bloc == null) return;
-      try {
-        final orders = List<Map<String, dynamic>>.from(data);
-        _lastKnownOrders = orders;
-        bloc!.add(RefreshDashboard());
-      } catch (_) {
-        bloc!.add(RefreshDashboard());
-      }
-    });
-
+    bloc!.add(
+      UpdateOrderStatusEvent(
+        update['orderId'].toString(),
+        update['status'],
+      ),
+    );
+    print("[SocketService] → orderUpdated event sent to bloc");
+  } catch (e) {
+    print("[SocketService] orderUpdated processing error: $e");
+  }
+});
+ 
     socket.on('billsFetched', (data) {
       try {
         final bills = List<Map<String, dynamic>>.from(data);

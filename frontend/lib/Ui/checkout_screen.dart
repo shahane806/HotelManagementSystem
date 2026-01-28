@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
 import 'package:excel/excel.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -9,9 +8,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 import 'package:universal_html/html.dart' as html;
 
 import 'dart:developer' as developer;
@@ -19,6 +15,7 @@ import '../app/constants.dart';
 import '../bloc/BillBloc/bloc.dart';
 import '../bloc/BillBloc/event.dart';
 import '../bloc/BillBloc/state.dart';
+import '../repositories/bill_pdf.dart';
 import '../services/apiServicesCheckout.dart';
 import '../services/socketService.dart';
 
@@ -27,11 +24,7 @@ import '../services/socketService.dart';
 // ───────────────────────────────────────────────
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
-import 'dart:typed_data';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
-import 'package:whatsapp_share_plus/whatsapp_share_plus.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class AnalyticsScreen extends StatefulWidget {
@@ -46,6 +39,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   Map<String, dynamic>? reportData;
   bool isLoading = true;
   String? errorMessage;
+  String? mobileFilter;
 
   DateTimeRange? selectedRange;
   String paymentFilter = 'All';
@@ -54,90 +48,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   void initState() {
     super.initState();
     fetchDashboardData();
-  }
-
-  Future<Uint8List> _generateBillPdf(Map<String, dynamic> bill) async {
-    final pdf = pw.Document();
-
-    final billId = bill['billId']?.toString() ?? 'N/A';
-    final amount = (bill['amount'] as num? ?? bill['totalAmount'] as num?)
-            ?.toStringAsFixed(2) ??
-        '0.00';
-    final table = bill['table']?.toString() ?? 'N/A';
-    final method = bill['paymentMethod']?.toString() ?? 'N/A';
-    final mobile = bill['mobile']?.toString() ??
-        bill['user']?['mobile']?.toString() ??
-        'N/A';
-
-    final dateRaw = bill['date'] ?? bill['updatedAt'];
-    final dateStr = dateRaw != null
-        ? DateFormat('dd MMM yyyy HH:mm')
-            .format(DateTime.tryParse(dateRaw.toString()) ?? DateTime.now())
-        : 'N/A';
-
-    pdf.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        build: (_) => pw.Padding(
-          padding: const pw.EdgeInsets.all(24),
-          child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Text('Bill Receipt',
-                  style: pw.TextStyle(
-                      fontSize: 24, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 20),
-              _pdfRow('Bill ID', billId),
-              _pdfRow('Date', dateStr),
-              _pdfRow('Table', table),
-              _pdfRow('Payment Method', method),
-              _pdfRow('Mobile', mobile),
-              pw.Divider(height: 30),
-              pw.Text('Total Amount',
-                  style: pw.TextStyle(
-                      fontSize: 18, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 6),
-              pw.Text('₹ $amount',
-                  style: pw.TextStyle(
-                      fontSize: 22, fontWeight: pw.FontWeight.bold)),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    return pdf.save();
-  }
-
-  pw.Widget _pdfRow(String label, String value) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 6),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        children: [
-          pw.Text(label),
-          pw.Text(value, style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _shareBillOnWhatsApp(Map<String, dynamic> bill) async {
-    final pdfBytes = await _generateBillPdf(bill);
-    final fileName = 'bill_${bill['billId']}.pdf';
-
-    if (kIsWeb) {
-      await Share.shareXFiles([
-        XFile.fromData(pdfBytes, name: fileName, mimeType: 'application/pdf')
-      ]);
-    } else {
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/$fileName');
-      await file.writeAsBytes(pdfBytes);
-      await Share.shareXFiles([
-        XFile.fromData(pdfBytes, name: fileName, mimeType: 'application/pdf')
-      ]);
-    }
   }
 
   Future<void> fetchDashboardData() async {
@@ -180,6 +90,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         startDate: selectedRange!.start.toString(),
         endDate: selectedRange!.end.toString(),
         paymentMethod: paymentFilter == 'All' ? null : paymentFilter,
+        mobile: mobileFilter?.trim().isNotEmpty == true
+            ? mobileFilter!.trim()
+            : null,
       );
 
       developer.log('FILTERED REPORT RAW DATA:', name: 'AnalyticsReport');
@@ -530,7 +443,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     final billsList =
         (reportData?['bills'] as List<dynamic>?)?.isNotEmpty == true
             ? reportData!['bills']
-            : (dashboardData?['recentBills'] as List<dynamic>?) ?? [];
+            : (dashboardData?['bills'] as List<dynamic>?) ?? [];
 
     final hasFilteredData = reportData != null;
 
@@ -685,11 +598,119 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                     );
                                   }).toList(),
                                 ),
+
+                                // ─────────────────────────────────────────────────────────────
+                                // NEW: Mobile number filter field + active filter chip
+                                // ─────────────────────────────────────────────────────────────
+                                const SizedBox(height: 16),
+                                TextField(
+                                  decoration: InputDecoration(
+                                    labelText: 'Customer Mobile',
+                                    hintText:
+                                        'Enter 10-digit mobile number (optional)',
+                                    prefixIcon:
+                                        const Icon(Icons.phone_android_rounded),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    filled: true,
+                                    fillColor: Colors.grey.shade50,
+                                    suffixIcon: mobileFilter != null &&
+                                            mobileFilter!.isNotEmpty
+                                        ? IconButton(
+                                            icon: const Icon(Icons.clear,
+                                                color: Colors.redAccent),
+                                            onPressed: () {
+                                              setState(() {
+                                                mobileFilter = null;
+                                              });
+                                              if (selectedRange != null) {
+                                                fetchReportData();
+                                              }
+                                            },
+                                          )
+                                        : null,
+                                  ),
+                                  keyboardType: TextInputType.phone,
+                                  maxLength: 10,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                  ],
+                                  onChanged: (value) {
+                                    setState(() {
+                                      mobileFilter = value.trim();
+                                    });
+                                  },
+                                  onSubmitted: (value) {
+                                    if (selectedRange != null &&
+                                        value.trim().length == 10) {
+                                      fetchReportData();
+                                    }
+                                  },
+                                ),
+
+                                const SizedBox(height: 12),
+
+                                // Show active mobile filter as a removable chip
+                                if (mobileFilter != null &&
+                                    mobileFilter!.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 8),
+                                    child: Chip(
+                                      avatar: const Icon(Icons.phone,
+                                          size: 18, color: Colors.indigo),
+                                      label: Text(
+                                        'Mobile: $mobileFilter',
+                                        style: const TextStyle(
+                                            color: Colors.indigo),
+                                      ),
+                                      backgroundColor: Colors.indigo.shade50,
+                                      deleteIcon:
+                                          const Icon(Icons.close, size: 18),
+                                      onDeleted: () {
+                                        setState(() {
+                                          mobileFilter = null;
+                                        });
+                                        if (selectedRange != null) {
+                                          fetchReportData();
+                                        }
+                                      },
+                                    ),
+                                  ),
+
+                                // Optional: Clear all filters button (appears when any filter is active)
+                                if (selectedRange != null ||
+                                    paymentFilter != 'All' ||
+                                    (mobileFilter != null &&
+                                        mobileFilter!.isNotEmpty))
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 16),
+                                    child: Align(
+                                      alignment: Alignment.centerRight,
+                                      child: OutlinedButton.icon(
+                                        icon: const Icon(Icons.filter_alt_off,
+                                            size: 18),
+                                        label: const Text('Clear All Filters'),
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: Colors.redAccent,
+                                          side: const BorderSide(
+                                              color: Colors.redAccent),
+                                        ),
+                                        onPressed: () {
+                                          setState(() {
+                                            selectedRange = null;
+                                            paymentFilter = 'All';
+                                            mobileFilter = null;
+                                            reportData = null;
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
                         ),
-
                         const SizedBox(height: 24),
 
                         Text(
@@ -701,52 +722,77 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                           ),
                         ),
                         const SizedBox(height: 24),
-LayoutBuilder(
-  builder: (context, constraints) {
-    final isMobile = constraints.maxWidth < 600;
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isMobile = constraints.maxWidth < 600;
 
-    return isMobile
-        ? Column(
-            children: [
-              _buildCard(
-                'Today Sales',
-                (dashboardData?['today']?['total'] as num?)?.toDouble() ?? 0.0,
-                (dashboardData?['today']?['billCount'] as num?)?.toInt() ?? 0,
-                Colors.teal,
-              ),
-              const SizedBox(height: 16),
-              _buildCard(
-                'Monthly Sales',
-                (dashboardData?['month']?['total'] as num?)?.toDouble() ?? 0.0,
-                (dashboardData?['month']?['billCount'] as num?)?.toInt() ?? 0,
-                Colors.deepPurple,
-              ),
-            ],
-          )
-        : Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _buildCard(
-                  'Today Sales',
-                  (dashboardData?['today']?['total'] as num?)?.toDouble() ?? 0.0,
-                  (dashboardData?['today']?['billCount'] as num?)?.toInt() ?? 0,
-                  Colors.teal,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildCard(
-                  'Monthly Sales',
-                  (dashboardData?['month']?['total'] as num?)?.toDouble() ?? 0.0,
-                  (dashboardData?['month']?['billCount'] as num?)?.toInt() ?? 0,
-                  Colors.deepPurple,
-                ),
-              ),
-            ],
-          );
-  },
-),
+                            return isMobile
+                                ? Column(
+                                    children: [
+                                      _buildCard(
+                                        'Today Sales',
+                                        (dashboardData?['today']?['total']
+                                                    as num?)
+                                                ?.toDouble() ??
+                                            0.0,
+                                        (dashboardData?['today']?['billCount']
+                                                    as num?)
+                                                ?.toInt() ??
+                                            0,
+                                        Colors.teal,
+                                      ),
+                                      const SizedBox(height: 16),
+                                      _buildCard(
+                                        'Monthly Sales',
+                                        (dashboardData?['month']?['total']
+                                                    as num?)
+                                                ?.toDouble() ??
+                                            0.0,
+                                        (dashboardData?['month']?['billCount']
+                                                    as num?)
+                                                ?.toInt() ??
+                                            0,
+                                        Colors.deepPurple,
+                                      ),
+                                    ],
+                                  )
+                                : Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        child: _buildCard(
+                                          'Today Sales',
+                                          (dashboardData?['today']?['total']
+                                                      as num?)
+                                                  ?.toDouble() ??
+                                              0.0,
+                                          (dashboardData?['today']?['billCount']
+                                                      as num?)
+                                                  ?.toInt() ??
+                                              0,
+                                          Colors.teal,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: _buildCard(
+                                          'Monthly Sales',
+                                          (dashboardData?['month']?['total']
+                                                      as num?)
+                                                  ?.toDouble() ??
+                                              0.0,
+                                          (dashboardData?['month']?['billCount']
+                                                      as num?)
+                                                  ?.toInt() ??
+                                              0,
+                                          Colors.deepPurple,
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                          },
+                        ),
 
                         const SizedBox(height: 24),
 
@@ -765,34 +811,37 @@ LayoutBuilder(
                         ),
                         const SizedBox(height: 16),
 
-                       LayoutBuilder(
-  builder: (context, constraints) {
-    final isMobile = constraints.maxWidth < 600;
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isMobile = constraints.maxWidth < 600;
 
-    return isMobile
-        ? Column(
-            children: [
-              _buildPie('Today', dashboardData?['today'] ?? {}),
-              const SizedBox(height: 16),
-              _buildPie('This Month', dashboardData?['month'] ?? {}),
-            ],
-          )
-        : Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _buildPie(
-                    'Today', dashboardData?['today'] ?? {}),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildPie(
-                    'This Month', dashboardData?['month'] ?? {}),
-              ),
-            ],
-          );
-  },
-),
+                            return isMobile
+                                ? Column(
+                                    children: [
+                                      _buildPie('Today',
+                                          dashboardData?['today'] ?? {}),
+                                      const SizedBox(height: 16),
+                                      _buildPie('This Month',
+                                          dashboardData?['month'] ?? {}),
+                                    ],
+                                  )
+                                : Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        child: _buildPie('Today',
+                                            dashboardData?['today'] ?? {}),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: _buildPie('This Month',
+                                            dashboardData?['month'] ?? {}),
+                                      ),
+                                    ],
+                                  );
+                          },
+                        ),
 
                         const SizedBox(height: 40),
 
@@ -918,48 +967,57 @@ LayoutBuilder(
                                               trailing: Row(
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
-                                                  // PDF Share Button
+                                                  // PDF Button
                                                   IconButton(
                                                     icon: const Icon(
                                                         Icons.picture_as_pdf,
                                                         color: Colors.red),
                                                     tooltip: 'Share PDF',
                                                     onPressed: () async {
-                                                      final pdfBytes =
-                                                          await _generateBillPdf(
-                                                              b); // your PDF generator
-                                                      final fileName =
-                                                          'bill_$billId.pdf';
+                                                      final result =
+                                                          await generateReceiptPdf(
+                                                        b,
+                                                        List<
+                                                                Map<String,
+                                                                    dynamic>>.from(
+                                                            b['orders'] ?? []),
+                                                        b['user'] ??
+                                                            {
+                                                              'fullName':
+                                                                  'Guest',
+                                                              'mobile': b['mobile']
+                                                                      ?.toString() ??
+                                                                  'N/A',
+                                                            },
+                                                        (b['mobile'] ??
+                                                                b['user']
+                                                                    ?['mobile'])
+                                                            ?.toString(),
+                                                        b['isGstApplied'] ??
+                                                            false,
+                                                        context,
+                                                      );
 
-                                                      if (kIsWeb) {
-                                                        await Share
-                                                            .shareXFiles([
-                                                          XFile.fromData(
-                                                            pdfBytes,
-                                                            name: fileName,
-                                                            mimeType:
-                                                                'application/pdf',
-                                                          )
-                                                        ]);
-                                                      } else {
-                                                        final dir =
-                                                            await getTemporaryDirectory();
-                                                        final file = File(
-                                                            '${dir.path}/$fileName');
-                                                        await file.writeAsBytes(
-                                                            pdfBytes);
-
-                                                        await Share
-                                                            .shareXFiles([
-                                                          XFile(file.path,
-                                                              name: fileName,
+                                                      if (!kIsWeb &&
+                                                          result.isNotEmpty) {
+                                                        await Share.shareXFiles(
+                                                          [
+                                                            XFile(
+                                                              result,
+                                                              name:
+                                                                  'bill_${b['billId']}.pdf',
                                                               mimeType:
-                                                                  'application/pdf')
-                                                        ]);
+                                                                  'application/pdf',
+                                                            ),
+                                                          ],
+                                                          text:
+                                                              'Your bill receipt',
+                                                        );
                                                       }
                                                     },
                                                   ),
-                                                  // WhatsApp Share Button
+
+                                                  // WhatsApp Button
                                                   IconButton(
                                                     icon: const FaIcon(
                                                         FontAwesomeIcons
@@ -968,24 +1026,50 @@ LayoutBuilder(
                                                     tooltip:
                                                         'Share via WhatsApp',
                                                     onPressed: () async {
-                                                      final pdfBytes =
-                                                          await _generateBillPdf(
-                                                              b);
-                                                      final fileName =
-                                                          'bill_$billId.pdf';
-                                                      final dir =
-                                                          await getTemporaryDirectory();
-                                                      final file = File(
-                                                          '${dir.path}/$fileName');
-                                                      await file.writeAsBytes(
-                                                          pdfBytes);
-
-                                                      await Share.shareXFiles([
-                                                        XFile(file.path,
-                                                            name: fileName,
-                                                            mimeType:
-                                                                'application/pdf')
-                                                      ]);
+                                                      final result =
+                                                          await generateReceiptPdf(
+                                                        b,
+                                                        List<
+                                                                Map<String,
+                                                                    dynamic>>.from(
+                                                            b['orders'] ?? []),
+                                                        b['user'] ??
+                                                            {
+                                                              'fullName':
+                                                                  'Guest',
+                                                              'mobile': b['mobile']
+                                                                      ?.toString() ??
+                                                                  'N/A',
+                                                            },
+                                                        (b['mobile'] ??
+                                                                b['user']
+                                                                    ?['mobile'])
+                                                            ?.toString(),
+                                                        b['isGstApplied'] ??
+                                                            false,
+                                                        context,
+                                                      );
+                                                      sharePdfViaWhatsApp(
+                                                          pdfPath: result,
+                                                          phone:
+                                                              "+91${b['mobile']}",
+                                                          context: context);
+                                                      // if (!kIsWeb &&
+                                                      //     result.isNotEmpty) {
+                                                      //   await Share.shareXFiles(
+                                                      //     [
+                                                      //       XFile(
+                                                      //         result,
+                                                      //         name:
+                                                      //             'bill_${b['billId']}.pdf',
+                                                      //         mimeType:
+                                                      //             'application/pdf',
+                                                      //       ),
+                                                      //     ],
+                                                      //     text:
+                                                      //         'Your bill receipt',
+                                                      //   );
+                                                      // }
                                                     },
                                                   ),
                                                 ],
@@ -1026,61 +1110,62 @@ LayoutBuilder(
                 ),
     );
   }
-Widget _buildCard(String title, double amount, int count, Color color) {
-  final double screenWidth = MediaQuery.of(context).size.width;
-  final bool isMobile = screenWidth < 600;
 
-  return SizedBox(
-    width: isMobile ? double.infinity : null,
-    child: Card(
-      margin: EdgeInsets.zero, // 🔴 removes extra unwanted space
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: isMobile ? 14 : 20,
-          vertical: isMobile ? 12 : 18,
+  Widget _buildCard(String title, double amount, int count, Color color) {
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final bool isMobile = screenWidth < 600;
+
+    return SizedBox(
+      width: isMobile ? double.infinity : null,
+      child: Card(
+        margin: EdgeInsets.zero, // 🔴 removes extra unwanted space
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min, // 🔴 prevents extra height
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              textScaleFactor: 1.0, // 🔴 prevent system font inflation
-              style: GoogleFonts.poppins(
-                fontSize: isMobile ? 13 : 16,
-                fontWeight: FontWeight.w500,
-                color: color,
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: isMobile ? 14 : 20,
+            vertical: isMobile ? 12 : 18,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min, // 🔴 prevents extra height
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                textScaleFactor: 1.0, // 🔴 prevent system font inflation
+                style: GoogleFonts.poppins(
+                  fontSize: isMobile ? 13 : 16,
+                  fontWeight: FontWeight.w500,
+                  color: color,
+                ),
               ),
-            ),
-            SizedBox(height: isMobile ? 6 : 12),
-            Text(
-              '₹${amount.toStringAsFixed(2)}',
-              textScaleFactor: 1.0,
-              style: GoogleFonts.poppins(
-                fontSize: isMobile ? 22 : 32,
-                fontWeight: FontWeight.w700,
-                color: Colors.black87,
+              SizedBox(height: isMobile ? 6 : 12),
+              Text(
+                '₹${amount.toStringAsFixed(2)}',
+                textScaleFactor: 1.0,
+                style: GoogleFonts.poppins(
+                  fontSize: isMobile ? 22 : 32,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black87,
+                ),
               ),
-            ),
-            SizedBox(height: isMobile ? 4 : 8),
-            Text(
-              '$count Bills',
-              textScaleFactor: 1.0,
-              style: GoogleFonts.poppins(
-                fontSize: isMobile ? 11 : 14,
-                color: Colors.grey.shade700,
+              SizedBox(height: isMobile ? 4 : 8),
+              Text(
+                '$count Bills',
+                textScaleFactor: 1.0,
+                style: GoogleFonts.poppins(
+                  fontSize: isMobile ? 11 : 14,
+                  color: Colors.grey.shade700,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildPie(String title, Map<String, dynamic> data) {
     final cash = (data['cash'] as num?)?.toDouble() ?? 0.0;
@@ -1263,14 +1348,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Future<void> _handlePayment(String billId, String method) async {
     final controller = _mobileControllers[billId];
     if (controller == null || controller.text.trim().isEmpty) {
-      _showSnackBar('Please enter mobile number', Colors.red);
+      if (context.mounted)
+        showSnackBar('Please enter mobile number', Colors.red, context);
       return;
     }
 
     final mobile = controller.text.trim();
     print("Hello : ${mobile}");
     if (!_isValidMobile(mobile)) {
-      _showSnackBar('Enter a valid 10-digit mobile number', Colors.red);
+      if (context.mounted)
+        showSnackBar(
+            'Enter a valid 10-digit mobile number', Colors.red, context);
       return;
     }
 
@@ -1280,8 +1368,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     });
 
     final bill = _findBillById(billId);
+    print("OM Shahane : ${bill}");
     if (bill == null) {
-      _showSnackBar('Bill not found', Colors.red);
+      if (context.mounted) showSnackBar('Bill not found', Colors.red, context);
       setState(() => _processingBills[billId] = false);
       return;
     }
@@ -1299,13 +1388,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     };
 
     try {
-      await Apiservicescheckout.updateBillStatus(
-          billId, 'Paid', method, mobile);
-      socketService.payBill(billData);
-
-      _showSnackBar('Payment processed via $method', Colors.green);
-
-      // Generate receipt
       final fakeResponse = {
         'payuResponse': {
           'mode': method,
@@ -1314,21 +1396,36 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         }
       };
 
-      await generateReceiptPdf(
-        fakeResponse,
-        bill['orders'] as List<dynamic>? ?? [],
-        bill['user'],
-        mobile,
-        bill['isGstApplied'] as bool? ?? false,
-      );
+      await Apiservicescheckout.updateBillStatus(
+          billId, 'Paid', method, mobile, fakeResponse);
+      socketService.payBill(billData);
+      if (context.mounted)
+        showSnackBar('Payment processed via $method', Colors.green, context);
 
-      context
-          .read<BillBloc>()
-          .add(UpdateBill(billId, 'Paid', paymentMethod: method));
+      // Generate receipt
+
+      await generateReceiptPdf(
+          fakeResponse,
+          bill['orders'] as List<dynamic>? ?? [],
+          bill['user'],
+          mobile,
+          bill['isGstApplied'] as bool? ?? false,
+          context);
+
+      context.read<BillBloc>().add(
+            UpdateBill(
+              billId,
+              'Paid',
+              paymentMethod: method,
+              transaction: fakeResponse, // send the transaction info
+            ),
+          );
+
       context.read<BillBloc>().add(FetchBills());
     } catch (e) {
       developer.log('Payment failed: $e', name: 'Checkout');
-      _showSnackBar('Payment failed. Please try again.', Colors.red);
+      if (context.mounted)
+        showSnackBar('Payment failed. Please try again.', Colors.red, context);
       setState(() => _processingBills[billId] = false);
     }
   }
@@ -1344,304 +1441,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   bool _isValidMobile(String mobile) => RegExp(r'^\d{10}$').hasMatch(mobile);
 
-  void _showSnackBar(String message, Color color) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: const TextStyle(color: Colors.white)),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        duration: const Duration(seconds: 4),
-      ),
-    );
-  }
-
-  // ───────────────────────────────────────────────
-  // PDF Generation (unchanged)
-  // ───────────────────────────────────────────────
-  Future<pw.Document> _buildPdfDocument(
-    dynamic response,
-    List<dynamic> orders,
-    dynamic user,
-    String? mobile,
-    bool isGstApplied,
-  ) async {
-    final pdf = pw.Document();
-    final fontData = await rootBundle.load("assets/fonts/NotoSans-Regular.ttf");
-    final ttf = pw.Font.ttf(fontData);
-
-    final safeOrders = orders.whereType<Map>().toList();
-
-    final double subTotal = safeOrders.fold(
-      0.0,
-      (sum, order) => sum + (order['total'] as num? ?? 0).toDouble(),
-    );
-
-    final double gstAmount =
-        isGstApplied ? subTotal * (AppConstants.gstRate ?? 0) : 0;
-    final double grandTotal = subTotal + gstAmount;
-
-    final paymentInfo = _extractPaymentInfo(response);
-
-    final String date = DateTime.now().toString().split(' ').first;
-    final String userName = _sanitize(user['fullName']) ?? 'Guest';
-    final String userMobile = _sanitize(mobile) ?? 'N/A';
-
-    // Build item rows once (same as before)
-    final itemRows = _buildItemRows(safeOrders, ttf);
-
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(32),
-        build: (pw.Context context) => [
-          // Header - appears only on first page
-          pw.Center(
-            child: pw.Column(children: [
-              pw.Text(
-                AppConstants.companyName ?? 'Restaurant',
-                style: pw.TextStyle(
-                    font: ttf, fontSize: 22, fontWeight: pw.FontWeight.bold),
-              ),
-              pw.SizedBox(height: 6),
-              pw.Text(
-                AppConstants.companyAddress ?? '',
-                style: pw.TextStyle(font: ttf, fontSize: 11),
-                textAlign: pw.TextAlign.center,
-              ),
-              if (isGstApplied)
-                pw.Text(
-                  'GSTIN: ${AppConstants.merchantGstNumber ?? 'N/A'}',
-                  style: pw.TextStyle(font: ttf, fontSize: 11),
-                ),
-              pw.SizedBox(height: 12),
-              pw.Text('Payment Receipt',
-                  style: pw.TextStyle(
-                      font: ttf, fontSize: 18, fontWeight: pw.FontWeight.bold)),
-              pw.Text('Date: $date',
-                  style: pw.TextStyle(font: ttf, fontSize: 11)),
-            ]),
-          ),
-          pw.SizedBox(height: 24),
-
-          // Customer info
-          _pdfSectionTitle('Customer', ttf),
-          pw.Text('Name: $userName',
-              style: pw.TextStyle(font: ttf, fontSize: 12)),
-          pw.Text('Mobile: $userMobile',
-              style: pw.TextStyle(font: ttf, fontSize: 12)),
-          pw.SizedBox(height: 20),
-
-          // Items section title
-          _pdfSectionTitle('Items', ttf),
-
-          // Items table - will automatically split across pages if too long
-          pw.Table(
-            border: pw.TableBorder.all(color: PdfColors.grey300),
-            children: [
-              // Header row
-              pw.TableRow(
-                decoration: pw.BoxDecoration(color: PdfColors.blue50),
-                children: [
-                  _pdfCell('Item', ttf, bold: true),
-                  _pdfCell('Qty', ttf, bold: true, align: pw.TextAlign.center),
-                  _pdfCell('Price', ttf, bold: true, align: pw.TextAlign.right),
-                ],
-              ),
-              // All item rows
-              ...itemRows,
-              // Subtotal
-              pw.TableRow(children: [
-                _pdfCell('Subtotal', ttf, bold: true),
-                pw.SizedBox(),
-                _pdfCell('${AppConstants.rupeeSymbol}$subTotal', ttf,
-                    align: pw.TextAlign.right),
-              ]),
-              // GST
-              if (isGstApplied)
-                pw.TableRow(children: [
-                  _pdfCell(
-                      'GST (${(AppConstants.gstRate! * 100).toStringAsFixed(1)}%)',
-                      ttf),
-                  pw.SizedBox(),
-                  _pdfCell(
-                      '${AppConstants.rupeeSymbol}${gstAmount.toStringAsFixed(2)}',
-                      ttf,
-                      align: pw.TextAlign.right),
-                ]),
-              // Grand Total
-              pw.TableRow(
-                decoration: pw.BoxDecoration(color: PdfColors.teal50),
-                children: [
-                  _pdfCell('Grand Total', ttf, bold: true),
-                  pw.SizedBox(),
-                  _pdfCell(
-                      '${AppConstants.rupeeSymbol}${grandTotal.toStringAsFixed(2)}',
-                      ttf,
-                      bold: true,
-                      align: pw.TextAlign.right),
-                ],
-              ),
-            ],
-          ),
-
-          pw.SizedBox(height: 24),
-
-          // Payment section
-          _pdfSectionTitle('Payment', ttf),
-          pw.Table(
-            border: pw.TableBorder.all(color: PdfColors.grey300),
-            children: [
-              pw.TableRow(children: [
-                _pdfCell('Method', ttf, bold: true),
-                _pdfCell(paymentInfo.method, ttf)
-              ]),
-              pw.TableRow(children: [
-                _pdfCell('Transaction ID', ttf, bold: true),
-                _pdfCell(paymentInfo.txnId, ttf)
-              ]),
-              pw.TableRow(children: [
-                _pdfCell('Status', ttf, bold: true),
-                _pdfCell(paymentInfo.status, ttf)
-              ]),
-            ],
-          ),
-
-          pw.Spacer(),
-
-          // Footer
-          pw.Center(
-            child: pw.Text(
-              'Thank You! Visit Again',
-              style: pw.TextStyle(
-                  font: ttf, fontSize: 14, fontStyle: pw.FontStyle.italic),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    return pdf;
-  }
-
-  pw.Widget _pdfSectionTitle(String title, pw.Font font) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 8),
-      child: pw.Text(title,
-          style: pw.TextStyle(
-              font: font, fontSize: 15, fontWeight: pw.FontWeight.bold)),
-    );
-  }
-
-  pw.Widget _pdfCell(String text, pw.Font font,
-      {bool bold = false, pw.TextAlign align = pw.TextAlign.left}) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.all(8),
-      child: pw.Text(
-        text,
-        style: pw.TextStyle(
-            font: font, fontWeight: bold ? pw.FontWeight.bold : null),
-        textAlign: align,
-      ),
-    );
-  }
-
-  List<pw.TableRow> _buildItemRows(List<Map> orders, pw.Font font) {
-    final rows = <pw.TableRow>[];
-
-    for (final order in orders) {
-      final items = (order['items'] as List?)?.whereType<Map>() ?? [];
-      for (final item in items) {
-        final name = _sanitize(item['name']) ?? 'Item';
-        final qty = (item['quantity'] as num?)?.toInt() ?? 1;
-        final price = (item['price'] as num?)?.toDouble() ?? 0.0;
-        final custom = _sanitize(item['customization']) ?? '';
-
-        final displayName = custom.isEmpty ? name : '$name ($custom)';
-
-        rows.add(pw.TableRow(children: [
-          _pdfCell('$displayName', font),
-          _pdfCell('$qty', font, align: pw.TextAlign.center),
-          _pdfCell(
-              '${AppConstants.rupeeSymbol}${(price * qty).toStringAsFixed(0)}',
-              font,
-              align: pw.TextAlign.right),
-        ]));
-      }
-    }
-    return rows;
-  }
-
-  ({String method, String txnId, String status}) _extractPaymentInfo(
-      dynamic response) {
-    String method = 'Unknown';
-    String txnId = '—';
-    String status = 'SUCCESS';
-
-    final payu = response is Map ? response['payuResponse'] : null;
-
-    if (payu is Map) {
-      method = payu['mode']?.toString() ?? 'Unknown';
-      txnId = payu['txnid']?.toString() ?? '—';
-      status = (payu['status']?.toString() ?? 'success').toUpperCase();
-    }
-
-    return (method: method, txnId: txnId, status: status);
-  }
-
-  String _sanitize(dynamic val) {
-    final str = val?.toString() ?? '';
-    return str
-        .replaceAll('&', 'and')
-        .replaceAll('%', 'percent')
-        .replaceAll('\$', 'Rs')
-        .replaceAll('#', 'No.')
-        .replaceAll(RegExp(r'[\{\}\~\^\`]'), '');
-  }
-
-  Future<String> generateReceiptPdf(
-    dynamic response,
-    List<dynamic> orders,
-    dynamic user,
-    String? mobile,
-    bool isGstApplied,
-  ) async {
-    try {
-      final pdf = await _buildPdfDocument(
-          response, orders, user, mobile!, isGstApplied);
-      final bytes = await pdf.save();
-
-      if (kIsWeb) {
-        await Printing.layoutPdf(
-          onLayout: (_) => bytes,
-          name: 'receipt_${DateTime.now().millisecondsSinceEpoch}.pdf',
-        );
-        _showSnackBar('Receipt ready to print', Colors.green);
-        return 'printed';
-      } else {
-        final dir = await getApplicationDocumentsDirectory();
-        final path =
-            '${dir.path}/receipt_${DateTime.now().millisecondsSinceEpoch}.pdf';
-        final file = File(path);
-        await file.writeAsBytes(bytes);
-
-        final result = await OpenFilex.open(path);
-        if (result.type == ResultType.done) {
-          _showSnackBar('Receipt opened', Colors.green);
-        } else {
-          _showSnackBar('Receipt saved at $path', Colors.blueGrey);
-        }
-        return path;
-      }
-    } catch (e, st) {
-      developer.log('PDF generation failed: $e',
-          stackTrace: st, name: 'Checkout');
-      _showSnackBar('Could not generate PDF receipt', Colors.orange);
-      return '';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final isTablet = MediaQuery.sizeOf(context).width > 700;
@@ -1649,7 +1448,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return BlocListener<BillBloc, BillState>(
       listener: (context, state) {
         if (state.error != null) {
-          _showSnackBar(state.error!, Colors.red);
+          if (context.mounted) showSnackBar(state.error!, Colors.red, context);
         }
 
         if (!state.isLoading && state.bills.isNotEmpty) {

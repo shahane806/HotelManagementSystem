@@ -19,7 +19,8 @@ class ApiConstants {
     if (Platform.isAndroid) {
       return isEmulator
           ? "http://10.0.2.2:3001"
-          : "https://hotelmanagementsystem-ysx7.onrender.com";//"http://192.168.56.1:3001"; // your PC Wi-Fi IP
+         : "https://hotelmanagementsystem-ysx7.onrender.com";
+      //  : "http://192.168.29.93:3001"; // your PC Wi-Fi IP
     } else {
       return "http://10.0.2.2:3001";
     }
@@ -37,7 +38,8 @@ class ApiConstants {
     if (Platform.isAndroid) {
       return isEmulator
           ? "http://10.0.2.2:3000"
-          : "https://hotelmanagementsystem-socket.onrender.com";//"http://192.168.56.1:3000";
+          : "https://hotelmanagementsystem-socket.onrender.com";
+          // :"http://192.168.29.93:3000";
     } else {
       return "http://10.0.2.2:3000";
     }

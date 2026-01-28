@@ -1,63 +1,55 @@
 const { v4: uuidv4 } = require("uuid");
 const bill = require("../Models/billModel");
 const Order = require("../Models/orderModel");
-const { json } = require("express");
+
+/* ───────────────────────── CREATE BILL ───────────────────────── */
 const createBill = async (req, res) => {
-  console.log("hei");
   const { table, orders, totalAmount, isGstApplied } = req.body;
-  console.log(table);
 
   try {
     if (!table || !orders || !totalAmount || isGstApplied === undefined) {
-      console.log("Missing required fielsds");
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    // Apply GST if isGstApplied is true
     let finalAmount = totalAmount;
     if (isGstApplied) {
-      // const gst = (18 / 100) * totalAmount;
       const gst = 0;
       finalAmount += gst;
     }
-    console.log("hello");
+
     const billId = uuidv4();
+
     const newBill = new bill({
       billId,
       table,
-      // user,
       orders,
-      totalAmount: finalAmount, // Save updated amount with GST
+      totalAmount: finalAmount,
       isGstApplied,
       status: "Pending",
     });
 
     await newBill.save();
-    console.log("HELLO");
-    res
-      .status(201)
-      .json({
-        message: "Bill stored successfully",
-        billId,
-        totalAmount: finalAmount,
-      });
+
+    res.status(201).json({
+      success: true,
+      billId,
+      totalAmount: finalAmount,
+    });
   } catch (error) {
-    console.error("Error storing bill:", error);
-    res
-      .status(500)
-      .json({ message: "Failed to store bill", error: error.message });
+    res.status(500).json({
+      success: false,
+      message: "Failed to store bill",
+      error: error.message,
+    });
   }
 };
+
+/* ───────────────────────── GET ALL BILLS ───────────────────────── */
 const getAllBills = async (req, res) => {
   try {
     const bills = await bill.find();
-    console.log(bills);
-    res.status(200).json({
-      success: true,
-      data: bills,
-    });
+    res.status(200).json({ success: true, data: bills });
   } catch (error) {
-    console.error("Error fetching bills:", error);
     res.status(500).json({
       success: false,
       message: "Failed to fetch bills",
@@ -65,6 +57,8 @@ const getAllBills = async (req, res) => {
     });
   }
 };
+
+/* ───────────────────────── ANALYTICS ───────────────────────── */
 const getAnalytics = async (req, res) => {
   try {
     const todayStart = new Date();
@@ -76,88 +70,68 @@ const getAnalytics = async (req, res) => {
     const monthStart = new Date(
       todayStart.getFullYear(),
       todayStart.getMonth(),
-      1
+      1,
     );
 
-    // ─── Today's Paid Bills ─────────────────────────────────────
     const todayBills = await bill.find({
       status: "Paid",
       updatedAt: { $gte: todayStart, $lte: todayEnd },
     });
 
-    let todayTotal = 0;
-    let todayCash = 0;
-    let todayOnline = 0;
-
-    todayBills.forEach((b) => {
-      todayTotal += b.totalAmount || 0;
-      if (b.paymentMethod?.toLowerCase() === "cash") {
-        todayCash += b.totalAmount || 0;
-      } else {
-        todayOnline += b.totalAmount || 0;
-      }
-    });
-
-    // ─── This Month's Paid Bills ────────────────────────────────
     const monthBills = await bill.find({
       status: "Paid",
       updatedAt: { $gte: monthStart },
     });
 
-    let monthTotal = 0;
-    let monthCash = 0;
-    let monthOnline = 0;
+    const calc = (list) =>
+      list.reduce(
+        (acc, b) => {
+          acc.total += b.totalAmount || 0;
+          if (b.paymentMethod?.toLowerCase() === "cash") {
+            acc.cash += b.totalAmount || 0;
+          } else {
+            acc.online += b.totalAmount || 0;
+          }
+          return acc;
+        },
+        { total: 0, cash: 0, online: 0 },
+      );
 
-    monthBills.forEach((b) => {
-      monthTotal += b.totalAmount || 0;
-      if (b.paymentMethod?.toLowerCase() === "cash") {
-        monthCash += b.totalAmount || 0;
-      } else {
-        monthOnline += b.totalAmount || 0;
-      }
-    });
+    const today = calc(todayBills);
+    const month = calc(monthBills);
 
-    // ─── Pending Bills Count ────────────────────────────────────
     const pendingCount = await bill.countDocuments({ status: "Pending" });
 
-    // ─── Recent Paid Bills (last 10) with mobile ────────────────
     const recentBills = await bill
       .find({ status: "Paid" })
       .sort({ updatedAt: -1 })
       .limit(10)
-      .select("billId table totalAmount paymentMethod updatedAt user");
-    const responseData = {
+      .select("billId table totalAmount paymentMethod transactionId status updatedAt user orders isGstApplied");
+
+    res.status(200).json({
       success: true,
       data: {
-        today: {
-          total: todayTotal,
-          cash: todayCash,
-          online: todayOnline,
-          billCount: todayBills.length,  // ← this was missing
-        },
-        month: {
-          total: monthTotal,
-          cash: monthCash,
-          online: monthOnline,
-          billCount: monthBills.length,  // ← this was missing
-        },
+        today: { ...today, billCount: todayBills.length },
+        month: { ...month, billCount: monthBills.length },
         pendingCount,
-        recentBills: recentBills.map((b) => ({
+        bills: recentBills.map((b) => ({
+
           billId: b.billId,
           table: b.table,
           amount: b.totalAmount,
           paymentMethod: b.paymentMethod || "Unknown",
           date: b.updatedAt.toISOString(),
           mobile: b.user?.mobile || "N/A",
+          orders: Array.isArray(b.orders) ? b.orders : [],
+          isGstApplied: b.isGstApplied ?? false,
+          user: b.user,
+          transactionId:b.transactionId,
+          status : b.status
+
         })),
       },
-    };
-
-    console.log("Analytics response sent:", JSON.stringify(responseData, null, 2));
-
-    res.status(200).json(responseData);
+    });
   } catch (error) {
-    console.error("Analytics error:", error);
     res.status(500).json({
       success: false,
       message: "Failed to fetch analytics",
@@ -165,53 +139,46 @@ const getAnalytics = async (req, res) => {
     });
   }
 };
+
+/* ───────────────────────── UPDATE BILL STATUS ───────────────────────── */
 const updateBillStatus = async (req, res) => {
-  const { billId, status, paymentMethod, mobile } = req.body;
-
-  console.log('updateBillStatus called with:', { billId, status, paymentMethod, mobile });
-
+  const { billId, status, paymentMethod, mobile, transaction } = req.body; // added transaction
+  console.log("Om Shahane ")
+  console.log(req.body)
   try {
     const billToUpdate = await bill.findOne({ billId });
     if (!billToUpdate) {
       return res.status(404).json({ message: "Bill not found" });
     }
 
-    // Update main fields
     billToUpdate.status = status;
     if (paymentMethod) billToUpdate.paymentMethod = paymentMethod;
 
-    // Update mobile INSIDE user object
-    if (mobile && mobile.trim()) {
-      billToUpdate.user = billToUpdate.user || {}; // prevent null overwrite
-      billToUpdate.user.mobile = mobile.trim();
-      billToUpdate.markModified('user'); // ← tells Mongoose sub-doc changed
-      console.log(`Saving mobile: ${mobile.trim()} for bill ${billId}`);
-    } else {
-      console.log('No mobile received for bill ' + billId);
+    if (mobile) {
+      billToUpdate.user = billToUpdate.user || {};
+      billToUpdate.user.mobile = mobile;
+      billToUpdate.markModified("user");
+    }
+
+    // Save the full payment/transaction response
+    if (transaction) {
+      billToUpdate.transactionId = transaction;
+      billToUpdate.markModified("transactionId");
     }
 
     billToUpdate.updatedAt = new Date();
-
     await billToUpdate.save();
 
-    // Update related orders
     const orderIds = billToUpdate.orders.map((o) => o.orderId).filter(Boolean);
-    console.log(`Updating orders for bill ${billId}:`, orderIds);
-
-    if (orderIds.length > 0) {
+    if (orderIds.length) {
       await Order.updateMany(
         { _id: { $in: orderIds } },
-        { $set: { bill_status: "Paid" } }
+        { $set: { bill_status: "Paid" } },
       );
     }
 
-    res.status(200).json({
-      success: true,
-      message: "Bill and orders updated successfully",
-      updatedBill: billToUpdate, // optional: return updated doc for debugging
-    });
+    res.status(200).json({ success: true });
   } catch (error) {
-    console.error("Update bill status error:", error);
     res.status(500).json({
       success: false,
       message: "Failed to update bill status",
@@ -219,71 +186,122 @@ const updateBillStatus = async (req, res) => {
     });
   }
 };
+
+/* ───────────────────────── REPORT ───────────────────────── */
 const generateReport = async (req, res) => {
-  const { startDate, endDate, paymentMethod } = req.body;
+  const { startDate, endDate, paymentMethod, mobile } = req.body;
 
   try {
+    // Basic validation
     if (!startDate || !endDate) {
       return res.status(400).json({
         success: false,
-        message: 'startDate and endDate are required (YYYY-MM-DD format)',
+        message: "startDate and endDate are required",
       });
     }
 
+    // Prepare date range
     const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+
     const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999); // Include whole end day
+    end.setHours(23, 59, 59, 999);
 
-    if (isNaN(start) || isNaN(end)) {
-      return res.status(400).json({ success: false, message: 'Invalid date format' });
-    }
-
+    // Base query
     const query = {
-      status: 'Paid',
+      status: "Paid",
       updatedAt: { $gte: start, $lte: end },
     };
 
-    if (paymentMethod) {
-      query.paymentMethod = { $regex: new RegExp(`^${paymentMethod}$`, 'i') };
+    // Payment method filter (case-insensitive exact match)
+    if (paymentMethod && paymentMethod.trim()) {
+      query.paymentMethod = {
+        $regex: new RegExp(`^${paymentMethod.trim()}$`, "i"),
+      };
     }
 
+    // ────────────────────────────────────────────────
+    // Mobile number filter – flexible matching
+    // ────────────────────────────────────────────────
+    if (mobile && mobile.trim()) {
+      const cleanedMobile = mobile.trim().replace(/\D/g, ""); // remove everything except digits
+
+      if (cleanedMobile.length >= 10) {
+        // Try different common formats people might have saved:
+        //   - plain 10 digits
+        //   - +91 followed by 10 digits
+        //   - last 10 digits (in case someone saved with country code or spaces)
+        query["user.mobile"] = {
+          $in: [
+            cleanedMobile,
+            `+91${cleanedMobile}`,
+            cleanedMobile.slice(-10),
+          ],
+        };
+      }
+      // If less than 10 digits → we silently ignore (or you can return warning)
+    }
+
+    // Fetch matching bills
     const reports = await bill
       .find(query)
-      .select('billId table totalAmount paymentMethod updatedAt user')  // ← THIS IS THE FIX
-      .sort({ updatedAt: -1 });
-    console.log(`Om Shahane : ${reports}` )
+      .select(
+        "billId table totalAmount status transactionId paymentMethod updatedAt user orders"
+      )
+      .lean(); // lean() = faster + plain JS objects
 
-    const total = reports.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
+    // Calculate totals
+    const total = reports.reduce((sum, bill) => sum + (bill.totalAmount || 0), 0);
+
     const cash = reports
-      .filter((b) => b.paymentMethod?.toLowerCase() === 'cash')
-      .reduce((sum, b) => sum + (b.totalAmount || 0), 0);
+      .filter((bill) => bill.paymentMethod?.toLowerCase() === "cash")
+      .reduce((sum, bill) => sum + (bill.totalAmount || 0), 0);
+
     const online = total - cash;
 
+    // Prepare response
     res.status(200).json({
       success: true,
       data: {
-        period: { startDate, endDate },
-        total,
-        cash,
-        online,
+        total: Number(total.toFixed(2)),
+        cash: Number(cash.toFixed(2)),
+        online: Number(online.toFixed(2)),
         billCount: reports.length,
+        filtersApplied: {
+          dateRange: { start: start.toISOString(), end: end.toISOString() },
+          paymentMethod: paymentMethod || "All",
+          mobile: mobile || null,
+        },
         bills: reports.map((b) => ({
           billId: b.billId,
           table: b.table,
           amount: b.totalAmount,
           paymentMethod: b.paymentMethod || "Unknown",
           date: b.updatedAt.toISOString(),
-          mobile: b.user?.mobile || "N/A",   // ← now mobile will come
+          mobile: b.user?.mobile || "N/A",
+          orders: b.orders || [],
+          user: b.user || null,
+          transactionId: b.transactionId || null,
+          status: b.status,
         })),
       },
     });
   } catch (error) {
-    console.error('Report generation error:', error);
+    console.error("Generate report error:", error);
+
     res.status(500).json({
       success: false,
-      message: 'Failed to generate report',
+      message: "Failed to generate report",
       error: error.message,
+      // stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
   }
 };
-module.exports = { createBill, getAllBills, updateBillStatus, getAnalytics ,generateReport};
+
+module.exports = {
+  createBill,
+  getAllBills,
+  getAnalytics,
+  updateBillStatus,
+  generateReport,
+};

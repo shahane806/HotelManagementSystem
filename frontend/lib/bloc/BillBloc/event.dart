@@ -11,5 +11,7 @@ class UpdateBill extends BillEvent {
   final String billId;
   final String status;
   final String? paymentMethod;
-  UpdateBill(this.billId, this.status, {this.paymentMethod});
+  final Map<String, dynamic>? transaction; // new field
+
+  UpdateBill(this.billId, this.status, {this.paymentMethod, this.transaction});
 }
