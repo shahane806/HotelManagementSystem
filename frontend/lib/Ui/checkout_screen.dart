@@ -701,37 +701,52 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                           ),
                         ),
                         const SizedBox(height: 24),
+LayoutBuilder(
+  builder: (context, constraints) {
+    final isMobile = constraints.maxWidth < 600;
 
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: _buildCard(
-                                'Today Sales',
-                                (dashboardData?['today']?['total'] as num?)
-                                        ?.toDouble() ??
-                                    0.0,
-                                (dashboardData?['today']?['billCount'] as num?)
-                                        ?.toInt() ??
-                                    0,
-                                Colors.teal,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: _buildCard(
-                                'Monthly Sales',
-                                (dashboardData?['month']?['total'] as num?)
-                                        ?.toDouble() ??
-                                    0.0,
-                                (dashboardData?['month']?['billCount'] as num?)
-                                        ?.toInt() ??
-                                    0,
-                                Colors.deepPurple,
-                              ),
-                            ),
-                          ],
-                        ),
+    return isMobile
+        ? Column(
+            children: [
+              _buildCard(
+                'Today Sales',
+                (dashboardData?['today']?['total'] as num?)?.toDouble() ?? 0.0,
+                (dashboardData?['today']?['billCount'] as num?)?.toInt() ?? 0,
+                Colors.teal,
+              ),
+              const SizedBox(height: 16),
+              _buildCard(
+                'Monthly Sales',
+                (dashboardData?['month']?['total'] as num?)?.toDouble() ?? 0.0,
+                (dashboardData?['month']?['billCount'] as num?)?.toInt() ?? 0,
+                Colors.deepPurple,
+              ),
+            ],
+          )
+        : Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _buildCard(
+                  'Today Sales',
+                  (dashboardData?['today']?['total'] as num?)?.toDouble() ?? 0.0,
+                  (dashboardData?['today']?['billCount'] as num?)?.toInt() ?? 0,
+                  Colors.teal,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildCard(
+                  'Monthly Sales',
+                  (dashboardData?['month']?['total'] as num?)?.toDouble() ?? 0.0,
+                  (dashboardData?['month']?['billCount'] as num?)?.toInt() ?? 0,
+                  Colors.deepPurple,
+                ),
+              ),
+            ],
+          );
+  },
+),
 
                         const SizedBox(height: 24),
 
@@ -750,18 +765,34 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         ),
                         const SizedBox(height: 16),
 
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                                child: _buildPie(
-                                    'Today', dashboardData?['today'] ?? {})),
-                            const SizedBox(width: 16),
-                            Expanded(
-                                child: _buildPie('This Month',
-                                    dashboardData?['month'] ?? {})),
-                          ],
-                        ),
+                       LayoutBuilder(
+  builder: (context, constraints) {
+    final isMobile = constraints.maxWidth < 600;
+
+    return isMobile
+        ? Column(
+            children: [
+              _buildPie('Today', dashboardData?['today'] ?? {}),
+              const SizedBox(height: 16),
+              _buildPie('This Month', dashboardData?['month'] ?? {}),
+            ],
+          )
+        : Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _buildPie(
+                    'Today', dashboardData?['today'] ?? {}),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildPie(
+                    'This Month', dashboardData?['month'] ?? {}),
+              ),
+            ],
+          );
+  },
+),
 
                         const SizedBox(height: 40),
 
@@ -995,40 +1026,61 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 ),
     );
   }
+Widget _buildCard(String title, double amount, int count, Color color) {
+  final double screenWidth = MediaQuery.of(context).size.width;
+  final bool isMobile = screenWidth < 600;
 
-  Widget _buildCard(String title, double amount, int count, Color color) {
-    return Card(
+  return SizedBox(
+    width: isMobile ? double.infinity : null,
+    child: Card(
+      margin: EdgeInsets.zero, // 🔴 removes extra unwanted space
       elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.symmetric(
+          horizontal: isMobile ? 14 : 20,
+          vertical: isMobile ? 12 : 18,
+        ),
         child: Column(
+          mainAxisSize: MainAxisSize.min, // 🔴 prevents extra height
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               title,
-              style: GoogleFonts.poppins(fontSize: 16, color: color),
+              textScaleFactor: 1.0, // 🔴 prevent system font inflation
+              style: GoogleFonts.poppins(
+                fontSize: isMobile ? 13 : 16,
+                fontWeight: FontWeight.w500,
+                color: color,
+              ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: isMobile ? 6 : 12),
             Text(
               '₹${amount.toStringAsFixed(2)}',
+              textScaleFactor: 1.0,
               style: GoogleFonts.poppins(
-                fontSize: 32,
+                fontSize: isMobile ? 22 : 32,
                 fontWeight: FontWeight.w700,
                 color: Colors.black87,
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: isMobile ? 4 : 8),
             Text(
               '$count Bills',
+              textScaleFactor: 1.0,
               style: GoogleFonts.poppins(
-                  fontSize: 14, color: Colors.grey.shade700),
+                fontSize: isMobile ? 11 : 14,
+                color: Colors.grey.shade700,
+              ),
             ),
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildPie(String title, Map<String, dynamic> data) {
     final cash = (data['cash'] as num?)?.toDouble() ?? 0.0;
