@@ -872,6 +872,7 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
           ),
           Row(
             children: [
+
               GestureDetector(
                 onTap: () {
                   setState(() {
@@ -942,6 +943,8 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
               ),
             ],
           ),
+       
+       
         ],
       ),
     );
@@ -1242,38 +1245,41 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
                     crossAxisAlignment: CrossAxisAlignment.center,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            item.name,
-                            style: TextStyle(
-                              fontSize: isTablet ? 15 : 13,
-                              fontWeight: FontWeight.bold,
-                              color: const Color(0xFF2D3748),
+                      Flexible(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              item.name,
+                              style: TextStyle(
+                                fontSize: isTablet ? 15 : 13,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF2D3748),
+                              ),
+                              maxLines: 3,
+                              softWrap: true,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            item.category,
-                            style: TextStyle(
-                              fontSize: isTablet ? 11 : 10,
-                              color: Colors.grey[600],
+                            const SizedBox(height: 3),
+                            Text(
+                              item.category,
+                              style: TextStyle(
+                                fontSize: isTablet ? 11 : 10,
+                                color: Colors.grey[600],
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            '₹${item.price}',
-                            style: TextStyle(
-                              fontSize: isTablet ? 15 : 13,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.green[600],
+                            const SizedBox(height: 3),
+                            Text(
+                              '₹${item.price}',
+                              style: TextStyle(
+                                fontSize: isTablet ? 15 : 13,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green[600],
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                       Row(
                         mainAxisSize: MainAxisSize.min,
