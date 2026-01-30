@@ -14,7 +14,8 @@ class CustomersScreen extends StatefulWidget {
   State<CustomersScreen> createState() => _CustomersScreenState();
 }
 
-class _CustomersScreenState extends State<CustomersScreen> with SingleTickerProviderStateMixin {
+class _CustomersScreenState extends State<CustomersScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -171,7 +172,9 @@ class _CustomersScreenState extends State<CustomersScreen> with SingleTickerProv
               ),
               // TabBar
               Container(
-                margin: EdgeInsets.symmetric(horizontal: isTablet ? 24 : 16, vertical: isTablet ? 12 : 8),
+                margin: EdgeInsets.symmetric(
+                    horizontal: isTablet ? 24 : 16,
+                    vertical: isTablet ? 12 : 8),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(12),
@@ -196,7 +199,8 @@ class _CustomersScreenState extends State<CustomersScreen> with SingleTickerProv
                       ),
                     ],
                   ),
-                  indicatorPadding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+                  indicatorPadding:
+                      const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
                   indicatorSize: TabBarIndicatorSize.tab,
                   labelColor: Colors.white,
                   unselectedLabelColor: Colors.white70,
@@ -212,13 +216,17 @@ class _CustomersScreenState extends State<CustomersScreen> with SingleTickerProv
                   tabs: [
                     Tab(
                       child: Container(
-                        padding: EdgeInsets.symmetric(vertical: isTablet ? 12 : 10, horizontal: isTablet ? 24 : 16),
+                        padding: EdgeInsets.symmetric(
+                            vertical: isTablet ? 12 : 10,
+                            horizontal: isTablet ? 24 : 16),
                         child: const Text('Register'),
                       ),
                     ),
                     Tab(
                       child: Container(
-                        padding: EdgeInsets.symmetric(vertical: isTablet ? 12 : 10, horizontal: isTablet ? 24 : 16),
+                        padding: EdgeInsets.symmetric(
+                            vertical: isTablet ? 12 : 10,
+                            horizontal: isTablet ? 24 : 16),
                         child: const Text('View All'),
                       ),
                     ),
@@ -250,7 +258,9 @@ class _CustomersScreenState extends State<CustomersScreen> with SingleTickerProv
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  isEditMode ? 'Update Customer' : 'Register New Customer',
+                                  isEditMode
+                                      ? 'Update Customer'
+                                      : 'Register New Customer',
                                   style: TextStyle(
                                     fontSize: isTablet ? 18 : 16,
                                     fontWeight: FontWeight.bold,
@@ -262,35 +272,40 @@ class _CustomersScreenState extends State<CustomersScreen> with SingleTickerProv
                                   controller: _fullNameController,
                                   decoration: InputDecoration(
                                     hintText: 'Full Name',
-                                    prefixIcon: const Icon(Icons.person, color: Colors.indigo),
+                                    prefixIcon: const Icon(Icons.person,
+                                        color: Colors.indigo),
                                     filled: true,
                                     fillColor: Colors.white,
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(10),
                                       borderSide: BorderSide.none,
                                     ),
-                                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        vertical: 12),
                                   ),
                                   style: TextStyle(
                                     fontSize: isTablet ? 16 : 14,
                                     color: const Color(0xFF2D3748),
                                   ),
-                                  validator: (value) =>
-                                      value!.isEmpty ? 'Please enter full name' : null,
+                                  validator: (value) => value!.isEmpty
+                                      ? 'Please enter full name'
+                                      : null,
                                 ),
                                 const SizedBox(height: 16),
                                 TextFormField(
                                   controller: _emailController,
                                   decoration: InputDecoration(
                                     hintText: 'Email',
-                                    prefixIcon: const Icon(Icons.email, color: Colors.indigo),
+                                    prefixIcon: const Icon(Icons.email,
+                                        color: Colors.indigo),
                                     filled: true,
                                     fillColor: Colors.white,
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(10),
                                       borderSide: BorderSide.none,
                                     ),
-                                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        vertical: 12),
                                   ),
                                   style: TextStyle(
                                     fontSize: isTablet ? 16 : 14,
@@ -304,21 +319,23 @@ class _CustomersScreenState extends State<CustomersScreen> with SingleTickerProv
                                   controller: _mobileController,
                                   decoration: InputDecoration(
                                     hintText: 'Mobile Number',
-                                    prefixIcon: const Icon(Icons.phone, color: Colors.indigo),
+                                    prefixIcon: const Icon(Icons.phone,
+                                        color: Colors.indigo),
                                     filled: true,
                                     fillColor: Colors.white,
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(10),
                                       borderSide: BorderSide.none,
                                     ),
-                                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        vertical: 12),
                                   ),
                                   style: TextStyle(
                                     fontSize: isTablet ? 16 : 14,
                                     color: const Color(0xFF2D3748),
                                   ),
                                   validator: _validateMobile,
-                                   inputFormatters: [
+                                  inputFormatters: [
                                     FilteringTextInputFormatter.digitsOnly,
                                     LengthLimitingTextInputFormatter(10),
                                   ],
@@ -328,14 +345,16 @@ class _CustomersScreenState extends State<CustomersScreen> with SingleTickerProv
                                   controller: _aadhaarController,
                                   decoration: InputDecoration(
                                     hintText: 'Aadhaar Number',
-                                    prefixIcon: const Icon(Icons.credit_card, color: Colors.indigo),
+                                    prefixIcon: const Icon(Icons.credit_card,
+                                        color: Colors.indigo),
                                     filled: true,
                                     fillColor: Colors.white,
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(10),
                                       borderSide: BorderSide.none,
                                     ),
-                                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        vertical: 12),
                                   ),
                                   style: TextStyle(
                                     fontSize: isTablet ? 16 : 14,
@@ -343,7 +362,7 @@ class _CustomersScreenState extends State<CustomersScreen> with SingleTickerProv
                                   ),
                                   validator: _validateAadhaar,
                                   keyboardType: TextInputType.number,
-                                   inputFormatters: [
+                                  inputFormatters: [
                                     FilteringTextInputFormatter.digitsOnly,
                                     LengthLimitingTextInputFormatter(12),
                                   ],
@@ -356,16 +375,21 @@ class _CustomersScreenState extends State<CustomersScreen> with SingleTickerProv
                                       width: double.infinity,
                                       height: isTablet ? 48 : 40,
                                       child: ElevatedButton.icon(
-                                        onPressed: isLoading ? null : _submitForm,
+                                        onPressed:
+                                            isLoading ? null : _submitForm,
                                         icon: Icon(
-                                          isEditMode ? Icons.edit : Icons.person_add,
+                                          isEditMode
+                                              ? Icons.edit
+                                              : Icons.person_add,
                                           color: Colors.white,
                                           size: 20,
                                         ),
                                         label: Text(
                                           isLoading
                                               ? 'Processing...'
-                                              : (isEditMode ? 'Update Customer' : 'Register Customer'),
+                                              : (isEditMode
+                                                  ? 'Update Customer'
+                                                  : 'Register Customer'),
                                           style: TextStyle(
                                             fontSize: isTablet ? 15 : 13,
                                             fontWeight: FontWeight.bold,
@@ -375,7 +399,8 @@ class _CustomersScreenState extends State<CustomersScreen> with SingleTickerProv
                                           backgroundColor: Colors.green,
                                           foregroundColor: Colors.white,
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(10),
+                                            borderRadius:
+                                                BorderRadius.circular(10),
                                           ),
                                           elevation: 1,
                                         ),
@@ -415,7 +440,8 @@ class _CustomersScreenState extends State<CustomersScreen> with SingleTickerProv
                                     if (customers.isEmpty) {
                                       return Center(
                                         child: Column(
-                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
                                           children: [
                                             Icon(
                                               Icons.person_off,
@@ -453,17 +479,20 @@ class _CustomersScreenState extends State<CustomersScreen> with SingleTickerProv
                                         return Container(
                                           decoration: BoxDecoration(
                                             color: Colors.white,
-                                            borderRadius: BorderRadius.circular(12),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
                                             boxShadow: [
                                               BoxShadow(
-                                                color: Colors.black.withOpacity(0.05),
+                                                color: Colors.black
+                                                    .withOpacity(0.05),
                                                 blurRadius: 8,
                                                 offset: const Offset(0, 3),
                                               ),
                                             ],
                                           ),
                                           child: ListTile(
-                                            contentPadding: EdgeInsets.symmetric(
+                                            contentPadding:
+                                                EdgeInsets.symmetric(
                                               horizontal: isTablet ? 16 : 12,
                                               vertical: isTablet ? 8 : 6,
                                             ),
@@ -471,8 +500,10 @@ class _CustomersScreenState extends State<CustomersScreen> with SingleTickerProv
                                               width: isTablet ? 50 : 40,
                                               height: isTablet ? 50 : 40,
                                               decoration: BoxDecoration(
-                                                color: Colors.indigo.withOpacity(0.1),
-                                                borderRadius: BorderRadius.circular(10),
+                                                color: Colors.indigo
+                                                    .withOpacity(0.1),
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
                                               ),
                                               child: Center(
                                                 child: Icon(
@@ -502,28 +533,43 @@ class _CustomersScreenState extends State<CustomersScreen> with SingleTickerProv
                                               children: [
                                                 IconButton(
                                                   icon: const Icon(Icons.edit,
-                                                      color: Colors.blue, size: 24),
+                                                      color: Colors.blue,
+                                                      size: 24),
                                                   onPressed: () {
                                                     setState(() {
                                                       isEditMode = true;
-                                                      selectedCustomer = customer;
-                                                      _fullNameController.text = customer.fullName;
-                                                      _emailController.text = customer.email;
-                                                      _mobileController.text = customer.mobile;
-                                                      _aadhaarController.text = customer.aadhaarNumber;
+                                                      selectedCustomer =
+                                                          customer;
+                                                      _fullNameController.text =
+                                                          customer.fullName;
+                                                      _emailController.text =
+                                                          customer.email;
+                                                      _mobileController.text =
+                                                          customer.mobile;
+                                                      _aadhaarController.text =
+                                                          customer
+                                                              .aadhaarNumber;
                                                     });
                                                     _tabController.animateTo(0);
                                                   },
                                                 ),
                                                 IconButton(
                                                   icon: const Icon(Icons.delete,
-                                                      color: Colors.red, size: 24),
+                                                      color: Colors.red,
+                                                      size: 24),
                                                   onPressed: () {
-                                                    context.read<CustomerBloc>().add(DeleteCustomer(customer.id));
-                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                    context
+                                                        .read<CustomerBloc>()
+                                                        .add(DeleteCustomer(
+                                                            customer.id));
+                                                    ScaffoldMessenger.of(
+                                                            context)
+                                                        .showSnackBar(
                                                       const SnackBar(
-                                                        content: Text('Customer removed'),
-                                                        backgroundColor: Colors.red,
+                                                        content: Text(
+                                                            'Customer removed'),
+                                                        backgroundColor:
+                                                            Colors.red,
                                                       ),
                                                     );
                                                   },

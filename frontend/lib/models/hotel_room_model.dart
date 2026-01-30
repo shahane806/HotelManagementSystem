@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 class HotelRoomModel {
   final String id;
   final String roomNo;
@@ -33,45 +31,51 @@ class HotelRoomModel {
   /// - List<String>
   /// - String (comma-separated: "img1.jpg,img2.jpg")
   /// - null
- static List<String> _parseImages(dynamic imagesJson) {
-  if (imagesJson == null) return [];
+  static List<String> _parseImages(dynamic imagesJson) {
+    if (imagesJson == null) return [];
 
-  // CASE 1: List (from backend)
-  if (imagesJson is List) {
-    return imagesJson.map((img) {
-      // If backend sends object { url: "..."}
-      if (img is Map && img['url'] != null) {
-        return img['url']
-            .toString()
-            .replaceAll('\\', '/'); // VERY IMPORTANT
-      }
+    // CASE 1: List (from backend)
+    if (imagesJson is List) {
+      return imagesJson
+          .map((img) {
+            // If backend sends object { url: "..."}
+            if (img is Map && img['url'] != null) {
+              return img['url']
+                  .toString()
+                  .replaceAll('\\', '/'); // VERY IMPORTANT
+            }
 
-      // If backend sends plain string
-      if (img is String) {
-        return img.replaceAll('\\', '/');
-      }
+            // If backend sends plain string
+            if (img is String) {
+              return img.replaceAll('\\', '/');
+            }
 
-      return '';
-    }).where((e) => e.isNotEmpty).toList();
+            return '';
+          })
+          .where((e) => e.isNotEmpty)
+          .toList();
+    }
+
+    // CASE 2: Comma-separated string
+    if (imagesJson is String) {
+      return imagesJson
+          .split(',')
+          .map((s) => s.trim().replaceAll('\\', '/'))
+          .where((s) => s.isNotEmpty)
+          .toList();
+    }
+
+    return [];
   }
-
-  // CASE 2: Comma-separated string
-  if (imagesJson is String) {
-    return imagesJson
-        .split(',')
-        .map((s) => s.trim().replaceAll('\\', '/'))
-        .where((s) => s.isNotEmpty)
-        .toList();
-  }
-
-  return [];
-}
 
   /// Safely parses facilities list
   static List<String> _parseFacilities(dynamic facilitiesJson) {
     if (facilitiesJson == null) return [];
     if (facilitiesJson is List) {
-      return facilitiesJson.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
+      return facilitiesJson
+          .map((e) => e.toString().trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
     }
     return [];
   }

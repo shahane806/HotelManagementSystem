@@ -14,12 +14,18 @@ class _SettingsState extends State<Settings> with TickerProviderStateMixin {
 
   final List<_SettingsItem> settingsItems = [
     _SettingsItem("General", Icons.tune, "App preferences & behavior"),
-    _SettingsItem("Notifications", Icons.notifications_outlined, "Manage alerts & sounds"),
-    _SettingsItem("Printer Setup", Icons.print, "Configure receipt & kitchen printers"),
-    _SettingsItem("Payment Gateway", Icons.payment, "Configure online payments"),
-    _SettingsItem("Tax & Billing", Icons.receipt_long, "GST, service charge settings"),
-    _SettingsItem("Menu Management", Icons.restaurant_menu, "Categories & items"),
-    _SettingsItem("Staff Roles", Icons.supervised_user_circle, "Permissions & access"),
+    _SettingsItem("Notifications", Icons.notifications_outlined,
+        "Manage alerts & sounds"),
+    _SettingsItem(
+        "Printer Setup", Icons.print, "Configure receipt & kitchen printers"),
+    _SettingsItem(
+        "Payment Gateway", Icons.payment, "Configure online payments"),
+    _SettingsItem(
+        "Tax & Billing", Icons.receipt_long, "GST, service charge settings"),
+    _SettingsItem(
+        "Menu Management", Icons.restaurant_menu, "Categories & items"),
+    _SettingsItem(
+        "Staff Roles", Icons.supervised_user_circle, "Permissions & access"),
     _SettingsItem("Backup & Sync", Icons.cloud_sync, "Data backup settings"),
     _SettingsItem("Language", Icons.language, "App language & region"),
     _SettingsItem("Theme", Icons.palette, "Dark mode & colors"),
@@ -89,7 +95,8 @@ class _SettingsState extends State<Settings> with TickerProviderStateMixin {
                               final item = settingsItems[index];
                               final animationDelay = index * 0.08;
 
-                              final animation = Tween<double>(begin: 0.0, end: 1.0).animate(
+                              final animation =
+                                  Tween<double>(begin: 0.0, end: 1.0).animate(
                                 CurvedAnimation(
                                   parent: _animationController,
                                   curve: Interval(
@@ -104,7 +111,8 @@ class _SettingsState extends State<Settings> with TickerProviderStateMixin {
                                 animation: _animationController,
                                 builder: (context, child) {
                                   // ---- CLAMP THE VALUE ----
-                                  final double animValue = animation.value.clamp(0.0, 1.0);
+                                  final double animValue =
+                                      animation.value.clamp(0.0, 1.0);
 
                                   return Transform.scale(
                                     scale: animValue,
@@ -139,7 +147,7 @@ class _SettingsState extends State<Settings> with TickerProviderStateMixin {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
+             const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
@@ -150,7 +158,7 @@ class _SettingsState extends State<Settings> with TickerProviderStateMixin {
                       fontWeight: FontWeight.w400,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: 4),
                   Text(
                     'Settings',
                     style: TextStyle(

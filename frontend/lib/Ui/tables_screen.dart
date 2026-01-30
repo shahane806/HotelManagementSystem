@@ -76,7 +76,6 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
       context.read<TablesBloc>().add(FetchTables());
       context.read<MenusBloc>().add(FetchMenus());
       context.read<OrdersBloc>().add(const FetchRecentOrders());
-
     });
   }
 
@@ -170,7 +169,6 @@ class _TableDashboardScreenState extends State<TableDashboardScreen>
   }
 
   void _showRecentOrders(BuildContext context) {
-
     final isTablet = MediaQuery.of(context).size.width > 600;
     Navigator.push(
       context,

@@ -1,4 +1,3 @@
-
 // Updated UserModel with Aadhaar card number
 class UserModel {
   final String id;
@@ -20,13 +19,12 @@ class UserModel {
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
-      id: json['id']?.toString() ?? '',
-      fullName: json['fullName'] ?? '',
-      email: json['email'] ?? '',
-      mobile: json['mobile'] ?? '',
-      aadhaarNumber: json['aadhaarNumber'] ?? '',
-      role: json['role'] ?? ''
-    );
+        id: json['id']?.toString() ?? '',
+        fullName: json['fullName'] ?? '',
+        email: json['email'] ?? '',
+        mobile: json['mobile'] ?? '',
+        aadhaarNumber: json['aadhaarNumber'] ?? '',
+        role: json['role'] ?? '');
   }
 
   Map<String, dynamic> toJson() {
@@ -36,8 +34,8 @@ class UserModel {
       'email': email,
       'mobile': mobile,
       'aadhaarNumber': aadhaarNumber,
-      'role':role,
-      'password':password,
+      'role': role,
+      'password': password,
     };
   }
 

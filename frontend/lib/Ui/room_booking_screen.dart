@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:frontend/app/api_constants.dart';
 import '../../models/hotel_room_model.dart';
@@ -185,8 +183,6 @@ class _BookingScreenState extends State<BookingScreen> {
 
   @override
   Widget build(BuildContext context) {
-
-
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 64, 32, 32),
       appBar: AppBar(

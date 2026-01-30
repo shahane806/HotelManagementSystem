@@ -57,7 +57,8 @@ class _UtilityScreenState extends State<UtilityScreen> {
                   DropdownButtonFormField<String>(
                     decoration: InputDecoration(
                       labelText: "Select Utility",
-                      prefixIcon: Icon(Icons.table_restaurant_outlined, color: Colors.blue[600]),
+                      prefixIcon: Icon(Icons.table_restaurant_outlined,
+                          color: Colors.blue[600]),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(color: Colors.grey[300]!),
@@ -68,7 +69,8 @@ class _UtilityScreenState extends State<UtilityScreen> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.blue[600]!, width: 2),
+                        borderSide:
+                            BorderSide(color: Colors.blue[600]!, width: 2),
                       ),
                       filled: true,
                       fillColor: Colors.grey[50],
@@ -82,7 +84,9 @@ class _UtilityScreenState extends State<UtilityScreen> {
                         .toList(),
                     onChanged: (value) {
                       selectedUtilityId = value;
-                      selectedUtilityName = utilities.firstWhere((u) => u.id == value).utilityName;
+                      selectedUtilityName = utilities
+                          .firstWhere((u) => u.id == value)
+                          .utilityName;
                     },
                     hint: const Text("Choose a utility"),
                   ),
@@ -113,7 +117,8 @@ class _UtilityScreenState extends State<UtilityScreen> {
                   "count": count,
                 });
               } else {
-                _showErrorSnackBar("Please select a utility and fill all fields correctly");
+                _showErrorSnackBar(
+                    "Please select a utility and fill all fields correctly");
               }
             },
           );
@@ -196,10 +201,13 @@ class _UtilityScreenState extends State<UtilityScreen> {
         ),
         onConfirm: () {
           final name = menuController.text.trim();
-          if (name.isNotEmpty && name.toLowerCase() != 'me' && menuType != null) {
+          if (name.isNotEmpty &&
+              name.toLowerCase() != 'me' &&
+              menuType != null) {
             Navigator.pop(context, {'name': name, 'type': menuType});
           } else {
-            _showErrorSnackBar("Please enter a valid menu name (not 'me') and select a menu type");
+            _showErrorSnackBar(
+                "Please enter a valid menu name (not 'me') and select a menu type");
           }
         },
       ),
@@ -281,16 +289,19 @@ class _UtilityScreenState extends State<UtilityScreen> {
           final item = itemController.text.trim();
           final price = priceController.text.trim();
           if (item.isNotEmpty && price.isNotEmpty && itemType != null) {
-            Navigator.pop(context, {"item": item, "price": price, "type": itemType});
+            Navigator.pop(
+                context, {"item": item, "price": price, "type": itemType});
           } else {
-            _showErrorSnackBar("Please fill all fields and select an item type");
+            _showErrorSnackBar(
+                "Please fill all fields and select an item type");
           }
         },
       ),
     );
     if (result != null) {
       if (mounted) {
-        context.read<MenusBloc>().add(AddMenuItem(menuName, result['item'], result['price'],result, result['type']));
+        context.read<MenusBloc>().add(AddMenuItem(
+            menuName, result['item'], result['price'], result, result['type']));
       }
       _showSuccessSnackBar("Menu item added successfully!");
     }
@@ -385,7 +396,8 @@ class _UtilityScreenState extends State<UtilityScreen> {
                   'isAC': isAC,
                 });
               } else {
-                _showErrorSnackBar("Please enter a valid room number and price");
+                _showErrorSnackBar(
+                    "Please enter a valid room number and price");
               }
             },
           ),
@@ -395,7 +407,9 @@ class _UtilityScreenState extends State<UtilityScreen> {
 
     if (result != null) {
       if (mounted) {
-        context.read<RoomsBloc>().add(AddRoom(result['name'], result['price'], result['isAC']));
+        context
+            .read<RoomsBloc>()
+            .add(AddRoom(result['name'], result['price'], result['isAC']));
       }
       _showSuccessSnackBar("Room added successfully!");
     }
@@ -648,7 +662,8 @@ class _UtilityScreenState extends State<UtilityScreen> {
               const SizedBox(height: 16),
               Container(
                 margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: Colors.grey[300],
                   borderRadius: BorderRadius.circular(10),
@@ -723,7 +738,8 @@ class _UtilityScreenState extends State<UtilityScreen> {
               _buildHeader(context, screenWidth),
               const SizedBox(height: 20),
               Expanded(
-                child: _buildContentGrid(context, screenWidth, isTablet, isDesktop),
+                child: _buildContentGrid(
+                    context, screenWidth, isTablet, isDesktop),
               ),
             ],
           ),
@@ -793,8 +809,8 @@ class _UtilityScreenState extends State<UtilityScreen> {
               builder: (context, tableState) {
                 int tablesCount = 0;
                 if (tableState is TablesLoaded) {
-                  tablesCount = tableState.tables.fold(
-                      0, (sum, table) => sum + table.utilityItems.length);
+                  tablesCount = tableState.tables
+                      .fold(0, (sum, table) => sum + table.utilityItems.length);
                 }
                 return BlocBuilder<RoomsBloc, RoomState>(
                   builder: (context, roomState) {
@@ -802,7 +818,8 @@ class _UtilityScreenState extends State<UtilityScreen> {
                     if (roomState is RoomLoaded) {
                       roomsCount = roomState.rooms.length;
                     }
-                    final totalItems = tablesCount + roomsCount + amenitiesCount + menusCount;
+                    final totalItems =
+                        tablesCount + roomsCount + amenitiesCount + menusCount;
 
                     return Container(
                       padding: EdgeInsets.symmetric(
@@ -874,7 +891,8 @@ class _UtilityScreenState extends State<UtilityScreen> {
     );
   }
 
-  Widget _buildContentGrid(BuildContext context, double screenWidth, bool isTablet, bool isDesktop) {
+  Widget _buildContentGrid(
+      BuildContext context, double screenWidth, bool isTablet, bool isDesktop) {
     if (isDesktop) {
       return GridView.count(
         crossAxisCount: 2,
@@ -892,7 +910,10 @@ class _UtilityScreenState extends State<UtilityScreen> {
                   "Rooms",
                   Icons.hotel,
                   Colors.purple,
-                  state.rooms.map((r) => "Room ${r.name} - ₹${r.price}/night - ${r.isAC ? 'AC' : 'Non-AC'}").toList(),
+                  state.rooms
+                      .map((r) =>
+                          "Room ${r.name} - ₹${r.price}/night - ${r.isAC ? 'AC' : 'Non-AC'}")
+                      .toList(),
                   _addRoom,
                   onDelete: (display) {
                     final name = int.parse(display.split(' ')[1]);
@@ -930,7 +951,9 @@ class _UtilityScreenState extends State<UtilityScreen> {
                 return _buildShimmerSection(screenWidth: screenWidth);
               } else if (state is AmenitiesLoaded) {
                 final amenityNames = state.amenities
-                    .expand((a) => a.name.isNotEmpty == true ? [a.name] : ['Unnamed Amenity'])
+                    .expand((a) => a.name.isNotEmpty == true
+                        ? [a.name]
+                        : ['Unnamed Amenity'])
                     .toList();
                 return _buildModernSection(
                   "Amenities",
@@ -973,7 +996,10 @@ class _UtilityScreenState extends State<UtilityScreen> {
                   "Rooms",
                   Icons.hotel,
                   Colors.purple,
-                  state.rooms.map((r) => "Room ${r.name} - ₹${r.price}/night - ${r.isAC ? 'AC' : 'Non-AC'}").toList(),
+                  state.rooms
+                      .map((r) =>
+                          "Room ${r.name} - ₹${r.price}/night - ${r.isAC ? 'AC' : 'Non-AC'}")
+                      .toList(),
                   _addRoom,
                   onDelete: (display) {
                     final name = int.parse(display.split(' ')[1]);
@@ -1011,7 +1037,9 @@ class _UtilityScreenState extends State<UtilityScreen> {
                 return _buildShimmerSection(screenWidth: screenWidth);
               } else if (state is AmenitiesLoaded) {
                 final amenityNames = state.amenities
-                    .expand((a) => a.name.isNotEmpty == true ? [a.name] : ['Unnamed Amenity'])
+                    .expand((a) => a.name.isNotEmpty == true
+                        ? [a.name]
+                        : ['Unnamed Amenity'])
                     .toList();
                 return _buildModernSection(
                   "Amenities",
@@ -1025,8 +1053,7 @@ class _UtilityScreenState extends State<UtilityScreen> {
               } else if (state is AmenitiesError) {
                 return Center(child: Text(state.message));
               }
-              if (kDebugMode) {
-              }
+              if (kDebugMode) {}
               return _buildModernSection(
                 "Amenities",
                 Icons.spa,
@@ -1050,12 +1077,11 @@ class _UtilityScreenState extends State<UtilityScreen> {
           return _buildShimmerSection(screenWidth: screenWidth);
         } else if (state is TablesLoaded) {
           final tableItems = state.tables
-              .expand((table) => table.utilityItems
-                  .map((item) => {
-                        'display': "${item.name} (${item.count} seats)",
-                        'utilityId': table.id,
-                        'itemName': item.name,
-                      }))
+              .expand((table) => table.utilityItems.map((item) => {
+                    'display': "${item.name} (${item.count} seats)",
+                    'utilityId': table.id,
+                    'itemName': item.name,
+                  }))
               .toList();
           return _buildModernSection(
             "Tables",
@@ -1064,8 +1090,10 @@ class _UtilityScreenState extends State<UtilityScreen> {
             tableItems.map((item) => item['display'] as String).toList(),
             _addTableItem,
             onDelete: (display) {
-              final item = tableItems.firstWhere((i) => i['display'] == display);
-              _deleteTableItem(item['utilityId'] as String, item['itemName'] as String);
+              final item =
+                  tableItems.firstWhere((i) => i['display'] == display);
+              _deleteTableItem(
+                  item['utilityId'] as String, item['itemName'] as String);
             },
             screenWidth: screenWidth,
           );
@@ -1136,8 +1164,13 @@ class _UtilityScreenState extends State<UtilityScreen> {
             ),
           ),
           subtitle: Text(
-            errorMessage != null ? "Error loading $title" : "${items.length} items",
-            style: TextStyle(color: errorMessage != null ? Colors.red[600] : Colors.grey[600], fontSize: 12),
+            errorMessage != null
+                ? "Error loading $title"
+                : "${items.length} items",
+            style: TextStyle(
+                color:
+                    errorMessage != null ? Colors.red[600] : Colors.grey[600],
+                fontSize: 12),
           ),
           childrenPadding: const EdgeInsets.all(16),
           children: [
@@ -1172,7 +1205,8 @@ class _UtilityScreenState extends State<UtilityScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.inbox_outlined, color: Colors.grey[400], size: 32),
+                    Icon(Icons.inbox_outlined,
+                        color: Colors.grey[400], size: 32),
                     const SizedBox(width: 12),
                     Text(
                       "No ${title.toLowerCase()} added yet",
@@ -1185,7 +1219,8 @@ class _UtilityScreenState extends State<UtilityScreen> {
               ...items.map((item) {
                 return Container(
                   margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: color.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(10),
@@ -1218,7 +1253,8 @@ class _UtilityScreenState extends State<UtilityScreen> {
                       ),
                       if (onDelete != null)
                         IconButton(
-                          icon: Icon(Icons.delete, color: Colors.red[400], size: 20),
+                          icon: Icon(Icons.delete,
+                              color: Colors.red[400], size: 20),
                           onPressed: () {
                             onDelete(item);
                           },
@@ -1279,7 +1315,8 @@ class _UtilityScreenState extends State<UtilityScreen> {
                     color: Colors.red.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.restaurant_menu, color: Colors.red, size: 24),
+                  child: const Icon(Icons.restaurant_menu,
+                      color: Colors.red, size: 24),
                 ),
                 title: const Text(
                   "Menus",
@@ -1305,11 +1342,13 @@ class _UtilityScreenState extends State<UtilityScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.restaurant_menu_outlined, color: Colors.grey[400], size: 32),
+                          Icon(Icons.restaurant_menu_outlined,
+                              color: Colors.grey[400], size: 32),
                           const SizedBox(width: 12),
                           Text(
                             "No menus created yet",
-                            style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                            style: TextStyle(
+                                color: Colors.grey[600], fontSize: 14),
                           ),
                         ],
                       ),
@@ -1320,7 +1359,8 @@ class _UtilityScreenState extends State<UtilityScreen> {
                         margin: const EdgeInsets.only(bottom: 12),
                         child: Card(
                           elevation: 2,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
                           child: ExpansionTile(
                             leading: Container(
                               padding: const EdgeInsets.all(8),
@@ -1328,15 +1368,18 @@ class _UtilityScreenState extends State<UtilityScreen> {
                                 color: Colors.red.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: const Icon(Icons.fastfood, color: Colors.red, size: 20),
+                              child: const Icon(Icons.fastfood,
+                                  color: Colors.red, size: 20),
                             ),
                             title: Text(
                               "${menu.name} (${menu.type})",
-                              style: const TextStyle(fontWeight: FontWeight.w600),
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w600),
                             ),
                             subtitle: Text("${menu.items.length} items"),
                             trailing: IconButton(
-                              icon: Icon(Icons.delete, color: Colors.red[400], size: 20),
+                              icon: Icon(Icons.delete,
+                                  color: Colors.red[400], size: 20),
                               onPressed: () {
                                 _deleteMenu(menu.name);
                               },
@@ -1352,32 +1395,43 @@ class _UtilityScreenState extends State<UtilityScreen> {
                                         padding: const EdgeInsets.all(16),
                                         decoration: BoxDecoration(
                                           color: Colors.grey[50],
-                                          borderRadius: BorderRadius.circular(8),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
                                         ),
                                         child: const Center(
                                           child: Text(
                                             "No items in this menu yet",
-                                            style: TextStyle(color: Colors.grey),
+                                            style:
+                                                TextStyle(color: Colors.grey),
                                           ),
                                         ),
                                       )
                                     else
                                       ...menu.items.map((item) => Container(
-                                            margin: const EdgeInsets.only(bottom: 8),
-                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                            margin: const EdgeInsets.only(
+                                                bottom: 8),
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 12, vertical: 8),
                                             decoration: BoxDecoration(
-                                              color: Colors.red.withOpacity(0.05),
-                                              borderRadius: BorderRadius.circular(8),
-                                              border: Border.all(color: Colors.red.withOpacity(0.2)),
+                                              color:
+                                                  Colors.red.withOpacity(0.05),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border.all(
+                                                  color: Colors.red
+                                                      .withOpacity(0.2)),
                                             ),
                                             child: Row(
-                                              crossAxisAlignment: CrossAxisAlignment.center,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.center,
                                               children: [
                                                 Container(
                                                   width: 4,
                                                   height: 4,
-                                                  margin: const EdgeInsets.only(top: 4),
-                                                  decoration: const BoxDecoration(
+                                                  margin: const EdgeInsets.only(
+                                                      top: 4),
+                                                  decoration:
+                                                      const BoxDecoration(
                                                     color: Colors.red,
                                                     shape: BoxShape.circle,
                                                   ),
@@ -1386,14 +1440,19 @@ class _UtilityScreenState extends State<UtilityScreen> {
                                                 Expanded(
                                                   child: Text(
                                                     "${item.menuitemname} - ₹${item.price} (${item.type})",
-                                                    style: const TextStyle(fontSize: 13),
-                                                    overflow: TextOverflow.visible,
+                                                    style: const TextStyle(
+                                                        fontSize: 13),
+                                                    overflow:
+                                                        TextOverflow.visible,
                                                   ),
                                                 ),
                                                 IconButton(
-                                                  icon: Icon(Icons.delete, color: Colors.red[400], size: 20),
+                                                  icon: Icon(Icons.delete,
+                                                      color: Colors.red[400],
+                                                      size: 20),
                                                   onPressed: () {
-                                                    _deleteMenuItem(menu.name, item.menuitemname);
+                                                    _deleteMenuItem(menu.name,
+                                                        item.menuitemname);
                                                   },
                                                 ),
                                               ],
@@ -1403,14 +1462,17 @@ class _UtilityScreenState extends State<UtilityScreen> {
                                     SizedBox(
                                       width: double.infinity,
                                       child: OutlinedButton.icon(
-                                        onPressed: () => _addMenuItem(menu.name),
+                                        onPressed: () =>
+                                            _addMenuItem(menu.name),
                                         icon: const Icon(Icons.add, size: 16),
                                         label: const Text("Add Menu Item"),
                                         style: OutlinedButton.styleFrom(
                                           foregroundColor: Colors.red,
-                                          side: const BorderSide(color: Colors.red),
+                                          side: const BorderSide(
+                                              color: Colors.red),
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(8),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
                                           ),
                                         ),
                                       ),
@@ -1471,7 +1533,8 @@ class _UtilityScreenState extends State<UtilityScreen> {
                     color: Colors.red.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.restaurant_menu, color: Colors.red, size: 24),
+                  child: const Icon(Icons.restaurant_menu,
+                      color: Colors.red, size: 24),
                 ),
                 title: const Text(
                   "Menus",
@@ -1496,12 +1559,14 @@ class _UtilityScreenState extends State<UtilityScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.error_outline, color: Colors.red[400], size: 32),
+                        Icon(Icons.error_outline,
+                            color: Colors.red[400], size: 32),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
                             displayMessage,
-                            style: TextStyle(color: Colors.red[600], fontSize: 14),
+                            style:
+                                TextStyle(color: Colors.red[600], fontSize: 14),
                           ),
                         ),
                       ],
@@ -1552,7 +1617,8 @@ class _UtilityScreenState extends State<UtilityScreen> {
                   color: Colors.red.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.restaurant_menu, color: Colors.red, size: 24),
+                child: const Icon(Icons.restaurant_menu,
+                    color: Colors.red, size: 24),
               ),
               title: const Text(
                 "Menus",
@@ -1577,7 +1643,8 @@ class _UtilityScreenState extends State<UtilityScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.restaurant_menu_outlined, color: Colors.grey[400], size: 32),
+                      Icon(Icons.restaurant_menu_outlined,
+                          color: Colors.grey[400], size: 32),
                       const SizedBox(width: 12),
                       Text(
                         "No menus created yet",

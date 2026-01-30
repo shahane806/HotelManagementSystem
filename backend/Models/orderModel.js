@@ -15,13 +15,13 @@ const orderSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: ["Pending", "Preparing", "Ready", "Served"],
-    default:"Pending",
+    default: "Pending",
     required: true,
   },
-  bill_status:{
-    type:String,
-    enum:["Pending","Paid"],
-    default:"Pending",
+  bill_status: {
+    type: String,
+    enum: ["Pending", "Paid"],
+    default: "Pending",
     required: false,
   },
   createdAt: { type: Date, default: Date.now },

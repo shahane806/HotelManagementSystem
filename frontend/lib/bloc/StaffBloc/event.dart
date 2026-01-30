@@ -5,15 +5,15 @@ abstract class StaffEvent {}
 class FetchStaff extends StaffEvent {}
 
 class AddStaff extends StaffEvent {
-  final UserModel Staff;
+  final UserModel staff;
 
-  AddStaff(this.Staff);
+  AddStaff(this.staff);
 }
 
 class UpdateStaff extends StaffEvent {
-  final UserModel Staff;
+  final UserModel staff;
 
-  UpdateStaff(this.Staff);
+  UpdateStaff(this.staff);
 }
 
 class DeleteStaff extends StaffEvent {

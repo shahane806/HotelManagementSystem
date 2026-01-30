@@ -48,7 +48,7 @@ class _StaffScreenState extends State<StaffScreen>
     _tabController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-   _roleController.dispose();
+    _roleController.dispose();
     super.dispose();
   }
 
@@ -436,41 +436,43 @@ class _StaffScreenState extends State<StaffScreen>
                                   keyboardType: TextInputType.number,
                                 ),
                                 const SizedBox(height: 20),
-TextFormField(
-  controller: _passwordController,
-  decoration: InputDecoration(
-    hintText: 'Password',
-    prefixIcon: const Icon(Icons.lock, color: Colors.indigo),
-    filled: true,
-    fillColor: Colors.white,
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(10),
-      borderSide: BorderSide.none,
-    ),
-    contentPadding: const EdgeInsets.symmetric(vertical: 12),
-  ),
-  obscureText: true,
-  validator: _validatePassword,
-),
-const SizedBox(height: 16),
-TextFormField(
-  controller: _confirmPasswordController,
-  decoration: InputDecoration(
-    hintText: 'Confirm Password',
-    prefixIcon: const Icon(Icons.lock_outline, color: Colors.indigo),
-    filled: true,
-    fillColor: Colors.white,
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(10),
-      borderSide: BorderSide.none,
-    ),
-    contentPadding: const EdgeInsets.symmetric(vertical: 12),
-  ),
-  obscureText: true,
-  validator: _validateConfirmPassword,
-),
-
-
+                                TextFormField(
+                                  controller: _passwordController,
+                                  decoration: InputDecoration(
+                                    hintText: 'Password',
+                                    prefixIcon: const Icon(Icons.lock,
+                                        color: Colors.indigo),
+                                    filled: true,
+                                    fillColor: Colors.white,
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        vertical: 12),
+                                  ),
+                                  obscureText: true,
+                                  validator: _validatePassword,
+                                ),
+                                const SizedBox(height: 16),
+                                TextFormField(
+                                  controller: _confirmPasswordController,
+                                  decoration: InputDecoration(
+                                    hintText: 'Confirm Password',
+                                    prefixIcon: const Icon(Icons.lock_outline,
+                                        color: Colors.indigo),
+                                    filled: true,
+                                    fillColor: Colors.white,
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        vertical: 12),
+                                  ),
+                                  obscureText: true,
+                                  validator: _validateConfirmPassword,
+                                ),
                                 BlocBuilder<StaffBloc, StaffState>(
                                   builder: (context, state) {
                                     bool isLoading = state is StaffLoading;
@@ -634,53 +636,66 @@ TextFormField(
                                             trailing: Row(
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
-                                                 staffMember.fullName != "Om Shahane" ?
-                                                IconButton(
-                                                  icon: const Icon(Icons.edit,
-                                                      color: Colors.blue,
-                                                      size: 24),
-                                                  onPressed: () {
-                                                    setState(() {
-                                                      isEditMode = true;
-                                                      selectedStaff =
-                                                          staffMember;
-                                                      _fullNameController.text =
-                                                          staffMember.fullName;
-                                                      _emailController.text =
-                                                          staffMember.email;
-                                                      _mobileController.text =
-                                                          staffMember.mobile;
-                                                      _aadhaarController.text =
-                                                          staffMember
-                                                              .aadhaarNumber;
-                                                    });
-                                                    _tabController.animateTo(0);
-                                                  },
-                                                ):Container(),
-                                                staffMember.fullName != "Om Shahane" ?
-                                                IconButton(
-                                                  icon: const Icon(Icons.delete,
-                                                      color: Colors.red,
-                                                      size: 24),
-                                                  onPressed: () {
-                                                    context
-                                                        .read<StaffBloc>()
-                                                        .add(DeleteStaff(
-                                                            staffMember
-                                                                .id));
-                                                    ScaffoldMessenger.of(
-                                                            context)
-                                                        .showSnackBar(
-                                                      const SnackBar(
-                                                        content: Text(
-                                                            'Staff removed'),
-                                                        backgroundColor:
-                                                            Colors.red,
-                                                      ),
-                                                    );
-                                                  },
-                                                )
-                                                :Container()
+                                                staffMember.fullName !=
+                                                        "Om Shahane"
+                                                    ? IconButton(
+                                                        icon: const Icon(
+                                                            Icons.edit,
+                                                            color: Colors.blue,
+                                                            size: 24),
+                                                        onPressed: () {
+                                                          setState(() {
+                                                            isEditMode = true;
+                                                            selectedStaff =
+                                                                staffMember;
+                                                            _fullNameController
+                                                                    .text =
+                                                                staffMember
+                                                                    .fullName;
+                                                            _emailController
+                                                                    .text =
+                                                                staffMember
+                                                                    .email;
+                                                            _mobileController
+                                                                    .text =
+                                                                staffMember
+                                                                    .mobile;
+                                                            _aadhaarController
+                                                                    .text =
+                                                                staffMember
+                                                                    .aadhaarNumber;
+                                                          });
+                                                          _tabController
+                                                              .animateTo(0);
+                                                        },
+                                                      )
+                                                    : Container(),
+                                                staffMember.fullName !=
+                                                        "Om Shahane"
+                                                    ? IconButton(
+                                                        icon: const Icon(
+                                                            Icons.delete,
+                                                            color: Colors.red,
+                                                            size: 24),
+                                                        onPressed: () {
+                                                          context
+                                                              .read<StaffBloc>()
+                                                              .add(DeleteStaff(
+                                                                  staffMember
+                                                                      .id));
+                                                          ScaffoldMessenger.of(
+                                                                  context)
+                                                              .showSnackBar(
+                                                            const SnackBar(
+                                                              content: Text(
+                                                                  'Staff removed'),
+                                                              backgroundColor:
+                                                                  Colors.red,
+                                                            ),
+                                                          );
+                                                        },
+                                                      )
+                                                    : Container()
                                               ],
                                             ),
                                           ),

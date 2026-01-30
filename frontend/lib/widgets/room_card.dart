@@ -31,19 +31,28 @@ class RoomCard extends StatelessWidget {
           leading: ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: Image.network(
-              room.images.isNotEmpty ? room.images[0] : 'https://via.placeholder.com/150',
+              room.images.isNotEmpty
+                  ? room.images[0]
+                  : 'https://via.placeholder.com/150',
               width: 80,
               height: 80,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(color: Colors.grey[300], child: const Icon(Icons.hotel)),
+              errorBuilder: (_, __, ___) => Container(
+                  color: Colors.grey[300], child: const Icon(Icons.hotel)),
             ),
           ),
-          title: Text('Room ${room.roomNo} • ${room.type}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          title: Text('Room ${room.roomNo} • ${room.type}',
+              style:
+                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('₹${room.pricePerNight.toStringAsFixed(0)} / night'),
-              Text('Status: ${room.status.toUpperCase()}', style: TextStyle(color: room.status == 'available' ? Colors.green : Colors.orange)),
+              Text('Status: ${room.status.toUpperCase()}',
+                  style: TextStyle(
+                      color: room.status == 'available'
+                          ? Colors.green
+                          : Colors.orange)),
               Text('${room.capacity} Guests • Floor ${room.floor}'),
             ],
           ),
@@ -53,8 +62,20 @@ class RoomCard extends StatelessWidget {
               if (value == 'delete') onDelete?.call();
             },
             itemBuilder: (_) => [
-              const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit), SizedBox(width: 8), Text('Edit')])),
-              const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete), SizedBox(width: 8), Text('Delete')])),
+              const PopupMenuItem(
+                  value: 'edit',
+                  child: Row(children: [
+                    Icon(Icons.edit),
+                    SizedBox(width: 8),
+                    Text('Edit')
+                  ])),
+              const PopupMenuItem(
+                  value: 'delete',
+                  child: Row(children: [
+                    Icon(Icons.delete),
+                    SizedBox(width: 8),
+                    Text('Delete')
+                  ])),
             ],
           ),
           onTap: onTap,
@@ -91,7 +112,9 @@ class RoomCard extends StatelessWidget {
             children: [
               // Main Room Image
               Image.network(
-                room.images.isNotEmpty ? room.images[0] : 'https://via.placeholder.com/400x300',
+                room.images.isNotEmpty
+                    ? room.images[0]
+                    : 'https://via.placeholder.com/400x300',
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => Container(
                   color: Colors.grey[300],
@@ -151,12 +174,15 @@ class RoomCard extends StatelessWidget {
                             color: Colors.white,
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
-                            shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
+                            shadows: [
+                              Shadow(blurRadius: 4, color: Colors.black54)
+                            ],
                           ),
                         ),
                         Row(
                           children: [
-                            const Icon(Icons.star, color: Colors.amber, size: 20),
+                            const Icon(Icons.star,
+                                color: Colors.amber, size: 20),
                             const SizedBox(width: 4),
                             Text(
                               room.rating?.toStringAsFixed(1) ?? '4.9',
@@ -164,7 +190,9 @@ class RoomCard extends StatelessWidget {
                                 color: Colors.white,
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
+                                shadows: [
+                                  Shadow(blurRadius: 4, color: Colors.black54)
+                                ],
                               ),
                             ),
                           ],
@@ -184,7 +212,9 @@ class RoomCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.9),
                     shape: BoxShape.circle,
-                    boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black26, blurRadius: 4)
+                    ],
                   ),
                   child: Icon(
                     Icons.favorite_border,
@@ -200,14 +230,18 @@ class RoomCard extends StatelessWidget {
                   top: 12,
                   left: 12,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.orange[700],
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: const Text(
                       'Booked',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12),
                     ),
                   ),
                 ),

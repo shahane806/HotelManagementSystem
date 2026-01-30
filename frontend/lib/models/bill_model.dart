@@ -1,6 +1,5 @@
-
-import 'user_model.dart';
 import 'order_model.dart';
+
 class Bill {
   final String billId;
   final String table;

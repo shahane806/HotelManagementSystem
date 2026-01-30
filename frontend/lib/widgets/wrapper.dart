@@ -13,18 +13,19 @@ import '../bloc/RoomsBloc/bloc.dart';
 import '../bloc/StaffBloc/bloc.dart';
 import '../bloc/TableUtility/bloc.dart';
 import '../repositories/in_memory_repository.dart';
+
 Widget wrapper(Widget child) {
   return MultiBlocProvider(providers: [
     BlocProvider(create: (_) => AmenitiesBloc()),
     BlocProvider(create: (_) => MenusBloc()),
     BlocProvider(create: (_) => TablesBloc()),
     BlocProvider(create: (_) => RoomsBloc()),
-    BlocProvider(create: (_) => OrdersBloc(repository: InMemoryOrderRepository())),
+    BlocProvider(
+        create: (_) => OrdersBloc(repository: InMemoryOrderRepository())),
     BlocProvider(create: (_) => CustomerBloc()),
     BlocProvider(create: (_) => BillBloc()),
     BlocProvider(create: (_) => StaffBloc()),
     BlocProvider(create: (_) => RoomBloc(ApiServiceRooms())),
     BlocProvider(create: (_) => KitchenDashboardBloc(SocketService()))
-
   ], child: child);
 }

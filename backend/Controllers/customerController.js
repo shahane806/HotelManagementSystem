@@ -1,33 +1,37 @@
-const Customer = require('../Models/customerModel');
+const Customer = require("../Models/customerModel");
 
- const getAllCustomers = async (req, res) => {
+const getAllCustomers = async (req, res) => {
   try {
     const customers = await Customer.find();
     res.status(200).json(customers);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching customers', error });
+    res.status(500).json({ message: "Error fetching customers", error });
   }
 };
 
- const createCustomer = async (req, res) => {
+const createCustomer = async (req, res) => {
   try {
     const customer = new Customer(req.body);
     await customer.save();
     res.status(201).json(customer);
   } catch (error) {
-    res.status(400).json({ message: 'Error creating customer', error });
+    res.status(400).json({ message: "Error creating customer", error });
   }
 };
 
 const updateCustomer = async (req, res) => {
   try {
-    const customer = await Customer.findOneAndUpdate({ id: req.params.userId }, req.body, { new: true });
+    const customer = await Customer.findOneAndUpdate(
+      { id: req.params.userId },
+      req.body,
+      { new: true },
+    );
     if (!customer) {
-      return res.status(404).json({ message: 'Customer not found' });
+      return res.status(404).json({ message: "Customer not found" });
     }
     res.status(200).json(customer);
   } catch (error) {
-    res.status(500).json({ message: 'Error updating customer', error });
+    res.status(500).json({ message: "Error updating customer", error });
   }
 };
 
@@ -42,14 +46,18 @@ const deleteCustomer = async (req, res) => {
     }
 
     if (!customer) {
-      return res.status(404).json({ message: 'Customer not found' });
+      return res.status(404).json({ message: "Customer not found" });
     }
 
-    res.status(200).json({ message: 'Customer deleted successfully' });
+    res.status(200).json({ message: "Customer deleted successfully" });
   } catch (error) {
-    res.status(500).json({ message: 'Error deleting customer', error });
+    res.status(500).json({ message: "Error deleting customer", error });
   }
 };
 
-
-module.exports = {createCustomer,getAllCustomers,updateCustomer,deleteCustomer}
+module.exports = {
+  createCustomer,
+  getAllCustomers,
+  updateCustomer,
+  deleteCustomer,
+};

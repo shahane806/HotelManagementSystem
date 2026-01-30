@@ -3,7 +3,7 @@ const path = require("path");
 const fs = require("fs");
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    const uploadPath = path.join("uploads","room");
+    const uploadPath = path.join("uploads", "room");
     fs.mkdirSync(uploadPath, { recursive: true });
     cb(null, uploadPath);
   },
@@ -17,14 +17,14 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   limits: {
-    fileSize: 5 * 1024 * 1024, 
+    fileSize: 5 * 1024 * 1024,
   },
-//   fileFilter: ( file, cb) => {
-//     if (!file.mimetype.startsWith("image/")) {
-//       return cb(new Error("Only images are allowed"), false);
-//     }
-//     cb(null, true);
-//   },
+  //   fileFilter: ( file, cb) => {
+  //     if (!file.mimetype.startsWith("image/")) {
+  //       return cb(new Error("Only images are allowed"), false);
+  //     }
+  //     cb(null, true);
+  //   },
 });
 
-module.exports= { upload };
+module.exports = { upload };

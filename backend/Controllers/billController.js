@@ -106,7 +106,9 @@ const getAnalytics = async (req, res) => {
       .find({ status: "Paid" })
       .sort({ updatedAt: -1 })
       .limit(10)
-      .select("billId table totalAmount paymentMethod transactionId status updatedAt user orders isGstApplied");
+      .select(
+        "billId table totalAmount paymentMethod transactionId status updatedAt user orders isGstApplied",
+      );
 
     res.status(200).json({
       success: true,
@@ -115,7 +117,6 @@ const getAnalytics = async (req, res) => {
         month: { ...month, billCount: monthBills.length },
         pendingCount,
         bills: recentBills.map((b) => ({
-
           billId: b.billId,
           table: b.table,
           amount: b.totalAmount,
@@ -125,9 +126,8 @@ const getAnalytics = async (req, res) => {
           orders: Array.isArray(b.orders) ? b.orders : [],
           isGstApplied: b.isGstApplied ?? false,
           user: b.user,
-          transactionId:b.transactionId,
-          status : b.status
-
+          transactionId: b.transactionId,
+          status: b.status,
         })),
       },
     });
@@ -143,8 +143,8 @@ const getAnalytics = async (req, res) => {
 /* ───────────────────────── UPDATE BILL STATUS ───────────────────────── */
 const updateBillStatus = async (req, res) => {
   const { billId, status, paymentMethod, mobile, transaction } = req.body; // added transaction
-  console.log("Om Shahane ")
-  console.log(req.body)
+  console.log("Om Shahane ");
+  console.log(req.body);
   try {
     const billToUpdate = await bill.findOne({ billId });
     if (!billToUpdate) {
@@ -232,11 +232,7 @@ const generateReport = async (req, res) => {
         //   - +91 followed by 10 digits
         //   - last 10 digits (in case someone saved with country code or spaces)
         query["user.mobile"] = {
-          $in: [
-            cleanedMobile,
-            `+91${cleanedMobile}`,
-            cleanedMobile.slice(-10),
-          ],
+          $in: [cleanedMobile, `+91${cleanedMobile}`, cleanedMobile.slice(-10)],
         };
       }
       // If less than 10 digits → we silently ignore (or you can return warning)
@@ -246,12 +242,15 @@ const generateReport = async (req, res) => {
     const reports = await bill
       .find(query)
       .select(
-        "billId table totalAmount status transactionId paymentMethod updatedAt user orders"
+        "billId table totalAmount status transactionId paymentMethod updatedAt user orders",
       )
       .lean(); // lean() = faster + plain JS objects
 
     // Calculate totals
-    const total = reports.reduce((sum, bill) => sum + (bill.totalAmount || 0), 0);
+    const total = reports.reduce(
+      (sum, bill) => sum + (bill.totalAmount || 0),
+      0,
+    );
 
     const cash = reports
       .filter((bill) => bill.paymentMethod?.toLowerCase() === "cash")

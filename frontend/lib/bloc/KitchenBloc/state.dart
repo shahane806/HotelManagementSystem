@@ -13,8 +13,7 @@ class KitchenDashboardState {
   }) {
     return KitchenDashboardState(
       orders: orders ?? this.orders,
-      selectedStatusFilter:
-          selectedStatusFilter ?? this.selectedStatusFilter,
+      selectedStatusFilter: selectedStatusFilter ?? this.selectedStatusFilter,
     );
   }
 }

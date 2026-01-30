@@ -11,7 +11,7 @@ const roomSchema = new mongoose.Schema(
 
     type: {
       type: String,
-      enum: ["Standard", "Deluxe", "Suite","Premium"],
+      enum: ["Standard", "Deluxe", "Suite", "Premium"],
       required: true,
     },
 
@@ -71,7 +71,7 @@ const roomSchema = new mongoose.Schema(
   {
     timestamps: true,
     versionKey: false,
-  }
+  },
 );
 
 module.exports = mongoose.model("Room", roomSchema);

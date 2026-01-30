@@ -34,29 +34,28 @@ class AmenitiesBloc extends Bloc<AmenitiesEvents, AmenitiesState> {
     try {
       await apiService.addAmenity(event.amenityItemName);
       final List<AmenityModel> amenities = await apiService.getAmenityModel();
-      emit(AmenitiesLoaded(amenities)); 
+      emit(AmenitiesLoaded(amenities));
     } catch (e) {
       emit(AmenitiesError('Failed to add amenity: $e'));
     }
   }
 
   Future<void> _onDeleteAmenity(
-  DeleteAmenities event,
-  Emitter<AmenitiesState> emit,
-) async {
-  emit(AmenitiesLoading());
-  try {
-   await apiService.deleteAmenity(event.amenityItemName);
-   emit(AmenitiesLoading());
+    DeleteAmenities event,
+    Emitter<AmenitiesState> emit,
+  ) async {
+    emit(AmenitiesLoading());
     try {
-      final List<AmenityModel> amenities = await apiService.getAmenityModel();
-      emit(AmenitiesLoaded(amenities));
+      await apiService.deleteAmenity(event.amenityItemName);
+      emit(AmenitiesLoading());
+      try {
+        final List<AmenityModel> amenities = await apiService.getAmenityModel();
+        emit(AmenitiesLoaded(amenities));
+      } catch (e) {
+        emit(AmenitiesError('Failed to load amenities: $e'));
+      }
     } catch (e) {
-      emit(AmenitiesError('Failed to load amenities: $e'));
+      emit(AmenitiesError("Failed to delete amenity: ${e.toString()}"));
     }
-  } catch (e) {
-    emit(AmenitiesError("Failed to delete amenity: ${e.toString()}"));
   }
-}
-
 }

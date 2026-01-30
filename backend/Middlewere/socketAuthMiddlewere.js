@@ -1,5 +1,5 @@
-const socketAuthMiddlewere = (req,res,next) =>{
-    next()
-}
+const socketAuthMiddlewere = (req, res, next) => {
+  next();
+};
 
-modules.export = {socketAuthMiddlewere}
+modules.export = { socketAuthMiddlewere };

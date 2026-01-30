@@ -21,28 +21,29 @@ class BillBloc extends Bloc<BillEvent, BillState> {
   }
 
   void _addBill(AddBill event, Emitter<BillState> emit) {
-    final newBills = List<Map<String, dynamic>>.from(state.bills)..add(event.bill);
+    final newBills = List<Map<String, dynamic>>.from(state.bills)
+      ..add(event.bill);
     emit(state.copyWith(bills: newBills));
   }
 
- void _updateBill(UpdateBill event, Emitter<BillState> emit) {
-  final updatedBills = state.bills.map((bill) {
-    if (bill['billId'] == event.billId) {
-      final updated = {
-        ...bill,
-        'status': event.status,
-        if (event.paymentMethod != null) 'paymentMethod': event.paymentMethod,
-        if (event.transaction != null) 'transaction': event.transaction, // store transaction info
-      };
-      return updated;
-    }
-    return bill;
-  }).toList();
+  void _updateBill(UpdateBill event, Emitter<BillState> emit) {
+    final updatedBills = state.bills.map((bill) {
+      if (bill['billId'] == event.billId) {
+        final updated = {
+          ...bill,
+          'status': event.status,
+          if (event.paymentMethod != null) 'paymentMethod': event.paymentMethod,
+          if (event.transaction != null)
+            'transaction': event.transaction, // store transaction info
+        };
+        return updated;
+      }
+      return bill;
+    }).toList();
 
-  // If you want to remove Paid bills from the list, keep this line
-  // updatedBills.removeWhere((bill) => bill['status'] == 'Paid');
+    // If you want to remove Paid bills from the list, keep this line
+    // updatedBills.removeWhere((bill) => bill['status'] == 'Paid');
 
-  emit(state.copyWith(bills: updatedBills));
-}
-
+    emit(state.copyWith(bills: updatedBills));
+  }
 }

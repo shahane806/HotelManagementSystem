@@ -20,42 +20,43 @@ class _RoomsScreenState extends State<RoomsScreen> {
   String selectedFilter = 'All';
   String sortBy = 'Price: Low to High';
   @override
-  void initState(){
+  void initState() {
     super.initState();
     context.read<RoomBloc>().add(LoadRooms());
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-  elevation: 0,
-  backgroundColor: Colors.transparent,
-  foregroundColor: Colors.black87,
-  title: SizedBox(
-    height: 56, // IMPORTANT
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          widget.isAdminView ? 'Manage Rooms' : 'Discover Rooms',
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.black87,
+        title: SizedBox(
+          height: 56, // IMPORTANT
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                widget.isAdminView ? 'Manage Rooms' : 'Discover Rooms',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                ),
+              ),
+              Text(
+                widget.isAdminView
+                    ? 'Add, edit & manage hotel rooms'
+                    : 'Find your perfect stay',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
           ),
-        ),
-        Text(
-          widget.isAdminView
-              ? 'Add, edit & manage hotel rooms'
-              : 'Find your perfect stay',
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
-        ),
-      ],
-    ),
         ),
         actions: [
           if (!widget.isAdminView)
@@ -79,23 +80,25 @@ class _RoomsScreenState extends State<RoomsScreen> {
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
               onPressed: () async {
-  final result = await Navigator.push(
-    context,
-    PageRouteBuilder(
-      pageBuilder: (context, animation, secondaryAnimation) => const RoomFormScreen(),
-      transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        return FadeTransition(
-          opacity: animation,
-          child: child,
-        );
-      },
-      transitionDuration: const Duration(milliseconds: 300),
-    ),
-  );
-  if (result == true) {
-    context.read<RoomBloc>().add(LoadRooms());
-  }
-},
+                final result = await Navigator.push(
+                  context,
+                  PageRouteBuilder(
+                    pageBuilder: (context, animation, secondaryAnimation) =>
+                        const RoomFormScreen(),
+                    transitionsBuilder:
+                        (context, animation, secondaryAnimation, child) {
+                      return FadeTransition(
+                        opacity: animation,
+                        child: child,
+                      );
+                    },
+                    transitionDuration: const Duration(milliseconds: 300),
+                  ),
+                );
+                if (result == true) {
+                  context.read<RoomBloc>().add(LoadRooms());
+                }
+              },
             )
           : null,
       body: Column(
@@ -128,7 +131,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
                 if (state is RoomLoading) {
                   return const Center(child: CircularProgressIndicator());
                 }
-              
+
                 if (state is RoomLoaded) {
                   if (state.rooms.isEmpty) {
                     return _buildEmptyState();
@@ -141,7 +144,8 @@ class _RoomsScreenState extends State<RoomsScreen> {
                   if (!widget.isAdminView) {
                     return GridView.builder(
                       padding: const EdgeInsets.all(12),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
                         childAspectRatio: 0.75,
                         crossAxisSpacing: 12,
@@ -180,58 +184,66 @@ class _RoomsScreenState extends State<RoomsScreen> {
                       itemBuilder: (_, index) {
                         final room = sortedRooms[index];
                         return RoomCard(
-  room: room,
-  isAdminView: true,
-  onTap: () async {
-    final result = await Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            RoomDetailScreen(room: room),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(
-            opacity: animation,
-            child: child,
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 300),
-      ),
-    );
-    
-    if (result == true) {
-      context.read<RoomBloc>().add(LoadRooms());
-    }
-  },
-  onEdit: () async {
-    final result = await Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            RoomFormScreen(room: room),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(
-            opacity: animation,
-            child: child,
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 300),
-      ),
-    );
-    
-    if (result == true) {
-      context.read<RoomBloc>().add(LoadRooms());
-    }
-  },
-  onDelete: () {
-    context.read<RoomBloc>().add(DeleteRoomEvent(room.id));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Room deleted successfully'),
-        backgroundColor: Colors.green,
-      ),
-    );
-  },
-);
+                          room: room,
+                          isAdminView: true,
+                          onTap: () async {
+                            final result = await Navigator.push(
+                              context,
+                              PageRouteBuilder(
+                                pageBuilder:
+                                    (context, animation, secondaryAnimation) =>
+                                        RoomDetailScreen(room: room),
+                                transitionsBuilder: (context, animation,
+                                    secondaryAnimation, child) {
+                                  return FadeTransition(
+                                    opacity: animation,
+                                    child: child,
+                                  );
+                                },
+                                transitionDuration:
+                                    const Duration(milliseconds: 300),
+                              ),
+                            );
+
+                            if (result == true) {
+                              context.read<RoomBloc>().add(LoadRooms());
+                            }
+                          },
+                          onEdit: () async {
+                            final result = await Navigator.push(
+                              context,
+                              PageRouteBuilder(
+                                pageBuilder:
+                                    (context, animation, secondaryAnimation) =>
+                                        RoomFormScreen(room: room),
+                                transitionsBuilder: (context, animation,
+                                    secondaryAnimation, child) {
+                                  return FadeTransition(
+                                    opacity: animation,
+                                    child: child,
+                                  );
+                                },
+                                transitionDuration:
+                                    const Duration(milliseconds: 300),
+                              ),
+                            );
+
+                            if (result == true) {
+                              context.read<RoomBloc>().add(LoadRooms());
+                            }
+                          },
+                          onDelete: () {
+                            context
+                                .read<RoomBloc>()
+                                .add(DeleteRoomEvent(room.id));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Room deleted successfully'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          },
+                        );
                       },
                     ),
                   );

@@ -15,9 +15,13 @@ class MenuModel extends Equatable {
   factory MenuModel.fromJson(Map<String, dynamic> json) {
     final type = json['type']?.toString() ?? 'Veg';
     final items = (json['items'] as List<dynamic>?)
-            ?.map((item) => MenuItemModel.fromJson(item as Map<String, dynamic>, type))
-            .toList() ?? [];
-    developer.log('Parsed MenuModel: ${json['name']}, type: $type, items: ${items.length}', name: 'MenuModel');
+            ?.map((item) =>
+                MenuItemModel.fromJson(item as Map<String, dynamic>, type))
+            .toList() ??
+        [];
+    developer.log(
+        'Parsed MenuModel: ${json['name']}, type: $type, items: ${items.length}',
+        name: 'MenuModel');
     return MenuModel(
       name: json['name']?.toString() ?? 'Unknown',
       items: items,
@@ -51,10 +55,13 @@ class MenuItemModel extends Equatable {
   factory MenuItemModel.fromJson(Map<String, dynamic> json, String parentType) {
     final itemName = json['menuitemname']?.toString() ?? 'Unknown Item';
     // Infer Non-Veg type from item name if it contains "chicken" or "biryani"
-    final inferredType = itemName.toLowerCase().contains('chicken') || itemName.toLowerCase().contains('biryani')
+    final inferredType = itemName.toLowerCase().contains('chicken') ||
+            itemName.toLowerCase().contains('biryani')
         ? 'Non-Veg'
         : (json['type']?.toString() ?? parentType);
-    developer.log('Parsed MenuItemModel: $itemName, price: ${json['price']}, type: $inferredType', name: 'MenuItemModel');
+    developer.log(
+        'Parsed MenuItemModel: $itemName, price: ${json['price']}, type: $inferredType',
+        name: 'MenuItemModel');
     return MenuItemModel(
       menuitemname: itemName,
       price: json['price']?.toString() ?? '0',
@@ -86,9 +93,10 @@ class MenuItem extends Equatable {
     required this.price,
     required this.category,
     required this.image,
-    required this.type, required String description,
+    required this.type,
+    required String description,
   });
-Map<String, dynamic> toJson() => {
+  Map<String, dynamic> toJson() => {
         'name': name,
         'price': price,
         'category': category,
@@ -101,7 +109,8 @@ Map<String, dynamic> toJson() => {
         price: json['price'],
         category: json['category'],
         image: json['image'],
-        type: json['type'], description: '',
+        type: json['type'],
+        description: '',
       );
   @override
   List<Object> get props => [name, price, category, image, type];

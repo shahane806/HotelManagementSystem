@@ -52,10 +52,14 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
   void initState() {
     super.initState();
     roomNoCtrl = TextEditingController(text: widget.room?.roomNo ?? '');
-    priceCtrl = TextEditingController(text: widget.room?.pricePerNight.toStringAsFixed(0) ?? '');
-    floorCtrl = TextEditingController(text: widget.room?.floor.toString() ?? '1');
-    descriptionCtrl = TextEditingController(text: widget.room?.description ?? '');
-    capacityCtrl = TextEditingController(text: widget.room?.capacity.toString() ?? '2');
+    priceCtrl = TextEditingController(
+        text: widget.room?.pricePerNight.toStringAsFixed(0) ?? '');
+    floorCtrl =
+        TextEditingController(text: widget.room?.floor.toString() ?? '1');
+    descriptionCtrl =
+        TextEditingController(text: widget.room?.description ?? '');
+    capacityCtrl =
+        TextEditingController(text: widget.room?.capacity.toString() ?? '2');
 
     if (widget.room != null) {
       roomType = widget.room!.type;
@@ -171,7 +175,8 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
               title: 'Basic Information',
               icon: Icons.info_outline,
               children: [
-                _buildTextField(roomNoCtrl, 'Room Number', Icons.door_front_door),
+                _buildTextField(
+                    roomNoCtrl, 'Room Number', Icons.door_front_door),
                 const SizedBox(height: 16),
                 _buildTextField(capacityCtrl, 'Guest Capacity', Icons.people,
                     keyboardType: TextInputType.number),
@@ -190,7 +195,8 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
               title: 'Pricing',
               icon: Icons.attach_money,
               children: [
-                _buildTextField(priceCtrl, 'Price per Night (₹)', Icons.currency_rupee,
+                _buildTextField(
+                    priceCtrl, 'Price per Night (₹)', Icons.currency_rupee,
                     keyboardType: TextInputType.number),
               ],
             ),
@@ -202,7 +208,8 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
               title: 'Description',
               icon: Icons.edit_note,
               children: [
-                _buildTextField(descriptionCtrl, 'Describe this room...', Icons.description,
+                _buildTextField(
+                    descriptionCtrl, 'Describe this room...', Icons.description,
                     maxLines: 5),
               ],
             ),
@@ -232,8 +239,10 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
                       backgroundColor: Colors.grey[200],
                       selectedColor: Colors.indigo[100],
                       checkmarkColor: Colors.indigo[800],
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
                     );
                   }).toList(),
                 ),
@@ -251,10 +260,13 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
                   child: OutlinedButton.icon(
                     onPressed: pickImages,
                     icon: const Icon(Icons.add_a_photo, size: 28),
-                    label: const Text('Add Photos', style: TextStyle(fontSize: 16)),
+                    label: const Text('Add Photos',
+                        style: TextStyle(fontSize: 16)),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 32, vertical: 18),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
                       side: BorderSide(color: Colors.indigo[700]!),
                     ),
                   ),
@@ -264,7 +276,8 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
                   GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 3,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
@@ -289,7 +302,8 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
                                 }
                                 return Container(
                                   color: Colors.grey[300],
-                                  child: const Center(child: CircularProgressIndicator()),
+                                  child: const Center(
+                                      child: CircularProgressIndicator()),
                                 );
                               },
                             ),
@@ -305,7 +319,8 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
                                   color: Colors.black54,
                                   shape: BoxShape.circle,
                                 ),
-                                child: const Icon(Icons.close, color: Colors.white, size: 18),
+                                child: const Icon(Icons.close,
+                                    color: Colors.white, size: 18),
                               ),
                             ),
                           ),
@@ -313,12 +328,14 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
                       );
                     },
                   ),
-                ] else if (widget.room != null && widget.room!.images.isNotEmpty)
+                ] else if (widget.room != null &&
+                    widget.room!.images.isNotEmpty)
                   const Padding(
                     padding: EdgeInsets.only(top: 12),
                     child: Text(
                       'Current images will be kept unless you add new ones',
-                      style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                      style: TextStyle(
+                          color: Colors.grey, fontStyle: FontStyle.italic),
                     ),
                   ),
               ],
@@ -336,13 +353,15 @@ class _RoomFormScreenState extends State<RoomFormScreen> {
                   backgroundColor: Colors.indigo[700],
                   foregroundColor: Colors.white,
                   elevation: 4,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20)),
                 ),
                 child: isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
                     : Text(
                         widget.room == null ? 'Create Room' : 'Update Room',
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
                       ),
               ),
             ),

@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 class Apiservicesauthentication {
   static final String _baseUrl = ApiConstants.url;
+
   static Future<Map<String, dynamic>> loginApiService(
       String username, String password) async {
     try {
@@ -36,6 +37,7 @@ class Apiservicesauthentication {
       throw Exception("Network error. Please check your connection.");
     }
   }
+
   static Future<String> forgotPasswordApiService(String email) async {
     try {
       final response = await http.post(

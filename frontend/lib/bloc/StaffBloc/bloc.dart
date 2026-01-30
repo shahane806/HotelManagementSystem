@@ -5,7 +5,6 @@ import 'event.dart';
 import 'state.dart';
 
 class StaffBloc extends Bloc<StaffEvent, StaffState> {
-
   StaffBloc() : super(StaffInitial()) {
     on<FetchStaff>(_onFetchStaff);
     on<AddStaff>(_onAddStaff);
@@ -26,7 +25,7 @@ class StaffBloc extends Bloc<StaffEvent, StaffState> {
   Future<void> _onAddStaff(AddStaff event, Emitter<StaffState> emit) async {
     emit(StaffLoading());
     try {
-      await apiService.createStaff(event.Staff);
+      await apiService.createStaff(event.staff);
       final staff = await apiService.getAllStaff();
       emit(StaffLoaded(staff));
     } catch (e) {
@@ -34,10 +33,11 @@ class StaffBloc extends Bloc<StaffEvent, StaffState> {
     }
   }
 
-  Future<void> _onUpdateStaff(UpdateStaff event, Emitter<StaffState> emit) async {
+  Future<void> _onUpdateStaff(
+      UpdateStaff event, Emitter<StaffState> emit) async {
     emit(StaffLoading());
     try {
-      await apiService.updateStaff(event.Staff);
+      await apiService.updateStaff(event.staff);
       final staff = await apiService.getAllStaff();
       emit(StaffLoaded(staff));
     } catch (e) {
@@ -45,7 +45,8 @@ class StaffBloc extends Bloc<StaffEvent, StaffState> {
     }
   }
 
-  Future<void> _onDeleteStaff(DeleteStaff event, Emitter<StaffState> emit) async {
+  Future<void> _onDeleteStaff(
+      DeleteStaff event, Emitter<StaffState> emit) async {
     print("event.Userid : ${event.id}");
     emit(StaffLoading());
     try {

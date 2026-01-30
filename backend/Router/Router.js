@@ -7,20 +7,12 @@ const { createBill, getAllBills, updateBillStatus, getAnalytics, generateReport 
 const { getAllCustomers, createCustomer, deleteCustomer, updateCustomer } = require("../Controllers/customerController");
 const { createOrder } = require("../Controllers/razorpayController");
 const { getAllStaff, createStaff, deleteStaff, updateStaff } = require("../Controllers/staffController");
+const { createRoom, fetchRooms, getRoomById, updateRoom, deleteRoom, updateRoomStatus } = require("../Controllers/roomController");
 const path = require('path');   // ← ADD THIS LINE
 const router = express.Router();
 const { upload } = require("../config/multer");
-const {
-  createRoom,
-  fetchRooms,
-  getRoomById,
-  updateRoom,
-  deleteRoom,
-  updateRoomStatus,
-} = require("../Controllers/roomController");
-router.get("/", (req, res) => {
-  res.send("Hello World");
-});
+
+router.get("/", (req, res) => { res.send("Hello World"); });
 
 router.get("/reset-password/:token", (req, res, next) => {
   if (req.params.token.includes(".")) return next();

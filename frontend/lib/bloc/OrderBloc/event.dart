@@ -30,10 +30,10 @@ class PlaceOrder extends OrdersEvent {
   final String? orderId;
   final String? table;
 
-  const PlaceOrder(this.orderId,this.table);
+  const PlaceOrder(this.orderId, this.table);
 
   @override
-  List<Object?> get props => [orderId,table];
+  List<Object?> get props => [orderId, table];
 }
 
 class FetchRecentOrders extends OrdersEvent {
@@ -59,4 +59,3 @@ class RemoveRecentOrder extends OrdersEvent {
   @override
   List<Object> get props => [orderId];
 }
-

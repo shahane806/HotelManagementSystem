@@ -14,7 +14,8 @@ class RoomFormScreen extends StatefulWidget {
   State<RoomFormScreen> createState() => _RoomFormScreenState();
 }
 
-class _RoomFormScreenState extends State<RoomFormScreen> with SingleTickerProviderStateMixin {
+class _RoomFormScreenState extends State<RoomFormScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final api = ApiServiceRooms();
   final picker = ImagePicker();
@@ -31,7 +32,7 @@ class _RoomFormScreenState extends State<RoomFormScreen> with SingleTickerProvid
   List<XFile> images = [];
   List<String> selectedFacilities = [];
   bool isLoading = false;
-  int _currentStep = 0;
+  final int _currentStep = 0;
 
   final List<String> roomTypes = ['Standard', 'Deluxe', 'Suite', 'Premium'];
   final List<String> availableFacilities = [
@@ -55,10 +56,14 @@ class _RoomFormScreenState extends State<RoomFormScreen> with SingleTickerProvid
   void initState() {
     super.initState();
     roomNoCtrl = TextEditingController(text: widget.room?.roomNo ?? '');
-    priceCtrl = TextEditingController(text: widget.room?.pricePerNight.toStringAsFixed(0) ?? '');
-    floorCtrl = TextEditingController(text: widget.room?.floor.toString() ?? '1');
-    descriptionCtrl = TextEditingController(text: widget.room?.description ?? '');
-    capacityCtrl = TextEditingController(text: widget.room?.capacity.toString() ?? '2');
+    priceCtrl = TextEditingController(
+        text: widget.room?.pricePerNight.toStringAsFixed(0) ?? '');
+    floorCtrl =
+        TextEditingController(text: widget.room?.floor.toString() ?? '1');
+    descriptionCtrl =
+        TextEditingController(text: widget.room?.description ?? '');
+    capacityCtrl =
+        TextEditingController(text: widget.room?.capacity.toString() ?? '2');
 
     _animationController = AnimationController(
       vsync: this,
@@ -106,7 +111,8 @@ class _RoomFormScreenState extends State<RoomFormScreen> with SingleTickerProvid
           ),
           backgroundColor: Colors.red.shade600,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           margin: const EdgeInsets.all(16),
         ),
       );
@@ -154,7 +160,8 @@ class _RoomFormScreenState extends State<RoomFormScreen> with SingleTickerProvid
             ),
             backgroundColor: Colors.green.shade600,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             margin: const EdgeInsets.all(16),
           ),
         );
@@ -173,7 +180,8 @@ class _RoomFormScreenState extends State<RoomFormScreen> with SingleTickerProvid
             ),
             backgroundColor: Colors.red.shade700,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             margin: const EdgeInsets.all(16),
           ),
         );
@@ -255,11 +263,14 @@ class _RoomFormScreenState extends State<RoomFormScreen> with SingleTickerProvid
                       ),
                       child: Row(
                         children: [
-                          _buildProgressStep(0, 'Details', Icons.info_outline_rounded),
+                          _buildProgressStep(
+                              0, 'Details', Icons.info_outline_rounded),
                           Expanded(child: _buildProgressLine(0)),
-                          _buildProgressStep(1, 'Photos', Icons.photo_camera_outlined),
+                          _buildProgressStep(
+                              1, 'Photos', Icons.photo_camera_outlined),
                           Expanded(child: _buildProgressLine(1)),
-                          _buildProgressStep(2, 'Amenities', Icons.star_border_rounded),
+                          _buildProgressStep(
+                              2, 'Amenities', Icons.star_border_rounded),
                         ],
                       ),
                     ),
@@ -362,7 +373,8 @@ class _RoomFormScreenState extends State<RoomFormScreen> with SingleTickerProvid
                             spacing: 12,
                             runSpacing: 12,
                             children: availableFacilities.map((facility) {
-                              final selected = selectedFacilities.contains(facility);
+                              final selected =
+                                  selectedFacilities.contains(facility);
                               return InkWell(
                                 onTap: () {
                                   setState(() {
@@ -374,18 +386,24 @@ class _RoomFormScreenState extends State<RoomFormScreen> with SingleTickerProvid
                                 borderRadius: BorderRadius.circular(16),
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 200),
-                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 20, vertical: 14),
                                   decoration: BoxDecoration(
-                                    color: selected ? Colors.indigo.shade50 : Colors.grey[100],
+                                    color: selected
+                                        ? Colors.indigo.shade50
+                                        : Colors.grey[100],
                                     borderRadius: BorderRadius.circular(16),
                                     border: Border.all(
-                                      color: selected ? Colors.indigo.shade300 : Colors.grey.shade300,
+                                      color: selected
+                                          ? Colors.indigo.shade300
+                                          : Colors.grey.shade300,
                                       width: selected ? 2 : 1,
                                     ),
                                     boxShadow: selected
                                         ? [
                                             BoxShadow(
-                                              color: Colors.indigo.withOpacity(0.2),
+                                              color: Colors.indigo
+                                                  .withOpacity(0.2),
                                               blurRadius: 8,
                                               offset: const Offset(0, 2),
                                             ),
@@ -396,17 +414,25 @@ class _RoomFormScreenState extends State<RoomFormScreen> with SingleTickerProvid
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Icon(
-                                        selected ? Icons.check_circle_rounded : Icons.circle_outlined,
+                                        selected
+                                            ? Icons.check_circle_rounded
+                                            : Icons.circle_outlined,
                                         size: 20,
-                                        color: selected ? Colors.indigo.shade700 : Colors.grey.shade600,
+                                        color: selected
+                                            ? Colors.indigo.shade700
+                                            : Colors.grey.shade600,
                                       ),
                                       const SizedBox(width: 8),
                                       Text(
                                         facility,
                                         style: TextStyle(
                                           fontSize: 14,
-                                          fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                                          color: selected ? Colors.indigo.shade900 : Colors.grey.shade800,
+                                          fontWeight: selected
+                                              ? FontWeight.w600
+                                              : FontWeight.w500,
+                                          color: selected
+                                              ? Colors.indigo.shade900
+                                              : Colors.grey.shade800,
                                         ),
                                       ),
                                     ],
@@ -482,7 +508,8 @@ class _RoomFormScreenState extends State<RoomFormScreen> with SingleTickerProvid
                             GridView.builder(
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 3,
                                 crossAxisSpacing: 12,
                                 mainAxisSpacing: 12,
@@ -500,10 +527,12 @@ class _RoomFormScreenState extends State<RoomFormScreen> with SingleTickerProvid
                                           if (snapshot.hasData) {
                                             return Container(
                                               decoration: BoxDecoration(
-                                                borderRadius: BorderRadius.circular(16),
+                                                borderRadius:
+                                                    BorderRadius.circular(16),
                                                 boxShadow: [
                                                   BoxShadow(
-                                                    color: Colors.black.withOpacity(0.1),
+                                                    color: Colors.black
+                                                        .withOpacity(0.1),
                                                     blurRadius: 8,
                                                     offset: const Offset(0, 2),
                                                   ),
@@ -520,10 +549,12 @@ class _RoomFormScreenState extends State<RoomFormScreen> with SingleTickerProvid
                                           return Container(
                                             decoration: BoxDecoration(
                                               color: Colors.grey[300],
-                                              borderRadius: BorderRadius.circular(16),
+                                              borderRadius:
+                                                  BorderRadius.circular(16),
                                             ),
                                             child: const Center(
-                                              child: CircularProgressIndicator(strokeWidth: 2),
+                                              child: CircularProgressIndicator(
+                                                  strokeWidth: 2),
                                             ),
                                           );
                                         },
@@ -541,7 +572,8 @@ class _RoomFormScreenState extends State<RoomFormScreen> with SingleTickerProvid
                                             shape: BoxShape.circle,
                                             boxShadow: [
                                               BoxShadow(
-                                                color: Colors.red.withOpacity(0.4),
+                                                color:
+                                                    Colors.red.withOpacity(0.4),
                                                 blurRadius: 8,
                                                 offset: const Offset(0, 2),
                                               ),
@@ -566,7 +598,8 @@ class _RoomFormScreenState extends State<RoomFormScreen> with SingleTickerProvid
                                           ),
                                           decoration: BoxDecoration(
                                             color: Colors.indigo.shade700,
-                                            borderRadius: BorderRadius.circular(8),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
                                           ),
                                           child: const Text(
                                             'Cover',
@@ -582,7 +615,8 @@ class _RoomFormScreenState extends State<RoomFormScreen> with SingleTickerProvid
                                 );
                               },
                             ),
-                          ] else if (widget.room != null && widget.room!.images.isNotEmpty)
+                          ] else if (widget.room != null &&
+                              widget.room!.images.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 12),
                               child: Container(
@@ -590,11 +624,13 @@ class _RoomFormScreenState extends State<RoomFormScreen> with SingleTickerProvid
                                 decoration: BoxDecoration(
                                   color: Colors.amber.shade50,
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.amber.shade200),
+                                  border:
+                                      Border.all(color: Colors.amber.shade200),
                                 ),
                                 child: Row(
                                   children: [
-                                    Icon(Icons.info_outline_rounded, color: Colors.amber.shade700),
+                                    Icon(Icons.info_outline_rounded,
+                                        color: Colors.amber.shade700),
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Text(
@@ -661,7 +697,9 @@ class _RoomFormScreenState extends State<RoomFormScreen> with SingleTickerProvid
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        widget.room == null ? Icons.add_rounded : Icons.check_rounded,
+                        widget.room == null
+                            ? Icons.add_rounded
+                            : Icons.check_rounded,
                         size: 24,
                       ),
                       const SizedBox(width: 12),
@@ -861,7 +899,8 @@ class _RoomFormScreenState extends State<RoomFormScreen> with SingleTickerProvid
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(color: Colors.red.shade400, width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         labelStyle: TextStyle(color: Colors.grey[700], fontSize: 14),
         hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
       ),
@@ -886,12 +925,14 @@ class _RoomFormScreenState extends State<RoomFormScreen> with SingleTickerProvid
               color: Colors.indigo.shade50,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(Icons.hotel_rounded, color: Colors.indigo.shade600, size: 20),
+            child: Icon(Icons.hotel_rounded,
+                color: Colors.indigo.shade600, size: 20),
           ),
           filled: true,
           fillColor: Colors.transparent,
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
           labelStyle: TextStyle(color: Colors.grey[700], fontSize: 14),
         ),
         icon: Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey[700]),

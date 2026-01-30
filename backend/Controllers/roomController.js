@@ -68,7 +68,7 @@ const fetchRooms = async (req, res) => {
 
     // Build filter object
     let filter = {};
-    
+
     if (status) filter.status = status;
     if (type) filter.type = type;
     if (floor) filter.floor = parseInt(floor);
@@ -79,7 +79,7 @@ const fetchRooms = async (req, res) => {
     }
 
     const rooms = await Room.find(filter)
-      .populate('members', 'name email phone')
+      .populate("members", "name email phone")
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 });
@@ -110,7 +110,10 @@ const getRoomById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const room = await Room.findById(id).populate('members', 'name email phone');
+    const room = await Room.findById(id).populate(
+      "members",
+      "name email phone",
+    );
 
     if (!room) {
       return res.status(404).json({ message: "Room not found" });
@@ -155,7 +158,8 @@ const updateRoom = async (req, res) => {
     if (type) room.type = type;
     if (capacity) room.capacity = parseInt(capacity);
     if (pricePerNight) room.pricePerNight = parseFloat(pricePerNight);
-    if (facilities) room.facilities = facilities.split(",").map((f) => f.trim());
+    if (facilities)
+      room.facilities = facilities.split(",").map((f) => f.trim());
     if (floor !== undefined) room.floor = parseInt(floor);
     if (description) room.description = description;
     if (status) room.status = status;
@@ -227,16 +231,20 @@ const updateRoomStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
 
-    if (!status || !["available", "occupied", "maintenance", "reserved"].includes(status)) {
+    if (
+      !status ||
+      !["available", "occupied", "maintenance", "reserved"].includes(status)
+    ) {
       return res.status(400).json({
-        message: "Valid status is required (available, occupied, maintenance, reserved)",
+        message:
+          "Valid status is required (available, occupied, maintenance, reserved)",
       });
     }
 
     const room = await Room.findByIdAndUpdate(
       id,
       { status },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     if (!room) {

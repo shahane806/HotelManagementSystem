@@ -12,7 +12,7 @@ class SocketService {
   KitchenDashboardBloc? bloc;
 
   List<Map<String, dynamic>> _lastKnownOrders = [];
-  List<Map<String, dynamic>> _lastKnownBills = [];
+  // List<Map<String, dynamic>> _lastKnownBills = [];
 
   int _reconnectAttempts = 0;
   static const int _maxReconnectAttempts = 5;
@@ -44,47 +44,38 @@ class SocketService {
     socket.onDisconnect((_) => _attemptReconnect());
     socket.onConnectError((_) => _attemptReconnect());
 
-   socket.on('newOrder', (data) {
-  if (bloc == null) {
-    print("[SocketService] ERROR: bloc is null when newOrder arrived");
-    return;
-  }
-  try {
-    bloc!.add(AddNewOrder(Map<String, dynamic>.from(data)));
-    print("[SocketService] → newOrder event sent to bloc");
-  } catch (e) {
-    print("[SocketService] newOrder processing error: $e");
-  }
-});
-
-socket.on('orderUpdated', (data) {
-  if (bloc == null) {
-    print("[SocketService] ERROR: bloc is null when orderUpdated arrived");
-    return;
-  }
-  try {
-    final update = Map<String, dynamic>.from(data);
-    if (!_isValidUpdate(update)) return;
-
-    bloc!.add(
-      UpdateOrderStatusEvent(
-        update['orderId'].toString(),
-        update['status'],
-      ),
-    );
-    print("[SocketService] → orderUpdated event sent to bloc");
-  } catch (e) {
-    print("[SocketService] orderUpdated processing error: $e");
-  }
-});
- 
-    socket.on('billsFetched', (data) {
+    socket.on('newOrder', (data) {
+      if (bloc == null) {
+        print("[SocketService] ERROR: bloc is null when newOrder arrived");
+        return;
+      }
       try {
-        final bills = List<Map<String, dynamic>>.from(data);
-        if (bills.every(_isValidBill)) {
-          _lastKnownBills = bills;
-        }
-      } catch (_) {}
+        bloc!.add(AddNewOrder(Map<String, dynamic>.from(data)));
+        print("[SocketService] → newOrder event sent to bloc");
+      } catch (e) {
+        print("[SocketService] newOrder processing error: $e");
+      }
+    });
+
+    socket.on('orderUpdated', (data) {
+      if (bloc == null) {
+        print("[SocketService] ERROR: bloc is null when orderUpdated arrived");
+        return;
+      }
+      try {
+        final update = Map<String, dynamic>.from(data);
+        if (!_isValidUpdate(update)) return;
+
+        bloc!.add(
+          UpdateOrderStatusEvent(
+            update['orderId'].toString(),
+            update['status'],
+          ),
+        );
+        print("[SocketService] → orderUpdated event sent to bloc");
+      } catch (e) {
+        print("[SocketService] orderUpdated processing error: $e");
+      }
     });
   }
 
@@ -92,19 +83,10 @@ socket.on('orderUpdated', (data) {
     return update.containsKey('orderId') && update.containsKey('status');
   }
 
-  bool _isValidBill(Map<String, dynamic> bill) {
-    return bill.containsKey('id') &&
-        bill.containsKey('table') &&
-        bill.containsKey('amount') &&
-        bill.containsKey('status') &&
-        bill.containsKey('time');
-  }
-
   void _attemptReconnect() async {
     if (_reconnectAttempts >= _maxReconnectAttempts) return;
 
-    final delay =
-        _initialReconnectDelay * pow(2, _reconnectAttempts).toInt();
+    final delay = _initialReconnectDelay * pow(2, _reconnectAttempts).toInt();
     await Future.delayed(delay);
     _reconnectAttempts++;
     connect();

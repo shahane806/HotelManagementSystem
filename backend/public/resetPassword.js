@@ -1,7 +1,7 @@
-const token = window.location.pathname.split('/').pop();
-const form = document.getElementById('resetForm');
-const alertBox = document.getElementById('alert');
-const btn = document.getElementById('submitBtn');
+const token = window.location.pathname.split("/").pop();
+const form = document.getElementById("resetForm");
+const alertBox = document.getElementById("alert");
+const btn = document.getElementById("submitBtn");
 
 function showAlert(msg, type) {
   alertBox.textContent = msg;

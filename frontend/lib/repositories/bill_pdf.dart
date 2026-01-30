@@ -1,6 +1,5 @@
 import 'dart:developer' as developer;
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:open_filex/open_filex.dart';
@@ -9,13 +8,11 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:printing/printing.dart';
-import 'package:whatsapp_share_plus/whatsapp_share_plus.dart';
 import 'package:whatsapp_share_plus/whatsapp_share_plus_platform_interface.dart';
 
 import '../app/constants.dart';
 
-void showSnackBar(String message, Color color,
-    BuildContext context) {
+void showSnackBar(String message, Color color, BuildContext context) {
   if (!context.mounted) return;
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
@@ -36,7 +33,8 @@ Future<String> generateReceiptPdf(
   bool isGstApplied,
   BuildContext context,
 ) async {
-  print("Generate Pdf is called : $response\n$orders\n$user\n$mobile\n$isGstApplied");
+  // print(
+  //     "Generate Pdf is called : $response\n$orders\n$user\n$mobile\n$isGstApplied");
   try {
     final pdf =
         await buildPdfDocument(response, orders, user, mobile!, isGstApplied);
@@ -47,8 +45,8 @@ Future<String> generateReceiptPdf(
         onLayout: (_) => bytes,
         name: 'receipt_${DateTime.now().millisecondsSinceEpoch}.pdf',
       );
-      if(context.mounted){
-        showSnackBar('Receipt ready to print', Colors.green,context);
+      if (context.mounted) {
+        showSnackBar('Receipt ready to print', Colors.green, context);
       }
       return 'printed';
     } else {
@@ -60,16 +58,22 @@ Future<String> generateReceiptPdf(
 
       final result = await OpenFilex.open(path);
       if (result.type == ResultType.done) {
-       if(context.mounted)  showSnackBar('Receipt opened', Colors.green ,context);
+        if (context.mounted) {
+          showSnackBar('Receipt opened', Colors.green, context);
+        }
       } else {
-        if(context.mounted) showSnackBar('Receipt saved at $path', Colors.blueGrey,context);
+        if (context.mounted) {
+          showSnackBar('Receipt saved at $path', Colors.blueGrey, context);
+        }
       }
       return path;
     }
   } catch (e, st) {
     developer.log('PDF generation failed: $e',
         stackTrace: st, name: 'Checkout');
-    if(context.mounted)  showSnackBar('Could not generate PDF receipt', Colors.orange,context);
+    if (context.mounted) {
+      showSnackBar('Could not generate PDF receipt', Colors.orange, context);
+    }
     return '';
   }
 }
@@ -92,15 +96,14 @@ Future<pw.Document> buildPdfDocument(
     (sum, order) => sum + (order['total'] as num? ?? 0).toDouble(),
   );
 
-  final double gstAmount =
-      isGstApplied ? subTotal * (AppConstants.gstRate ?? 0) : 0;
+  final double gstAmount = isGstApplied ? subTotal * (AppConstants.gstRate) : 0;
   final double grandTotal = subTotal + gstAmount;
 
   final paymentInfo = _extractPaymentInfo(response);
   print("Om Shahane : ${paymentInfo}");
   final String date = DateTime.now().toString().split(' ').first;
-  final String userName = _sanitize(user['fullName']) ?? 'Guest';
-  final String userMobile = _sanitize(mobile) ?? 'N/A';
+  final String userName = _sanitize(user['fullName']);
+  final String userMobile = _sanitize(mobile);
 
   // Build item rows once (same as before)
   final itemRows = _buildItemRows(safeOrders, ttf);
@@ -114,19 +117,19 @@ Future<pw.Document> buildPdfDocument(
         pw.Center(
           child: pw.Column(children: [
             pw.Text(
-              AppConstants.companyName ?? 'Restaurant',
+              AppConstants.companyName,
               style: pw.TextStyle(
                   font: ttf, fontSize: 22, fontWeight: pw.FontWeight.bold),
             ),
             pw.SizedBox(height: 6),
             pw.Text(
-              AppConstants.companyAddress ?? '',
+              AppConstants.companyAddress,
               style: pw.TextStyle(font: ttf, fontSize: 11),
               textAlign: pw.TextAlign.center,
             ),
             if (isGstApplied)
               pw.Text(
-                'GSTIN: ${AppConstants.merchantGstNumber ?? 'N/A'}',
+                'GSTIN: ${AppConstants.merchantGstNumber}',
                 style: pw.TextStyle(font: ttf, fontSize: 11),
               ),
             pw.SizedBox(height: 12),
@@ -156,7 +159,7 @@ Future<pw.Document> buildPdfDocument(
           children: [
             // Header row
             pw.TableRow(
-              decoration: pw.BoxDecoration(color: PdfColors.blue50),
+              decoration: const pw.BoxDecoration(color: PdfColors.blue50),
               children: [
                 _pdfCell('Item', ttf, bold: true),
                 _pdfCell('Qty', ttf, bold: true, align: pw.TextAlign.center),
@@ -176,7 +179,7 @@ Future<pw.Document> buildPdfDocument(
             if (isGstApplied)
               pw.TableRow(children: [
                 _pdfCell(
-                    'GST (${(AppConstants.gstRate! * 100).toStringAsFixed(1)}%)',
+                    'GST (${(AppConstants.gstRate * 100).toStringAsFixed(1)}%)',
                     ttf),
                 pw.SizedBox(),
                 _pdfCell(
@@ -186,7 +189,7 @@ Future<pw.Document> buildPdfDocument(
               ]),
             // Grand Total
             pw.TableRow(
-              decoration: pw.BoxDecoration(color: PdfColors.teal50),
+              decoration: const pw.BoxDecoration(color: PdfColors.teal50),
               children: [
                 _pdfCell('Grand Total', ttf, bold: true),
                 pw.SizedBox(),
@@ -209,7 +212,7 @@ Future<pw.Document> buildPdfDocument(
           children: [
             pw.TableRow(children: [
               _pdfCell('Method', ttf, bold: true),
-              _pdfCell(paymentInfo.method ?? 'Unknown', ttf)
+              _pdfCell(paymentInfo.method, ttf)
             ]),
             pw.TableRow(children: [
               _pdfCell('Transaction ID', ttf, bold: true),
@@ -267,15 +270,15 @@ List<pw.TableRow> _buildItemRows(List<Map> orders, pw.Font font) {
   for (final order in orders) {
     final items = (order['items'] as List?)?.whereType<Map>() ?? [];
     for (final item in items) {
-      final name = _sanitize(item['name']) ?? 'Item';
+      final name = _sanitize(item['name']);
       final qty = (item['quantity'] as num?)?.toInt() ?? 1;
       final price = (item['price'] as num?)?.toDouble() ?? 0.0;
-      final custom = _sanitize(item['customization']) ?? '';
+      final custom = _sanitize(item['customization']);
 
       final displayName = custom.isEmpty ? name : '$name ($custom)';
 
       rows.add(pw.TableRow(children: [
-        _pdfCell('$displayName', font),
+        _pdfCell(displayName, font),
         _pdfCell('$qty', font, align: pw.TextAlign.center),
         _pdfCell(
             '${AppConstants.rupeeSymbol}${(price * qty).toStringAsFixed(0)}',
@@ -289,12 +292,9 @@ List<pw.TableRow> _buildItemRows(List<Map> orders, pw.Font font) {
 
 ({String method, String txnId, String status}) _extractPaymentInfo(
     dynamic response) {
-
   String method = 'Unknown';
   String txnId = '—';
   String status = 'Unknown';
-
-  print("response : $response");
 
   if (response is Map) {
     final payu = response['payuResponse'];
@@ -367,17 +367,24 @@ Future<void> sharePdfViaWhatsApp({
         await platform.isWhatsappBusinessInstalled();
 
     if (!isWhatsappInstalled && !isWhatsappBusinessInstalled) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Neither WhatsApp nor WhatsApp Business is installed'),
-        ),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content:
+                Text('Neither WhatsApp nor WhatsApp Business is installed'),
+          ),
+        );
+      }
       return;
     }
 
     // 🟢 If both installed → ask user
-    if (isWhatsappInstalled && isWhatsappBusinessInstalled && !_whatsAppTextSent) {
-      final choice = await showWhatsappChooser(context);
+    if (isWhatsappInstalled &&
+        isWhatsappBusinessInstalled &&
+        !_whatsAppTextSent) {
+      late dynamic choice;
+      if (context.mounted) choice = await showWhatsappChooser(context);
+
       if (choice == null) return;
       _useBusinessWhatsapp = choice;
     } else if (isWhatsappBusinessInstalled && !isWhatsappInstalled) {
@@ -388,11 +395,10 @@ Future<void> sharePdfViaWhatsApp({
 
     // ───── FIRST CLICK → TEXT ONLY ─────
     if (!_whatsAppTextSent) {
-     final  messageText =
-        '📎 *Bill Receipt Attached*\n\n'
-        'Please find your invoice attached as a PDF.\n'
-        'If you have any questions, feel free to contact us.\n\n'
-        '🙏 Thank you for your business!';
+      String messageText = '📎 *Bill Receipt Attached*\n\n'
+          'Please find your invoice attached as a PDF.\n'
+          'If you have any questions, feel free to contact us.\n\n'
+          '🙏 Thank you for your business!';
 
       if (_useBusinessWhatsapp) {
         await platform.shareToWhatsappBusiness(
@@ -408,17 +414,18 @@ Future<void> sharePdfViaWhatsApp({
 
       _whatsAppTextSent = true;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Message sent. Tap again to send the PDF.'),
-        ),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Message sent. Tap again to send the PDF.'),
+          ),
+        );
+      }
       return;
     }
 
     // ───── SECOND CLICK → PDF ─────
-    final pdfMessageText =
-        '📎 *Bill Receipt Attached*\n\n'
+    String pdfMessageText = '📎 *Bill Receipt Attached*\n\n'
         'Please find your invoice attached as a PDF.\n'
         'If you have any questions, feel free to contact us.\n\n'
         '🙏 Thank you for your business!';
@@ -440,14 +447,15 @@ Future<void> sharePdfViaWhatsApp({
     _whatsAppTextSent = false;
   } catch (e) {
     _whatsAppTextSent = false;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('WhatsApp share failed: $e'),
-      ),
-    );
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('WhatsApp share failed: $e'),
+        ),
+      );
+    }
   }
 }
-
 
 String _sanitize(dynamic val) {
   final str = val?.toString() ?? '';

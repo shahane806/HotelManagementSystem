@@ -11,20 +11,19 @@ int getTotalPrice(Map<OrderItem, int> order) {
 }
 
 Color getStatusColor(String status) {
-    switch (status) {
-      case 'Pending':
-        return Colors.red;
-      case 'Preparing':
-        return Colors.orange;
-      case 'Ready':
-        return Colors.green;
-      case 'Served':
-        return Colors.blue;
-      default:
-        return Colors.grey;
-    }
+  switch (status) {
+    case 'Pending':
+      return Colors.red;
+    case 'Preparing':
+      return Colors.orange;
+    case 'Ready':
+      return Colors.green;
+    case 'Served':
+      return Colors.blue;
+    default:
+      return Colors.grey;
   }
-
+}
 
 List<MenuItem> getMenuItemsFromMenus(List<MenuModel> menus, bool isVegFilter) {
   const categoryEmojis = {
@@ -56,7 +55,8 @@ List<MenuItem> getMenuItemsFromMenus(List<MenuModel> menus, bool isVegFilter) {
         price: price,
         category: menu.name,
         image: categoryEmojis[menu.name] ?? '🍽️',
-        type: entry.type, description: '',
+        type: entry.type,
+        description: '',
       );
     });
   }).toList();
@@ -65,4 +65,3 @@ List<MenuItem> getMenuItemsFromMenus(List<MenuModel> menus, bool isVegFilter) {
       name: 'TableDashboardScreen');
   return items;
 }
-

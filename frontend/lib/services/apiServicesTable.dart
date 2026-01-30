@@ -3,6 +3,7 @@ import 'package:frontend/app/api_constants.dart';
 import 'package:frontend/app/constants.dart';
 import 'package:http/http.dart' as http;
 import '../models/table_model.dart';
+
 class ApiServiceTables {
   final String baseUrl = ApiConstants.url;
 
@@ -37,7 +38,6 @@ class ApiServiceTables {
   }
 
   Future<void> addTableItem(String name, int count) async {
-   
     if (name.isEmpty) {
       throw Exception('Invalid table name: $name');
     }
@@ -45,7 +45,7 @@ class ApiServiceTables {
       throw Exception('Invalid seating capacity: $count');
     }
     try {
-       final token = AppConstants.pref?.getString('token');
+      final token = AppConstants.pref?.getString('token');
       final response = await http.post(
         Uri.parse('$baseUrl/utilities/Table/items'),
         headers: {
@@ -57,7 +57,6 @@ class ApiServiceTables {
           'count': count,
         }),
       );
-
 
       if (response.statusCode != 200) {
         throw Exception(
@@ -76,7 +75,7 @@ class ApiServiceTables {
       throw Exception('Invalid item name: $itemName');
     }
     try {
-       final token = AppConstants.pref?.getString('token');
+      final token = AppConstants.pref?.getString('token');
       final response = await http.delete(
         Uri.parse('$baseUrl/utilities/Table/$itemName'),
         headers: {
@@ -84,7 +83,6 @@ class ApiServiceTables {
           'Authorization': 'Bearer $token'
         },
       );
-
 
       if (response.statusCode != 200) {
         throw Exception(
@@ -94,6 +92,4 @@ class ApiServiceTables {
       throw Exception('Failed to delete table item: $e');
     }
   }
-
 }
-

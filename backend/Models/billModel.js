@@ -37,16 +37,14 @@ const billSchema = new mongoose.Schema({
   totalAmount: { type: Number, required: true },
   isGstApplied: { type: Boolean, required: true },
 
-  paymentMethod: { type: String , required : false , default:"NONE"},
-  transactionId: { type: String , required : false , default:"NONE"},
+  paymentMethod: { type: String, required: false, default: "NONE" },
+  transactionId: { type: String, required: false, default: "NONE" },
 
   status: { type: String, default: "Pending" },
 
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });
-
-
 
 const Bill = mongoose.model("Bill", billSchema);
 

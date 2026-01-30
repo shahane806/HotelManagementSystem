@@ -11,8 +11,7 @@ class AuthScreen extends StatefulWidget {
   State<AuthScreen> createState() => _AuthScreenState();
 }
 
-class _AuthScreenState extends State<AuthScreen>
-    with TickerProviderStateMixin {
+class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   late TabController _tabController;
   late AnimationController _particleController;
 
@@ -28,7 +27,9 @@ class _AuthScreenState extends State<AuthScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _particleController = AnimationController(vsync: this, duration: const Duration(seconds: 30))..repeat();
+    _particleController =
+        AnimationController(vsync: this, duration: const Duration(seconds: 30))
+          ..repeat();
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) setState(() {});
     });
@@ -40,95 +41,103 @@ class _AuthScreenState extends State<AuthScreen>
     _particleController.dispose();
     super.dispose();
   }
+
   void _login() async {
-  if (_loginEmail.text.trim().isEmpty || _loginPass.text.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Please fill all fields"), backgroundColor: Colors.red),
-    );
-    return;
-  }
-
-  setState(() => _loading = true);
-
-  try {
-    final result = await Apiservicesauthentication.loginApiService(
-      _loginEmail.text.trim(),
-      _loginPass.text,
-    );
-    if (result['success'] == true) {
-     
-      final user = result['user'];
-      final token = result['token'];
-
-      UserRepository.setUserData(user);
-      UserRepository.setToken(token);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
-      );
-    }
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Login Successful!"), backgroundColor: Colors.green),
-      );
-
-      // Navigate to Dashboard
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const DashboardScreen()),
-      );
-    }
-  } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
-      );
-    }
-  } finally {
-    if (mounted) {
-      setState(() => _loading = false);
-    }
-  }
-}
-
-void _forgotPassword() async {
-  if (_forgotEmail.text.trim().isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Enter your email"), backgroundColor: Colors.red),
-    );
-    return;
-  }
-
-  setState(() => _loading = true);
-
-  try {
-    await Apiservicesauthentication.forgotPasswordApiService(_forgotEmail.text.trim());
-
-    if (mounted) {
+    if (_loginEmail.text.trim().isEmpty || _loginPass.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Password reset link sent to your email!"),
-          backgroundColor: Colors.green,
-        ),
+            content: Text("Please fill all fields"),
+            backgroundColor: Colors.red),
       );
+      return;
     }
-  } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+
+    setState(() => _loading = true);
+
+    try {
+      final result = await Apiservicesauthentication.loginApiService(
+        _loginEmail.text.trim(),
+        _loginPass.text,
       );
+      if (result['success'] == true) {
+        final user = result['user'];
+        final token = result['token'];
+
+        UserRepository.setUserData(user);
+        UserRepository.setToken(token);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        );
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text("Login Successful!"),
+              backgroundColor: Colors.green),
+        );
+
+        // Navigate to Dashboard
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
-  } finally {
-    if (mounted) setState(() => _loading = false);
   }
-}
+
+  void _forgotPassword() async {
+    if (_forgotEmail.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text("Enter your email"), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    setState(() => _loading = true);
+
+    try {
+      await Apiservicesauthentication.forgotPasswordApiService(
+          _forgotEmail.text.trim());
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Password reset link sent to your email!"),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final isDesktop = size.width > 900;
 
     return Scaffold(
-      resizeToAvoidBottomInset: true, // ← CRITICAL: Allows layout to shrink when keyboard opens
+      resizeToAvoidBottomInset:
+          true, // ← CRITICAL: Allows layout to shrink when keyboard opens
       body: Stack(
         children: [
           // Gradient Background
@@ -168,12 +177,21 @@ void _forgotPassword() async {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text("Hotel Pro",softWrap: false, style: TextStyle(fontSize: 75, fontWeight: FontWeight.w900, color: Colors.white)),
+                const Text("Hotel Pro",
+                    softWrap: false,
+                    style: TextStyle(
+                        fontSize: 75,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white)),
                 const SizedBox(height: 24),
-                 Text("Next-generation hotel management\nbuilt for excellence",
-                    style: TextStyle(fontSize: 28, color: Colors.white.withOpacity(0.95), height: 1.5)),
+                Text("Next-generation hotel management\nbuilt for excellence",
+                    style: TextStyle(
+                        fontSize: 28,
+                        color: Colors.white.withOpacity(0.95),
+                        height: 1.5)),
                 const SizedBox(height: 50),
-                Icon(Icons.hotel_class, size: 160, color: Colors.white.withOpacity(0.3)),
+                Icon(Icons.hotel_class,
+                    size: 160, color: Colors.white.withOpacity(0.3)),
               ],
             ),
           ),
@@ -195,14 +213,19 @@ void _forgotPassword() async {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-        child:  Column(
+        child: Column(
           children: [
             // Logo & Title (only when keyboard is hidden)
             if (MediaQuery.of(context).viewInsets.bottom < 100) ...[
-             const Icon(Icons.hotel_class, size: 80, color: Colors.white),
+              const Icon(Icons.hotel_class, size: 80, color: Colors.white),
               const SizedBox(height: 16),
-             const Text("Hotel Pro", style: TextStyle(fontSize: 42, fontWeight: FontWeight.w900, color: Colors.white)),
-             const Text("Welcome back", style: TextStyle(fontSize: 16, color: Colors.white70)),
+              const Text("Hotel Pro",
+                  style: TextStyle(
+                      fontSize: 42,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white)),
+              const Text("Welcome back",
+                  style: TextStyle(fontSize: 16, color: Colors.white70)),
               const SizedBox(height: 30),
             ],
 
@@ -215,7 +238,8 @@ void _forgotPassword() async {
             ),
 
             const SizedBox(height: 10),
-            const Text("© 2025 Hotel Pro", style: TextStyle(color: Colors.white60, fontSize: 13)),
+            const Text("© 2025 Hotel Pro",
+                style: TextStyle(color: Colors.white60, fontSize: 13)),
           ],
         ),
       ),
@@ -230,38 +254,52 @@ void _forgotPassword() async {
         color: Colors.white,
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 40, offset: const Offset(0, 20)),
+          BoxShadow(
+              color: Colors.black.withOpacity(0.25),
+              blurRadius: 40,
+              offset: const Offset(0, 20)),
         ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            ["Welcome Back!", "Create Account", "Reset Password"][_tabController.index],
-            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Color(0xFF2D3748)),
+            [
+              "Welcome Back!",
+              "Create Account",
+              "Reset Password"
+            ][_tabController.index],
+            style: const TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF2D3748)),
           ),
           const SizedBox(height: 8),
           Text(
-            ["Sign in to continue", "Join thousands of hotels", "Get back into your account"][_tabController.index],
+            [
+              "Sign in to continue",
+              "Join thousands of hotels",
+              "Get back into your account"
+            ][_tabController.index],
             style: TextStyle(color: Colors.grey[600], fontSize: 14),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 28),
-
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(20)),
+            decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(20)),
             child: TabBar(
-              
               controller: _tabController,
               labelColor: const Color(0xFF667eea),
               unselectedLabelColor: Colors.grey[600],
-              indicator: BoxDecoration(borderRadius: BorderRadius.circular(16), color: Colors.white),
-              tabs: const [Tab(text: "Login"),Tab(text: "Forgot")],
+              indicator: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16), color: Colors.white),
+              tabs: const [Tab(text: "Login"), Tab(text: "Forgot")],
             ),
           ),
           const SizedBox(height: 28),
-
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),
             child: KeyedSubtree(
@@ -288,10 +326,12 @@ void _forgotPassword() async {
   Widget _forgotTab() => _form([
         const Icon(Icons.lock_reset, size: 64, color: Colors.orange),
         const SizedBox(height: 12),
-        const Text("Forgot Password?", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        const Text("Forgot Password?",
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         const Text("Enter your email to receive a reset link",
-            textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: Colors.grey)),
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: Colors.grey)),
         const SizedBox(height: 16),
         _field(_forgotEmail, "Email", Icons.email),
         const SizedBox(height: 16),
@@ -300,7 +340,8 @@ void _forgotPassword() async {
 
   Widget _form(List<Widget> children) => Column(children: children);
 
-  Widget _field(TextEditingController c, String label, IconData icon, [bool pass = false, bool isConfirm = false]) {
+  Widget _field(TextEditingController c, String label, IconData icon,
+      [bool pass = false, bool isConfirm = false]) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: TextField(
@@ -312,7 +353,9 @@ void _forgotPassword() async {
           suffixIcon: pass
               ? IconButton(
                   icon: Icon(isConfirm
-                      ? (_obscureConfirm ? Icons.visibility_off : Icons.visibility)
+                      ? (_obscureConfirm
+                          ? Icons.visibility_off
+                          : Icons.visibility)
                       : (_obscure ? Icons.visibility_off : Icons.visibility)),
                   onPressed: () => setState(() {
                     if (isConfirm) {
@@ -325,8 +368,12 @@ void _forgotPassword() async {
               : null,
           filled: true,
           fillColor: Colors.grey[50],
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Color(0xFF667eea), width: 2)),
+          border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide.none),
+          focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: Color(0xFF667eea), width: 2)),
         ),
       ),
     );
@@ -341,12 +388,19 @@ void _forgotPassword() async {
         style: ElevatedButton.styleFrom(
           backgroundColor: color,
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           elevation: 12,
         ),
         child: _loading
-            ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-            : Text(text, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                    color: Colors.white, strokeWidth: 2.5))
+            : Text(text,
+                style:
+                    const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
       ),
     );
   }
@@ -359,7 +413,11 @@ class FloatingParticlesPainter extends CustomPainter {
 
   final List<Particle> particles = List.generate(35, (i) {
     final r = Random(i);
-    return Particle(x: r.nextDouble(), y: r.nextDouble(), size: 4 + r.nextDouble() * 10, speed: 0.2 + r.nextDouble() * 0.6);
+    return Particle(
+        x: r.nextDouble(),
+        y: r.nextDouble(),
+        size: 4 + r.nextDouble() * 10,
+        speed: 0.2 + r.nextDouble() * 0.6);
   });
 
   @override
@@ -386,5 +444,9 @@ class FloatingParticlesPainter extends CustomPainter {
 
 class Particle {
   final double x, y, size, speed;
-  Particle({required this.x, required this.y, required this.size, required this.speed});
+  Particle(
+      {required this.x,
+      required this.y,
+      required this.size,
+      required this.speed});
 }

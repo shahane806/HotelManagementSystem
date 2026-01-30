@@ -31,7 +31,7 @@ class AppConstants {
   // Animation Duration
   static const Duration animationDuration = Duration(milliseconds: 600);
   static SharedPreferences? pref;
-  static void initiateSharedPreferences() async{
+  static void initiateSharedPreferences() async {
     pref = await SharedPreferences.getInstance();
   }
 }

@@ -29,4 +29,3 @@ class AmenitiesError extends AmenitiesState {
   @override
   List<Object?> get props => [message];
 }
-

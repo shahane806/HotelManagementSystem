@@ -20,7 +20,6 @@ class ApiServiceMenus {
         },
       );
 
-
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
 
@@ -34,7 +33,8 @@ class ApiServiceMenus {
           return [];
         }
       } else {
-        throw Exception('Failed to load menus: ${response.statusCode} - ${response.body}');
+        throw Exception(
+            'Failed to load menus: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
       throw Exception('Failed to load menus: $e');
@@ -43,7 +43,7 @@ class ApiServiceMenus {
 
   Future<void> addMenu(String name, String type) async {
     try {
-       final token = AppConstants.pref?.getString('token');
+      final token = AppConstants.pref?.getString('token');
       final response = await http.post(
         Uri.parse('$baseUrl/utilities/Menu/items'),
         headers: {
@@ -58,21 +58,23 @@ class ApiServiceMenus {
       );
 
       if (response.statusCode != 200) {
-        throw Exception('Failed to add menu: ${response.statusCode} - ${response.body}');
+        throw Exception(
+            'Failed to add menu: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
       throw Exception('Failed to add menu: $e');
     }
   }
 
-  Future<void> addMenuItem(String menuName, String itemName, String price, String type) async {
+  Future<void> addMenuItem(
+      String menuName, String itemName, String price, String type) async {
     try {
-        final token = AppConstants.pref?.getString('token');
+      final token = AppConstants.pref?.getString('token');
       final response = await http.post(
         Uri.parse('$baseUrl/utilities/Menu/$menuName/items'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization':'Bearer $token'
+          'Authorization': 'Bearer $token'
         },
         body: jsonEncode({
           'menuitemname': itemName,
@@ -81,9 +83,9 @@ class ApiServiceMenus {
         }),
       );
 
-
       if (response.statusCode != 200) {
-        throw Exception('Failed to add menu item: ${response.statusCode} - ${response.body}');
+        throw Exception(
+            'Failed to add menu item: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
       throw Exception('Failed to add menu item: $e');
@@ -92,18 +94,18 @@ class ApiServiceMenus {
 
   Future<void> deleteMenu(String menuName) async {
     try {
-       final token = AppConstants.pref?.getString('token');
+      final token = AppConstants.pref?.getString('token');
       final response = await http.delete(
         Uri.parse('$baseUrl/utilities/Menu/$menuName'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization':'Bearer $token'
+          'Authorization': 'Bearer $token'
         },
       );
 
-
       if (response.statusCode != 200) {
-        throw Exception('Failed to delete menu: ${response.statusCode} - ${response.body}');
+        throw Exception(
+            'Failed to delete menu: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
       throw Exception('Failed to delete menu: $e');
@@ -118,7 +120,7 @@ class ApiServiceMenus {
       throw Exception('Invalid item name: $itemName');
     }
     try {
-       final token = AppConstants.pref?.getString('token');
+      final token = AppConstants.pref?.getString('token');
       final response = await http.delete(
         Uri.parse('$baseUrl/utilities/Menu/$menuName/items/$itemName'),
         headers: {
@@ -127,9 +129,9 @@ class ApiServiceMenus {
         },
       );
 
-
       if (response.statusCode != 200) {
-        throw Exception('Failed to delete menu item: ${response.statusCode} - ${response.body}');
+        throw Exception(
+            'Failed to delete menu item: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
       throw Exception('Failed to delete menu item: $e');

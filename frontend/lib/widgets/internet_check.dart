@@ -63,8 +63,11 @@ class _InternetCheckWidgetState extends State<InternetCheckWidget> {
 
     for (final endpoint in endpoints) {
       try {
-         final token = AppConstants.pref?.getString('token');
-         final response = await http.get(Uri.parse(endpoint),headers: {'Content-Type':'application/json','Authorization':'Bearer $token'}).timeout(timeout);
+        final token = AppConstants.pref?.getString('token');
+        final response = await http.get(Uri.parse(endpoint), headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token'
+        }).timeout(timeout);
         if (response.statusCode == 200) {
           return true;
         }
@@ -76,7 +79,8 @@ class _InternetCheckWidgetState extends State<InternetCheckWidget> {
     // Fallback: If all endpoints fail, check connectivity result
     final connectivityResult = await _connectivity.checkConnectivity();
     final hasNetwork = !connectivityResult.contains(ConnectivityResult.none);
-    return hasNetwork && kIsWeb; // Trust navigator.onLine for web, but not mobile
+    return hasNetwork &&
+        kIsWeb; // Trust navigator.onLine for web, but not mobile
   }
 
   Future<void> _verifyConnectionAndShowDialog() async {

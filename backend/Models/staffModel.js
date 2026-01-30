@@ -7,12 +7,12 @@ const staffSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true, lowercase: true },
     mobile: { type: String, required: true },
     aadhaarNumber: { type: String, required: true },
-    role: { type: String , required : false},
-    password: { type: String,required:false, select: false }, // Do not return password by default
+    role: { type: String, required: false },
+    password: { type: String, required: false, select: false }, // Do not return password by default
     resetPasswordToken: { type: String },
-    resetPasswordExpires: { type: Date},
+    resetPasswordExpires: { type: Date },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("StaffModel", staffSchema);

@@ -5,7 +5,8 @@ class RoomModel extends Equatable {
   final String price;
   final bool isAC;
 
-  const RoomModel({required this.name,required this.price, required this.isAC});
+  const RoomModel(
+      {required this.name, required this.price, required this.isAC});
 
   factory RoomModel.fromJson(Map<String, dynamic> json) {
     return RoomModel(
@@ -17,12 +18,12 @@ class RoomModel extends Equatable {
 
   Map<String, dynamic> toJson() {
     return {
-      'name':name,
+      'name': name,
       'price': price,
       'isAC': isAC,
     };
   }
 
   @override
-  List<Object?> get props => [name,price,isAC];
+  List<Object?> get props => [name, price, isAC];
 }

@@ -10,8 +10,11 @@ class CustomerApiService {
   // Fetch all customers
   Future<List<UserModel>> getAllCustomers() async {
     try {
-       final token = AppConstants.pref?.getString('token');
-      final response = await http.get(Uri.parse(_baseUrl),headers: {'Content-type':'application/json','Authorization':'Bearer $token'});
+      final token = AppConstants.pref?.getString('token');
+      final response = await http.get(Uri.parse(_baseUrl), headers: {
+        'Content-type': 'application/json',
+        'Authorization': 'Bearer $token'
+      });
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         return data.map((json) => UserModel.fromJson(json)).toList();
@@ -22,35 +25,40 @@ class CustomerApiService {
       throw Exception('Error fetching customers: $e');
     }
   }
+
   // Get Single Customer using ID
-  Future<UserModel> getCustomerById(String customerID) async{
-    try{
-       final token = AppConstants.pref?.getString('token');
+  Future<UserModel> getCustomerById(String customerID) async {
+    try {
+      final token = AppConstants.pref?.getString('token');
       final response = await http.post(Uri.parse(_baseUrl),
-      headers: {
-        'Content-Type':'application/json',
-        'Authorization':'Bearer $token'
-      },
-      body: jsonEncode({
-        "CustomerId" : customerID,
-      }));
-      if(response.statusCode == 200){
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token'
+          },
+          body: jsonEncode({
+            "CustomerId": customerID,
+          }));
+      if (response.statusCode == 200) {
         final UserModel user = jsonDecode(response.body);
         return user;
-      }else{
+      } else {
         throw Exception('Failed to load customer : ${response.statusCode}');
       }
-    }catch(e){
+    } catch (e) {
       throw Exception('Error fetching customer : $e');
     }
   }
+
   // Create a new customer
   Future<UserModel> createCustomer(UserModel customer) async {
     try {
-       final token = AppConstants.pref?.getString('token');
+      final token = AppConstants.pref?.getString('token');
       final response = await http.post(
         Uri.parse(_baseUrl),
-        headers: {'Content-Type': 'application/json','Authorization':'Bearer $token'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token'
+        },
         body: jsonEncode(customer.toJson()),
       );
       if (response.statusCode == 201) {
@@ -66,10 +74,13 @@ class CustomerApiService {
   // Update a customer
   Future<UserModel> updateCustomer(UserModel customer) async {
     try {
-       final token = AppConstants.pref?.getString('token');
+      final token = AppConstants.pref?.getString('token');
       final response = await http.put(
         Uri.parse('$_baseUrl/${customer.id}'),
-        headers: {'Content-Type': 'application/json','Authorization':'Bearer $token'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token'
+        },
         body: jsonEncode(customer.toJson()),
       );
       if (response.statusCode == 200) {
@@ -85,8 +96,12 @@ class CustomerApiService {
   // Delete a customer
   Future<void> deleteCustomer(String userId) async {
     try {
-       final token = AppConstants.pref?.getString('token');
-      final response = await http.delete(Uri.parse('$_baseUrl/$userId'),headers: {'Content-Type':'application/json','Authorization':'Bearer $token'});
+      final token = AppConstants.pref?.getString('token');
+      final response = await http.delete(Uri.parse('$_baseUrl/$userId'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token'
+          });
       if (response.statusCode != 200) {
         throw Exception('Failed to delete customer: ${response.statusCode}');
       }
@@ -94,5 +109,6 @@ class CustomerApiService {
       throw Exception('Error deleting customer: $e');
     }
   }
+
 
 }

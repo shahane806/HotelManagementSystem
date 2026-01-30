@@ -5,7 +5,6 @@ import 'event.dart';
 import 'state.dart';
 
 class CustomerBloc extends Bloc<CustomerEvent, CustomerState> {
-
   CustomerBloc() : super(CustomerInitial()) {
     on<FetchCustomers>(_onFetchCustomers);
     on<AddCustomer>(_onAddCustomer);
@@ -13,7 +12,8 @@ class CustomerBloc extends Bloc<CustomerEvent, CustomerState> {
     on<DeleteCustomer>(_onDeleteCustomer);
   }
   CustomerApiService apiService = CustomerApiService();
-  Future<void> _onFetchCustomers(FetchCustomers event, Emitter<CustomerState> emit) async {
+  Future<void> _onFetchCustomers(
+      FetchCustomers event, Emitter<CustomerState> emit) async {
     emit(CustomerLoading());
     try {
       final customers = await apiService.getAllCustomers();
@@ -23,7 +23,8 @@ class CustomerBloc extends Bloc<CustomerEvent, CustomerState> {
     }
   }
 
-  Future<void> _onAddCustomer(AddCustomer event, Emitter<CustomerState> emit) async {
+  Future<void> _onAddCustomer(
+      AddCustomer event, Emitter<CustomerState> emit) async {
     emit(CustomerLoading());
     try {
       await apiService.createCustomer(event.customer);
@@ -34,7 +35,8 @@ class CustomerBloc extends Bloc<CustomerEvent, CustomerState> {
     }
   }
 
-  Future<void> _onUpdateCustomer(UpdateCustomer event, Emitter<CustomerState> emit) async {
+  Future<void> _onUpdateCustomer(
+      UpdateCustomer event, Emitter<CustomerState> emit) async {
     emit(CustomerLoading());
     try {
       await apiService.updateCustomer(event.customer);
@@ -45,7 +47,8 @@ class CustomerBloc extends Bloc<CustomerEvent, CustomerState> {
     }
   }
 
-  Future<void> _onDeleteCustomer(DeleteCustomer event, Emitter<CustomerState> emit) async {
+  Future<void> _onDeleteCustomer(
+      DeleteCustomer event, Emitter<CustomerState> emit) async {
     print("Event UserId : ${event.id}");
 
     emit(CustomerLoading());

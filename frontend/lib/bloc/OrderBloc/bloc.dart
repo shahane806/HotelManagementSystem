@@ -114,33 +114,34 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
       ));
     }
   }
-void _onUpdateOrderStatus(UpdateOrderStatus event, Emitter<OrdersState> emit) {
-  final current = state.recentOrders;
-  if (current.isEmpty) return;
 
-  const terminal = {'Paid', 'Completed', 'Cancelled'};
-  final newStatus = event.status;
-  final id        = event.orderId;
+  void _onUpdateOrderStatus(
+      UpdateOrderStatus event, Emitter<OrdersState> emit) {
+    final current = state.recentOrders;
+    if (current.isEmpty) return;
 
-  if (terminal.contains(newStatus)) {
-    emit(state.copyWith(recentOrders: current.where((o) => o.id != id).toList()));
-    return;
+    const terminal = {'Paid', 'Completed', 'Cancelled'};
+    final newStatus = event.status;
+    final id = event.orderId;
+
+    if (terminal.contains(newStatus)) {
+      emit(state.copyWith(
+          recentOrders: current.where((o) => o.id != id).toList()));
+      return;
+    }
+
+    final idx = current.indexWhere((o) => o.id == id);
+    if (idx == -1) return;
+
+    final updated = List<Order>.from(current);
+    updated[idx] = current[idx].copyWith(status: newStatus);
+    emit(state.copyWith(recentOrders: updated));
   }
 
-  final idx = current.indexWhere((o) => o.id == id);
-  if (idx == -1) return;
-
-  final updated = List<Order>.from(current);
-  updated[idx] = current[idx].copyWith(status: newStatus);
-  emit(state.copyWith(recentOrders: updated));
-}
   void _onRemoveRecentOrder(
       RemoveRecentOrder event, Emitter<OrdersState> emit) {
     final updated =
         state.recentOrders.where((o) => o.id != event.orderId).toList();
     emit(state.copyWith(recentOrders: updated));
   }
-
-
-
 }

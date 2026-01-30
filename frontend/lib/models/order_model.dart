@@ -1,6 +1,5 @@
 import 'menu_model.dart';
 
-
 class Order {
   final String id;
   final String table;
@@ -60,12 +59,11 @@ class Order {
 
   @override
   String toString() {
-    final itemsStr = items.entries
-        .map((e) => '${e.key} x${e.value}')
-        .join(', ');
+    final itemsStr =
+        items.entries.map((e) => '${e.key} x${e.value}').join(', ');
     return 'Order(id: $id, table: $table, total: $total, status: $status, timestamp: $timestamp, items: [$itemsStr])';
   }
-  
+
   Map<String, dynamic> toJson() => {
         'orderId': id, // ✅ match backend schema
         'items': items.entries
@@ -75,8 +73,8 @@ class Order {
         'status': status,
         'timestamp': timestamp.toIso8601String(),
       };
-
 }
+
 class OrderItem {
   final MenuItem menuItem;
   final String customization;

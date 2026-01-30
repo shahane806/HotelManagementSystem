@@ -34,4 +34,4 @@ class MenusError extends MenusState {
   // Used to display errors from fetch, add, delete, or delete item operations
   @override
   List<Object?> get props => [message];
-} 
+}

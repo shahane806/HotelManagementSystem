@@ -23,13 +23,20 @@ const loginController = async (req, res) => {
     const { username, password } = req.body;
 
     if (!username || !password) {
-      return res.status(400).json({ success: false, message: "Username and password are required" });
+      return res.status(400).json({
+        success: false,
+        message: "Username and password are required",
+      });
     }
 
-    const user = await Staff.findOne({ email: username.trim().toLowerCase() }).select("+password");
+    const user = await Staff.findOne({
+      email: username.trim().toLowerCase(),
+    }).select("+password");
 
     if (!user || !(await bcrypt.compare(password, user.password))) {
-      return res.status(401).json({ success: false, message: "Invalid credentials" });
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid credentials" });
     }
 
     const token = jwt.sign(
@@ -39,7 +46,7 @@ const loginController = async (req, res) => {
         role: user.role,
       },
       JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
+      { expiresIn: JWT_EXPIRES_IN },
     );
 
     return res.status(200).json({
@@ -59,12 +66,13 @@ const loginController = async (req, res) => {
   }
 };
 
-
 const forgotPasswordController = async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) {
-      return res.status(400).json({ success: false, message: "Email is required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Email is required" });
     }
 
     const user = await Staff.findOne({ email: email.trim().toLowerCase() });
@@ -77,15 +85,13 @@ const forgotPasswordController = async (req, res) => {
     }
 
     // 🔐 Create short-lived JWT
-    const resetToken = jwt.sign(
-      { userId: user._id },
-      JWT_SECRET,
-      { expiresIn: "15m" }
-    );
+    const resetToken = jwt.sign({ userId: user._id }, JWT_SECRET, {
+      expiresIn: "15m",
+    });
 
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
-     const html = `
+    const html = `
         <!DOCTYPE html>
         <html>
         <head>
@@ -136,12 +142,12 @@ const forgotPasswordController = async (req, res) => {
         </body>
         </html>`;
 
-    // await transporter.sendMail({
-    //   from: `"Hotel Pro" <${process.env.EMAIL_USER}>`,
-    //   to: user.email,
-    //   subject: "Password Reset",
-    //   html,
-    // });
+    await transporter.sendMail({
+      from: `"Hotel Pro" <${process.env.EMAIL_USER}>`,
+      to: user.email,
+      subject: "Password Reset",
+      html,
+    });
 
     return res.status(200).json({
       success: true,
@@ -193,14 +199,14 @@ const forgotPasswordController = async (req, res) => {
 //                       <h2 style="color:#667eea;">Password Reset Request</h2>
 //                       <p>Hello <strong>${user.fullName}</strong>,</p>
 //                       <p>We received a request to reset your password. Click the button below to set a new one:</p>
-                      
+
 //                       <div style="text-align:center; margin:35px 0;">
-//                         <a href="${resetUrl}" 
+//                         <a href="${resetUrl}"
 //                            style="background:#667eea; color:white; padding:16px 36px; text-decoration:none; border-radius:50px; font-weight:bold; font-size:16px; display:inline-block;">
 //                           Reset My Password
 //                         </a>
 //                       </div>
-                      
+
 //                       <p style="color:#666; font-size:14px;">
 //                         This link will expire in <strong>15 minutes</strong> for security.<br>
 //                         If you didn't request this, please ignore this email — your password will remain unchanged.
@@ -242,20 +248,35 @@ const resetPasswordController = async (req, res) => {
     const { token } = req.params;
     const { password, confirmPassword } = req.body;
 
-    if (!password || password.length < 8) return res.status(400).json({ success: false, message: "Password must be at least 8 characters" });
-    if (password !== confirmPassword) return res.status(400).json({ success: false, message: "Passwords do not match" });
+    if (!password || password.length < 8)
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 8 characters",
+      });
+    if (password !== confirmPassword)
+      return res
+        .status(400)
+        .json({ success: false, message: "Passwords do not match" });
 
     const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
-    const user = await Staff.findOne({ resetPasswordToken: hashedToken, resetPasswordExpires: { $gt: Date.now() } });
-    if (!user) return res.status(400).json({ success: false, message: "Token invalid or expired" });
+    const user = await Staff.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: Date.now() },
+    });
+    if (!user)
+      return res
+        .status(400)
+        .json({ success: false, message: "Token invalid or expired" });
 
     user.password = await bcrypt.hash(password, 12);
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
     await user.save();
 
-    return res.status(200).json({ success: true, message: "Password reset successful" });
+    return res
+      .status(200)
+      .json({ success: true, message: "Password reset successful" });
   } catch (error) {
     console.error("Reset Password Error:", error);
     return res.status(500).json({ success: false, message: "Server error" });
@@ -312,4 +333,8 @@ const resetPasswordController = async (req, res) => {
 //   }
 // };
 
-module.exports = { loginController, forgotPasswordController, resetPasswordController };
+module.exports = {
+  loginController,
+  forgotPasswordController,
+  resetPasswordController,
+};

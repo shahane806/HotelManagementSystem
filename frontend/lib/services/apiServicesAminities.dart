@@ -16,10 +16,9 @@ class ApiServiceAmenities {
         Uri.parse(fullUrl),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization':'Bearer $token'
+          'Authorization': 'Bearer $token'
         },
       );
-
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
@@ -58,7 +57,7 @@ class ApiServiceAmenities {
       Uri.parse('$baseUrl/utilities/Amenity/items'),
       headers: {
         'Content-Type': 'application/json',
-        'Authorization' : 'Bearer $token'
+        'Authorization': 'Bearer $token'
       },
       body: jsonEncode({'name': name}),
     );

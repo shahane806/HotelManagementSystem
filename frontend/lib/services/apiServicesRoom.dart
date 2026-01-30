@@ -1,13 +1,10 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:http/http.dart' as http;
-import 'package:image_picker/image_picker.dart';
 import '../../app/api_constants.dart';
 import '../../models/room_model.dart';
 import '../app/constants.dart';
 import '../models/hotel_room_model.dart';
 import 'package:flutter/foundation.dart';
-import 'dart:typed_data';
 
 class ApiServiceRooms {
   final String baseUrl = ApiConstants.url;
@@ -19,7 +16,6 @@ class ApiServiceRooms {
     };
   }
 
-  
   Future<List<RoomModel>> getRoomModel() async {
     try {
       final fullUrl = '$baseUrl/utilities/Room';
@@ -28,7 +24,7 @@ class ApiServiceRooms {
         Uri.parse(fullUrl),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization':'Bearer $token'
+          'Authorization': 'Bearer $token'
         },
       );
 
@@ -46,7 +42,8 @@ class ApiServiceRooms {
           return [];
         }
       } else {
-        throw Exception('Failed to load rooms: ${response.statusCode} - ${response.body}');
+        throw Exception(
+            'Failed to load rooms: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
       throw Exception('Failed to load rooms: $e');
@@ -55,12 +52,12 @@ class ApiServiceRooms {
 
   Future<void> addRoom(int name, String price, bool isAC) async {
     try {
-       final token = AppConstants.pref?.getString('token');
+      final token = AppConstants.pref?.getString('token');
       final response = await http.post(
         Uri.parse('$baseUrl/utilities/Room/items'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization':'Bearer $token'
+          'Authorization': 'Bearer $token'
         },
         body: jsonEncode({
           'name': name,
@@ -69,9 +66,9 @@ class ApiServiceRooms {
         }),
       );
 
-
       if (response.statusCode != 200) {
-        throw Exception('Failed to add room: ${response.statusCode} - ${response.body}');
+        throw Exception(
+            'Failed to add room: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
       throw Exception('Failed to add room: $e');
@@ -83,43 +80,41 @@ class ApiServiceRooms {
       throw Exception('Invalid room number: $name');
     }
     try {
-       final token = AppConstants.pref?.getString('token');
+      final token = AppConstants.pref?.getString('token');
       final response = await http.delete(
         Uri.parse('$baseUrl/utilities/Room/$name'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization':'Bearer $token'
+          'Authorization': 'Bearer $token'
         },
       );
 
-
       if (response.statusCode != 200) {
-        throw Exception('Failed to delete room: ${response.statusCode} - ${response.body}');
+        throw Exception(
+            'Failed to delete room: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
       throw Exception('Failed to delete room: $e');
     }
   }
 
-  
 // =======================
   // GET ALL ROOMS
   // =======================
- Future<List<HotelRoomModel>> getAllRooms() async {
-  final response = await http.get(
-    Uri.parse('$baseUrl/GetAllRooms'),
-    headers: _headers(),
-  );
+  Future<List<HotelRoomModel>> getAllRooms() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/GetAllRooms'),
+      headers: _headers(),
+    );
 
-  if (response.statusCode == 200) {
-    final body = jsonDecode(response.body);
-    final List rooms = body['rooms'];
-    return rooms.map((e) => HotelRoomModel.fromJson(e)).toList();
-  } else {
-    throw Exception(response.body);
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      final List rooms = body['rooms'];
+      return rooms.map((e) => HotelRoomModel.fromJson(e)).toList();
+    } else {
+      throw Exception(response.body);
+    }
   }
-}
-
 
   // =======================
   // GET ROOM BY ID
@@ -136,7 +131,6 @@ class ApiServiceRooms {
       throw Exception(response.body);
     }
   }
-
 
   // =======================
   // CREATE ROOM (MULTI IMAGE)
@@ -167,27 +161,26 @@ class ApiServiceRooms {
       'description': description,
       'facilities': facilities.join(','),
     });
-for (var img in images) {
-  if (kIsWeb) {
-    final bytes = await img.readAsBytes(); // ✅ correct
+    for (var img in images) {
+      if (kIsWeb) {
+        final bytes = await img.readAsBytes(); // ✅ correct
 
-    request.files.add(
-      http.MultipartFile.fromBytes(
-        'images',
-        bytes,
-        filename: img.name,
-      ),
-    );
-  } else {
-    request.files.add(
-      await http.MultipartFile.fromPath(
-        'images',
-        img.path,
-      ),
-    );
-  }
-}
-
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'images',
+            bytes,
+            filename: img.name,
+          ),
+        );
+      } else {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'images',
+            img.path,
+          ),
+        );
+      }
+    }
 
     final response = await request.send();
     if (response.statusCode != 201) {
@@ -267,5 +260,4 @@ for (var img in images) {
       throw Exception('Failed to delete room');
     }
   }
-  
 }
